@@ -82,137 +82,134 @@
     <div id="result" class="alert d-none" role="alert"></div>
   </div>
 
-  <script>
-  // 測試座標
-    const targetLat = 22.644269524152527;
-    const targetLng = 120.30640604418643;
-    const rangeMeters = 1000;
-  //新興分隊座標
-    // const targetLat = 22.630554822560363;
-    // const targetLng = 120.31129486887772;
+<script>
+  // 多個合法打卡座標
+  const targetLocations = [
+    { lat: 22.644269524152527, lng: 120.30640604418643 }, // 測試點
+    { lat: 22.630554822560363, lng: 120.31129486887772 }  // 新興分隊
+  ];
+  const rangeMeters = 1000;
 
-    function toRadians(deg) {
-      return deg * Math.PI / 180;
-    }
+  function toRadians(deg) {
+    return deg * Math.PI / 180;
+  }
 
-    function calculateDistance(lat1, lng1, lat2, lng2) {
-      const R = 6371000;
-      const dLat = toRadians(lat2 - lat1);
-      const dLng = toRadians(lng2 - lng1);
-      const a = Math.sin(dLat / 2) ** 2 +
-                Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
-                Math.sin(dLng / 2) ** 2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    }
+  function calculateDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const dLat = toRadians(lat2 - lat1);
+    const dLng = toRadians(lng2 - lng1);
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+              Math.sin(dLng / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
 
-    function isWithinDistance(lat, lng) {
-      const distance = calculateDistance(lat, lng, targetLat, targetLng);
-      return distance <= rangeMeters;
-    }
+  function isWithinDistance(lat, lng) {
+    return targetLocations.some(loc => calculateDistance(lat, lng, loc.lat, loc.lng) <= rangeMeters);
+  }
 
-    function isTrainingTimeValid() {
-      const now = new Date();
-      const minutes = now.getHours() * 60 + now.getMinutes();
-      return minutes >= 1170 && minutes <= 1230; // 19:30–20:30
-    }
+  function isTrainingTimeValid() {
+    const now = new Date();
+    const minutes = now.getHours() * 60 + now.getMinutes();
+    return minutes >= 1170 && minutes <= 1230; // 19:30–20:30
+  }
 
-    function updateLocationInfo(lat, lng) {
-      const distance = Math.round(calculateDistance(lat, lng, targetLat, targetLng));
-      $('#lat').text(lat.toFixed(6));
-      $('#lng').text(lng.toFixed(6));
-      $('#distance').text(distance);
-    }
+  function updateLocationInfo(lat, lng) {
+    let closestDistance = Infinity;
+    targetLocations.forEach(loc => {
+      const d = calculateDistance(lat, lng, loc.lat, loc.lng);
+      if (d < closestDistance) closestDistance = d;
+    });
 
-    function showResult(success, message) {
-      $('#result')
-        .removeClass('d-none alert-success alert-danger')
-        .addClass('alert ' + (success ? 'alert-success' : 'alert-danger'))
-        .text(message);
-    }
+    $('#lat').text(lat.toFixed(6));
+    $('#lng').text(lng.toFixed(6));
+    $('#distance').text(Math.round(closestDistance));
+  }
 
-    function finishPunchUI() {
+  function showResult(success, message) {
+    $('#result')
+      .removeClass('d-none alert-success alert-danger')
+      .addClass('alert ' + (success ? 'alert-success' : 'alert-danger'))
+      .text(message);
+  }
+
+  function submitPunch(name, position, type) {
+    $('#checkInBtn, #trainingBtn').prop('disabled', true);
+    showResult(true, '正在傳送打卡資料中，請稍候...');
+    $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>正在取得 GPS 座標...');
+
+    navigator.geolocation.getCurrentPosition(positionData => {
+      const lat = positionData.coords.latitude;
+      const lng = positionData.coords.longitude;
+      updateLocationInfo(lat, lng);
+      $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>已成功取得座標');
+
+      if (!isWithinDistance(lat, lng)) {
+        showResult(false, '您不在指定打卡範圍內');
+        $('#checkInBtn, #trainingBtn').prop('disabled', false);
+        return;
+      }
+
+      if (type === '常訓' && !isTrainingTimeValid()) {
+        showResult(false, '目前不在常訓打卡時段（19:30–20:30）');
+        $('#checkInBtn, #trainingBtn').prop('disabled', false);
+        return;
+      }
+
+      $.get(
+        'https://script.google.com/macros/s/AKfycbwSzS68B7hXWT0Fgy8CuZoUbzrY44fVg4sgtEm0VkWD_TFqQ_WZaIPv1IhoVEr1VqM/exec',
+        {
+          name: name,
+          type: type,
+          position: position
+        },
+        (response) => {
+          showResult(true, response);
+          $('#checkInBtn, #trainingBtn').prop('disabled', false);
+        }
+      ).fail(() => {
+        showResult(false, '無法連線至伺服器');
+        $('#checkInBtn, #trainingBtn').prop('disabled', false);
+      });
+
+    }, () => {
+      $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>無法取得 GPS 座標');
+      showResult(false, '無法取得 GPS 位置');
       $('#checkInBtn, #trainingBtn').prop('disabled', false);
-      $('#loadingSpinner').addClass('d-none');
-    }
-
-    function submitPunch(name, position, type) {
-      $('#checkInBtn, #trainingBtn').prop('disabled', true);
-      $('#loadingSpinner').removeClass('d-none');
-      showResult(true, '正在傳送打卡資料中，請稍候...');
-
-      $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>正在取得 GPS 座標...');
-      navigator.geolocation.getCurrentPosition(positionData => {
-        const lat = positionData.coords.latitude;
-        const lng = positionData.coords.longitude;
-        updateLocationInfo(lat, lng);
-        $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>已成功取得座標');
-
-        if (!isWithinDistance(lat, lng)) {
-          showResult(false, '您不在指定打卡範圍內');
-          finishPunchUI();
-          return;
-        }
-
-        if (type === '常訓' && !isTrainingTimeValid()) {
-          showResult(false, '目前不在常訓打卡時段（19:30–20:30）');
-          finishPunchUI();
-          return;
-        }
-
-        $.get(
-          'https://script.google.com/macros/s/AKfycbwSzS68B7hXWT0Fgy8CuZoUbzrY44fVg4sgtEm0VkWD_TFqQ_WZaIPv1IhoVEr1VqM/exec',
-          {
-            name: name,
-            type: type,
-            position: position
-          },
-          (response) => {
-            showResult(true, response);
-            finishPunchUI();
-          }
-        ).fail(() => {
-          showResult(false, '無法連線至伺服器');
-          finishPunchUI();
-        });
-
-      }, () => {
-        $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>無法取得 GPS 座標');
-        showResult(false, '無法取得 GPS 位置');
-        finishPunchUI();
-      });
-    }
-
-    $('#getLocationBtn').click(() => {
-      $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>正在取得 GPS 座標...');
-      navigator.geolocation.getCurrentPosition(position => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
-        updateLocationInfo(lat, lng);
-        $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>已成功取得座標');
-      }, () => {
-        $('#lat').text('無法取得');
-        $('#lng').text('無法取得');
-        $('#distance').text('--');
-        $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>無法取得 GPS 座標');
-      });
     });
+  }
 
-    $('#checkInBtn').click(() => {
-      const name = $('#name').val().trim();
-      const position = $('#position').val().trim();
-      if (!name) return showResult(false, '請輸入姓名');
-      if (!position) return showResult(false, '請選擇職稱');
-      submitPunch(name, position, '協勤');
+  $('#getLocationBtn').click(() => {
+    $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>正在取得 GPS 座標...');
+    navigator.geolocation.getCurrentPosition(position => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      updateLocationInfo(lat, lng);
+      $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>已成功取得座標');
+    }, () => {
+      $('#lat').text('無法取得');
+      $('#lng').text('無法取得');
+      $('#distance').text('--');
+      $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>無法取得 GPS 座標');
     });
+  });
 
-    $('#trainingBtn').click(() => {
-      const name = $('#name').val().trim();
-      const position = $('#position').val().trim();
-      if (!name) return showResult(false, '請輸入姓名');
-      if (!position) return showResult(false, '請選擇職稱');
-      submitPunch(name, position, '常訓');
-    });
-  </script>
+  $('#checkInBtn').click(() => {
+    const name = $('#name').val().trim();
+    const position = $('#position').val().trim();
+    if (!name) return showResult(false, '請輸入姓名');
+    if (!position) return showResult(false, '請選擇職稱');
+    submitPunch(name, position, '協勤');
+  });
+
+  $('#trainingBtn').click(() => {
+    const name = $('#name').val().trim();
+    const position = $('#position').val().trim();
+    if (!name) return showResult(false, '請輸入姓名');
+    if (!position) return showResult(false, '請選擇職稱');
+    submitPunch(name, position, '常訓');
+  });
+</script>
 </body>
 </html>
