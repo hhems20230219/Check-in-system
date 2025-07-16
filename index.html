@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>高雄市義勇消防總隊第一救護大隊新興分隊打卡系統</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome 圖示 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" crossorigin="anonymous" />
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+</head>
+<body class="bg-light">
+  <div class="container mt-5">
+
+    <!-- 系統標題 -->
+    <h3 class="text-center mb-4">
+      <i class="fas fa-fire-extinguisher text-danger me-2"></i>
+      高雄市義勇消防總隊第一救護大隊新興分隊打卡系統
+    </h3>
+
+    <!-- 姓名輸入欄 -->
+    <div class="mb-3">
+      <label for="name" class="form-label">
+        <i class="fas fa-user me-1"></i>姓名
+      </label>
+      <input type="text" id="name" class="form-control" placeholder="請輸入您的姓名">
+    </div>
+
+    <!-- GPS 取得按鈕 -->
+    <div class="mb-3">
+      <button id="getLocationBtn" class="btn btn-outline-secondary">
+        <i class="fas fa-location-crosshairs me-1"></i>取得目前位置
+      </button>
+    </div>
+
+    <!-- GPS 狀態提示 -->
+    <div id="gpsStatus" class="text-muted mb-2">
+      <i class="fas fa-satellite me-1"></i>尚未取得 GPS 座標
+    </div>
+
+    <!-- 顯示目前位置資訊與距離 -->
+    <div id="locationInfo" class="mb-4">
+      <p><i class="fas fa-globe-asia me-1"></i>經度：<span id="lng">--</span></p>
+      <p><i class="fas fa-globe-asia me-1"></i>緯度：<span id="lat">--</span></p>
+      <p><i class="fas fa-ruler-horizontal me-1"></i>與打卡地點距離：<span id="distance">--</span> 公尺</p>
+    </div>
+
+    <!-- 出勤與常訓打卡按鈕 -->
+    <div class="d-grid gap-2 mb-3">
+      <button id="checkInBtn" class="btn btn-success btn-lg">
+        <i class="fas fa-briefcase me-1"></i>出勤打卡
+      </button>
+      <button id="trainingBtn" class="btn btn-primary btn-lg">
+        <i class="fas fa-dumbbell me-1"></i>常訓打卡
+      </button>
+    </div>
+
+    <!-- 顯示打卡結果訊息 -->
+    <div id="result" class="alert d-none" role="alert"></div>
+  </div>
+
+  <script>
+    // ★ 打卡地點 GPS 定位座標（新興分隊位置）
+    const targetLat = 22.630059;
+    const targetLng = 120.313964;
+    const rangeMeters = 200; // 打卡有效距離為 50 公尺
+
+    // ★ 弧度轉換（角度轉弧度）
+    function toRadians(deg) {
+      return deg * Math.PI / 180;
+    }
+
+    // ★ 計算兩組 GPS 座標之間的距離（公尺）
+    function calculateDistance(lat1, lng1, lat2, lng2) {
+      const R = 6371000; // 地球半徑 (公尺)
+      const dLat = toRadians(lat2 - lat1);
+      const dLng = toRadians(lng2 - lng1);
+      const a = Math.sin(dLat / 2) ** 2 +
+                Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+                Math.sin(dLng / 2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+
+    // ★ 判斷是否在打卡有效範圍內
+    function isWithinDistance(lat, lng) {
+      const distance = calculateDistance(lat, lng, targetLat, targetLng);
+      return distance <= rangeMeters;
+    }
+
+    // ★ 判斷常訓是否在有效打卡時間（19:30 ~ 20:30）
+    function isTrainingTimeValid() {
+      const now = new Date();
+      const minutes = now.getHours() * 60 + now.getMinutes();
+      return minutes >= 1170 && minutes <= 1230; // 1170 = 19*60+30, 1230 = 20*60+30
+    }
+
+    // ★ 顯示經緯度與距離
+    function updateLocationInfo(lat, lng) {
+      const distance = Math.round(calculateDistance(lat, lng, targetLat, targetLng));
+      $('#lat').text(lat.toFixed(6));
+      $('#lng').text(lng.toFixed(6));
+      $('#distance').text(distance);
+    }
+
+    // ★ 顯示打卡結果訊息
+    function showResult(success, message) {
+      $('#result')
+        .removeClass('d-none alert-success alert-danger')
+        .addClass('alert ' + (success ? 'alert-success' : 'alert-danger'))
+        .text(message);
+    }
+
+    // ★ 傳送打卡請求並驗證 GPS 與時間
+    function submitPunch(name, type) {
+      $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>正在取得 GPS 座標...');
+      navigator.geolocation.getCurrentPosition(position => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        updateLocationInfo(lat, lng);
+        $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>已成功取得座標');
+
+        if (!isWithinDistance(lat, lng)) {
+          showResult(false, '您不在指定打卡範圍內');
+          return;
+        }
+
+        if (type === '常訓' && !isTrainingTimeValid()) {
+          showResult(false, '目前不在常訓打卡時段（19:30–20:30）');
+          return;
+        }
+
+        // ★ 傳送資料至 Google Apps Script
+        $.post(
+          'https://script.google.com/macros/s/你的部署網址/exec',
+          { name: name, type: type },
+          () => showResult(true, '打卡成功')
+        ).fail(() => {
+          showResult(false, '無法連線至伺服器');
+        });
+
+      }, () => {
+        $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>無法取得 GPS 座標');
+        showResult(false, '無法取得 GPS 位置');
+      });
+    }
+
+    // ★ 點擊「取得位置」按鈕
+    $('#getLocationBtn').click(() => {
+      $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>正在取得 GPS 座標...');
+      navigator.geolocation.getCurrentPosition(position => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        updateLocationInfo(lat, lng);
+        $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>已成功取得座標');
+      }, () => {
+        $('#lat').text('無法取得');
+        $('#lng').text('無法取得');
+        $('#distance').text('--');
+        $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>無法取得 GPS 座標');
+      });
+    });
+
+    // ★ 出勤打卡按鈕點擊
+    $('#checkInBtn').click(() => {
+      const name = $('#name').val().trim();
+      if (!name) return showResult(false, '請輸入姓名');
+      submitPunch(name, '出勤');
+    });
+
+    // ★ 常訓打卡按鈕點擊
+    $('#trainingBtn').click(() => {
+      const name = $('#name').val().trim();
+      if (!name) return showResult(false, '請輸入姓名');
+      submitPunch(name, '常訓');
+    });
+  </script>
+</body>
+</html>
