@@ -107,7 +107,7 @@
   </div>
 
   <script>
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbyD4_cCCGy2V-pwHGJ07LzvC_x2dYEBU1z9_n19eEH5gt1yJlM3fWh9bmhX63Kn43kg/exec';
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbwoDXLxBe1K0u5C29jNvDdaQSHYKzS5MzkvrW-10w6Z7jrkExj8t2y4Um24_rHS5Orm/exec';
 
     const targetLocations = [
       { lat: 22.644269524152527, lng: 120.30640604418643 },
@@ -196,20 +196,20 @@
       });
     }
 
-    $('#checkInBtn').click(()=>{
-      const n=$('#name').val().trim(),
-            p=$('#position').val().trim();
-      if(!n) return showResult(false,'請輸入姓名');
-      if(!p) return showResult(false,'請選擇職稱');
-      submitPunch(n,p,'協勤');
+    $('#checkInBtn').click(() => {
+      const n = $('#name').val().trim();
+      const p = $('#position').val();
+      if (!n) return showResult(false, '請輸入姓名');
+      if (!p) return showResult(false, '請選擇職稱');
+      submitPunch(n, p, '協勤');
     });
-
-    $('#trainingBtn').click(()=>{
-      const n=$('#name').val().trim(),
-            p=$('#position').val().trim();
-      if(!n) return showResult(false,'請輸入姓名');
-      if(!p) return showResult(false,'請選擇職稱');
-      submitPunch(n,p,'常訓');
+    
+    $('#trainingBtn').click(() => {
+      const n = $('#name').val().trim();
+      const p = $('#position').val();
+      if (!n) return showResult(false, '請輸入姓名');
+      if (!p) return showResult(false, '請選擇職稱');
+      submitPunch(n, p, '常訓');
     });
 
     $('#getLocationBtn').click(()=>{
