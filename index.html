@@ -19,12 +19,21 @@
       高雄市義勇消防總隊第一救護大隊新興分隊報到系統
     </h3>
 
-    <!-- 職稱輸入欄 -->
+    <!-- 職稱下拉式選單 -->
     <div class="mb-3">
       <label for="position" class="form-label">
         <i class="fas fa-id-badge me-1"></i>職稱
       </label>
-      <input type="text" id="position" class="form-control" placeholder="請輸入您的職稱">
+      <select id="position" class="form-select" required>
+        <option value="" disabled selected>請選擇您的職稱</option>
+        <option value="分隊長">分隊長</option>
+        <option value="副分隊長">副分隊長</option>
+        <option value="幹事">幹事</option>
+        <option value="助理幹事">助理幹事</option>
+        <option value="小隊長">小隊長</option>
+        <option value="副小隊長">副小隊長</option>
+        <option value="隊員">隊員</option>
+      </select>
     </div>
 
     <!-- 姓名輸入欄 -->
