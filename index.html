@@ -13,12 +13,19 @@
 </head>
 <body class="bg-light">
   <div class="container mt-5">
-
     <!-- 系統標題 -->
     <h3 class="text-center mb-4">
       <i class="fas fa-fire-extinguisher text-danger me-2"></i>
       高雄市義勇消防總隊第一救護大隊新興分隊打卡系統
     </h3>
+
+    <!-- 職稱輸入欄 -->
+    <div class="mb-3">
+      <label for="position" class="form-label">
+        <i class="fas fa-id-badge me-1"></i>職稱
+      </label>
+      <input type="text" id="position" class="form-control" placeholder="請輸入您的職稱">
+    </div>
 
     <!-- 姓名輸入欄 -->
     <div class="mb-3">
@@ -62,19 +69,16 @@
   </div>
 
   <script>
-    // ★ 打卡地點 GPS 定位座標（新興分隊位置）
     const targetLat = 22.630059;
     const targetLng = 120.313964;
-    const rangeMeters = 200; // 打卡有效距離為 50 公尺
+    const rangeMeters = 200;
 
-    // ★ 弧度轉換（角度轉弧度）
     function toRadians(deg) {
       return deg * Math.PI / 180;
     }
 
-    // ★ 計算兩組 GPS 座標之間的距離（公尺）
     function calculateDistance(lat1, lng1, lat2, lng2) {
-      const R = 6371000; // 地球半徑 (公尺)
+      const R = 6371000;
       const dLat = toRadians(lat2 - lat1);
       const dLng = toRadians(lng2 - lng1);
       const a = Math.sin(dLat / 2) ** 2 +
@@ -84,20 +88,17 @@
       return R * c;
     }
 
-    // ★ 判斷是否在打卡有效範圍內
     function isWithinDistance(lat, lng) {
       const distance = calculateDistance(lat, lng, targetLat, targetLng);
       return distance <= rangeMeters;
     }
 
-    // ★ 判斷常訓是否在有效打卡時間（19:30 ~ 20:30）
     function isTrainingTimeValid() {
       const now = new Date();
       const minutes = now.getHours() * 60 + now.getMinutes();
-      return minutes >= 1170 && minutes <= 1230; // 1170 = 19*60+30, 1230 = 20*60+30
+      return minutes >= 1170 && minutes <= 1230;
     }
 
-    // ★ 顯示經緯度與距離
     function updateLocationInfo(lat, lng) {
       const distance = Math.round(calculateDistance(lat, lng, targetLat, targetLng));
       $('#lat').text(lat.toFixed(6));
@@ -105,7 +106,6 @@
       $('#distance').text(distance);
     }
 
-    // ★ 顯示打卡結果訊息
     function showResult(success, message) {
       $('#result')
         .removeClass('d-none alert-success alert-danger')
@@ -113,12 +113,11 @@
         .text(message);
     }
 
-    // ★ 傳送打卡請求並驗證 GPS 與時間
-    function submitPunch(name, type) {
+    function submitPunch(name, position, type) {
       $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>正在取得 GPS 座標...');
-      navigator.geolocation.getCurrentPosition(position => {
-        const lat = position.coords.latitude;
-        const lng = position.coords.longitude;
+      navigator.geolocation.getCurrentPosition(positionData => {
+        const lat = positionData.coords.latitude;
+        const lng = positionData.coords.longitude;
         updateLocationInfo(lat, lng);
         $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>已成功取得座標');
 
@@ -132,10 +131,14 @@
           return;
         }
 
-        // ★ 傳送資料至 Google Apps Script
+        // ✅ 傳送資料至 Google Apps Script
         $.post(
           'https://script.google.com/macros/s/你的部署網址/exec',
-          { name: name, type: type },
+          {
+            name: name,
+            type: type,
+            position: position
+          },
           () => showResult(true, '打卡成功')
         ).fail(() => {
           showResult(false, '無法連線至伺服器');
@@ -147,7 +150,6 @@
       });
     }
 
-    // ★ 點擊「取得位置」按鈕
     $('#getLocationBtn').click(() => {
       $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>正在取得 GPS 座標...');
       navigator.geolocation.getCurrentPosition(position => {
@@ -163,18 +165,20 @@
       });
     });
 
-    // ★ 出勤打卡按鈕點擊
     $('#checkInBtn').click(() => {
       const name = $('#name').val().trim();
+      const position = $('#position').val().trim();
       if (!name) return showResult(false, '請輸入姓名');
-      submitPunch(name, '出勤');
+      if (!position) return showResult(false, '請輸入職稱');
+      submitPunch(name, position, '出勤');
     });
 
-    // ★ 常訓打卡按鈕點擊
     $('#trainingBtn').click(() => {
       const name = $('#name').val().trim();
+      const position = $('#position').val().trim();
       if (!name) return showResult(false, '請輸入姓名');
-      submitPunch(name, '常訓');
+      if (!position) return showResult(false, '請輸入職稱');
+      submitPunch(name, position, '常訓');
     });
   </script>
 </body>
