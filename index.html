@@ -63,7 +63,7 @@
     <!-- 打卡按鈕 -->
     <div class="d-grid gap-2 mb-3">
       <button id="checkInBtn" class="btn btn-success btn-lg">
-        <i class="fas fa-briefcase me-1"></i>出勤打卡
+        <i class="fas fa-briefcase me-1"></i>協勤打卡
       </button>
       <button id="trainingBtn" class="btn btn-primary btn-lg">
         <i class="fas fa-dumbbell me-1"></i>常訓打卡
@@ -181,7 +181,7 @@
       const position = $('#position').val().trim();
       if (!name) return showResult(false, '請輸入姓名');
       if (!position) return showResult(false, '請選擇職稱');
-      submitPunch(name, position, '出勤');
+      submitPunch(name, position, '協勤');
     });
 
     $('#trainingBtn').click(() => {
