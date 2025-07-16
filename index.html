@@ -107,10 +107,8 @@
   </div>
 
   <script>
-    // GAS 網址常數
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbyamwghv4p-vbcBfPVZFOvB7RSXyGWg3KwpPw3-EdcWk6KUUyohbXlB25Mpfsle5fOf/exec';
 
-    // 多個合法打卡座標
     const targetLocations = [
       { lat: 22.644269524152527, lng: 120.30640604418643 },
       { lat: 22.630554822560363, lng: 120.31129486887772 }
@@ -224,46 +222,46 @@
       });
     });
 
-  $('#queryBtn').click(() => {
-    const name = $('#name').val().trim();
-    if (!name) return showResult(false, '請輸入姓名才能查詢');
-  
-    $('#result').addClass('d-none');
-    $('#recordTable').addClass('d-none');
-    $('#recordBody').empty(); // ✅ 確保清空
-    $('#loadingSpinner').removeClass('d-none'); // 可選，加入 loading 效果
-  
-    $.get(GAS_URL, { name, query: 1 }, response => {
-      $('#loadingSpinner').addClass('d-none');
-      let data;
-      try {
-        data = typeof response === 'string' ? JSON.parse(response) : response;
-      } catch {
-        return showResult(false, '伺服器回傳格式錯誤');
-      }
-  
-      if (data.length === 0) {
-        return showResult(false, '本月無紀錄');
-      }
-  
-      $('#recordBody').empty(); // ✅ 再次保險清空
-      data.forEach(r => {
-        $('#recordBody').append(`
-          <tr>
-            <td>${r.position}</td>
-            <td>${r.name}</td>
-            <td>${r.startTime}</td>
-            <td>${r.endTime}</td>
-            <td>${r.type}</td>
-            <td>${r.duration}</td>
-          </tr>`);
+    $('#queryBtn').click(() => {
+      const name = $('#name').val().trim();
+      if (!name) return showResult(false, '請輸入姓名才能查詢');
+
+      $('#result').addClass('d-none');
+      $('#recordTable').addClass('d-none');
+      $('#recordBody').empty();
+      $('#loadingSpinner').removeClass('d-none');
+
+      $.get(GAS_URL, { name, query: 1 }, response => {
+        $('#loadingSpinner').addClass('d-none');
+        let data;
+        try {
+          data = typeof response === 'string' ? JSON.parse(response) : response;
+        } catch {
+          return showResult(false, '伺服器回傳格式錯誤');
+        }
+
+        if (data.length === 0) {
+          return showResult(false, '本月無紀錄');
+        }
+
+        $('#recordBody').empty();
+        data.forEach(r => {
+          $('#recordBody').append(`
+            <tr>
+              <td>${r.position}</td>
+              <td>${r.name}</td>
+              <td>${r.startTime}</td>
+              <td>${r.endTime}</td>
+              <td>${r.type}</td>
+              <td>${r.duration}</td>
+            </tr>`);
+        });
+        $('#recordTable').removeClass('d-none');
+      }).fail(() => {
+        $('#loadingSpinner').addClass('d-none');
+        showResult(false, '查詢失敗');
       });
-      $('#recordTable').removeClass('d-none');
-    }).fail(() => {
-      $('#loadingSpinner').addClass('d-none');
-      showResult(false, '查詢失敗');
     });
-  });
   </script>
 </body>
 </html>
