@@ -2,21 +2,18 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>高雄市義勇消防總隊第一救護大隊新興分隊報到系統</title>
+  <title>高雄市義勇消防總隊第一救護大隊新興分隊打卡系統</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Bootstrap 5 CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Font Awesome 圖示 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" crossorigin="anonymous" />
-  <!-- jQuery -->
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 </head>
 <body class="bg-light">
   <div class="container mt-5">
-    <!-- 系統標題 -->
+
     <h3 class="text-center mb-4">
       <i class="fas fa-fire-extinguisher text-danger me-2"></i>
-      高雄市義勇消防總隊第一救護大隊新興分隊報到系統
+      高雄市義勇消防總隊第一救護大隊新興分隊打卡系統
     </h3>
 
     <!-- 職稱下拉式選單 -->
@@ -36,7 +33,7 @@
       </select>
     </div>
 
-    <!-- 姓名輸入欄 -->
+    <!-- 姓名輸入 -->
     <div class="mb-3">
       <label for="name" class="form-label">
         <i class="fas fa-user me-1"></i>姓名
@@ -44,26 +41,26 @@
       <input type="text" id="name" class="form-control" placeholder="請輸入您的姓名">
     </div>
 
-    <!-- GPS 取得按鈕 -->
+    <!-- 取得 GPS 按鈕 -->
     <div class="mb-3">
       <button id="getLocationBtn" class="btn btn-outline-secondary">
         <i class="fas fa-location-crosshairs me-1"></i>取得目前位置
       </button>
     </div>
 
-    <!-- GPS 狀態提示 -->
+    <!-- GPS 狀態 -->
     <div id="gpsStatus" class="text-muted mb-2">
       <i class="fas fa-satellite me-1"></i>尚未取得 GPS 座標
     </div>
 
-    <!-- 顯示目前位置資訊與距離 -->
+    <!-- GPS 資訊顯示 -->
     <div id="locationInfo" class="mb-4">
       <p><i class="fas fa-globe-asia me-1"></i>經度：<span id="lng">--</span></p>
       <p><i class="fas fa-globe-asia me-1"></i>緯度：<span id="lat">--</span></p>
       <p><i class="fas fa-ruler-horizontal me-1"></i>與打卡地點距離：<span id="distance">--</span> 公尺</p>
     </div>
 
-    <!-- 出勤與常訓打卡按鈕 -->
+    <!-- 打卡按鈕 -->
     <div class="d-grid gap-2 mb-3">
       <button id="checkInBtn" class="btn btn-success btn-lg">
         <i class="fas fa-briefcase me-1"></i>出勤打卡
@@ -73,7 +70,7 @@
       </button>
     </div>
 
-    <!-- 顯示打卡結果訊息 -->
+    <!-- 打卡結果 -->
     <div id="result" class="alert d-none" role="alert"></div>
   </div>
 
@@ -86,6 +83,7 @@
     //新興分隊座標
     // const targetLat = 22.630554822560363;
     // const targetLng = 120.31129486887772;
+    const rangeMeters = 200;
 
     function toRadians(deg) {
       return deg * Math.PI / 180;
@@ -110,7 +108,7 @@
     function isTrainingTimeValid() {
       const now = new Date();
       const minutes = now.getHours() * 60 + now.getMinutes();
-      return minutes >= 1170 && minutes <= 1230;
+      return minutes >= 1170 && minutes <= 1230; // 19:30–20:30
     }
 
     function updateLocationInfo(lat, lng) {
@@ -145,15 +143,15 @@
           return;
         }
 
-        // ✅ 傳送資料至 Google Apps Script
-        $.post(
+        // ✅ 使用 GET 傳送資料（解決 CORS 問題）
+        $.get(
           'https://script.google.com/macros/s/AKfycbzIsHxzAs3i2AqumcDCqLwoCSSR4MVBmBUGiO-9m3udMsA_PK0HGBIwu42B4Knz8eXC/exec',
           {
             name: name,
             type: type,
             position: position
           },
-          () => showResult(true, '打卡成功')
+          (response) => showResult(true, response)
         ).fail(() => {
           showResult(false, '無法連線至伺服器');
         });
@@ -183,7 +181,7 @@
       const name = $('#name').val().trim();
       const position = $('#position').val().trim();
       if (!name) return showResult(false, '請輸入姓名');
-      if (!position) return showResult(false, '請輸入職稱');
+      if (!position) return showResult(false, '請選擇職稱');
       submitPunch(name, position, '出勤');
     });
 
@@ -191,7 +189,7 @@
       const name = $('#name').val().trim();
       const position = $('#position').val().trim();
       if (!name) return showResult(false, '請輸入姓名');
-      if (!position) return showResult(false, '請輸入職稱');
+      if (!position) return showResult(false, '請選擇職稱');
       submitPunch(name, position, '常訓');
     });
   </script>
