@@ -63,11 +63,19 @@
     <!-- 打卡按鈕 -->
     <div class="d-grid gap-2 mb-3">
       <button id="checkInBtn" class="btn btn-success btn-lg">
-        <i class="fas fa-briefcase me-1"></i>協勤打卡
+        <i class="fas fa-briefcase me-1"></i>協勤簽到/簽退
       </button>
       <button id="trainingBtn" class="btn btn-primary btn-lg">
-        <i class="fas fa-dumbbell me-1"></i>常訓打卡
+        <i class="fas fa-dumbbell me-1"></i>常訓簽到/簽退
       </button>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="text-center my-3 d-none">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">載入中...</span>
+      </div>
+      <div class="mt-2 text-primary">資料傳送中，請稍候...</div>
     </div>
 
     <!-- 打卡結果 -->
@@ -75,12 +83,11 @@
   </div>
 
   <script>
-    // 測試座標
+  // 測試座標
     const targetLat = 22.644269524152527;
     const targetLng = 120.30640604418643;
     const rangeMeters = 1000;
-
-    //新興分隊座標
+  //新興分隊座標
     // const targetLat = 22.630554822560363;
     // const targetLng = 120.31129486887772;
 
@@ -124,7 +131,16 @@
         .text(message);
     }
 
+    function finishPunchUI() {
+      $('#checkInBtn, #trainingBtn').prop('disabled', false);
+      $('#loadingSpinner').addClass('d-none');
+    }
+
     function submitPunch(name, position, type) {
+      $('#checkInBtn, #trainingBtn').prop('disabled', true);
+      $('#loadingSpinner').removeClass('d-none');
+      showResult(true, '正在傳送打卡資料中，請稍候...');
+
       $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>正在取得 GPS 座標...');
       navigator.geolocation.getCurrentPosition(positionData => {
         const lat = positionData.coords.latitude;
@@ -134,15 +150,16 @@
 
         if (!isWithinDistance(lat, lng)) {
           showResult(false, '您不在指定打卡範圍內');
+          finishPunchUI();
           return;
         }
 
         if (type === '常訓' && !isTrainingTimeValid()) {
           showResult(false, '目前不在常訓打卡時段（19:30–20:30）');
+          finishPunchUI();
           return;
         }
 
-        // ✅ 使用 GET 傳送資料（解決 CORS 問題）
         $.get(
           'https://script.google.com/macros/s/AKfycbwSzS68B7hXWT0Fgy8CuZoUbzrY44fVg4sgtEm0VkWD_TFqQ_WZaIPv1IhoVEr1VqM/exec',
           {
@@ -150,14 +167,19 @@
             type: type,
             position: position
           },
-          (response) => showResult(true, response)
+          (response) => {
+            showResult(true, response);
+            finishPunchUI();
+          }
         ).fail(() => {
           showResult(false, '無法連線至伺服器');
+          finishPunchUI();
         });
 
       }, () => {
         $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>無法取得 GPS 座標');
         showResult(false, '無法取得 GPS 位置');
+        finishPunchUI();
       });
     }
 
