@@ -8,7 +8,6 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" crossorigin="anonymous" />
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.min.js"></script>
 </head>
 <body class="bg-light">
   <div class="container mt-5">
@@ -123,28 +122,8 @@
     </div>
   </div>
 
-  <!-- 匯出區塊 -->
-  <div class="card mb-4">
-    <div class="card-body">
-      <h5 class="card-title">
-        <i class="fas fa-file-word me-2"></i>匯出整月 Word 打卡紀錄
-      </h5>
-      <div class="row g-2 align-items-center">
-        <div class="col-md-4">
-          <label for="monthSelect" class="form-label">選擇月份</label>
-          <input type="month" id="monthSelect" class="form-control" value="2025-07">
-        </div>
-        <div class="col-md-4 mt-3 mt-md-0">
-          <button id="exportBtn" class="btn btn-outline-primary w-100">
-            <i class="fas fa-download me-1"></i>匯出 Word
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <script>
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbyGpp0ulXCAVLGniIWNiwjXeD622VH6yRIx7Aa6AYBWEl4PQ2t_jMX79rnb0h0VgyAe/exec';
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbyK5Z5KFHuNxHmtBQqVtTdI0UF8t57njTaMaTzcLtlOlP2zIwftUdrvXRXv_x0rf6Gl/exec';
 
     const targetLocations = [
       { lat: 22.644269524152527, lng: 120.30640604418643 },
@@ -300,88 +279,6 @@
         showResult(false, '查詢失敗');
       });
     });
-
-    $('#exportBtn').click(() => {
-  const selectedMonth = $('#monthSelect').val(); // 格式為 YYYY-MM
-  if (!selectedMonth) return showResult(false, '請選擇月份');
-
-  $('#loadingSpinner').removeClass('d-none');
-  showResult(true, '正在產生 Word 檔...');
-
-  $.get(GAS_URL, { export: 1, month: selectedMonth }, async res => {
-    $('#loadingSpinner').addClass('d-none');
-
-    let data;
-    try {
-      data = typeof res === 'string' ? JSON.parse(res) : res;
-    } catch {
-      return showResult(false, '資料格式錯誤');
-    }
-
-    if (data.length === 0) {
-      return showResult(false, '該月份無紀錄');
-    }
-
-    const { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, AlignmentType, WidthType } = window.docx;
-
-    // 表格列資料
-    const rows = [
-      new TableRow({
-        children: ['職稱', '姓名', '日期', '簽到', '簽退', '協勤內容'].map(text =>
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text, bold: true })] })] })
-        )
-      }),
-      ...data.map(r => {
-        const [datePart] = r.startTime.split(' ');
-        const signIn = r.startTime.split(' ')[1]?.replace(':', '時') + '分';
-        const signOut = r.endTime?.split(' ')[1]?.replace(':', '時') + '分' || '--';
-
-        return new TableRow({
-          children: [
-            r.position, r.name,
-            new Date(datePart).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' }),
-            signIn, signOut, r.type
-          ].map(text =>
-            new TableCell({
-              children: [new Paragraph({ children: [new TextRun(text)] })]
-            })
-          )
-        });
-      })
-    ];
-
-    const doc = new Document({
-      sections: [{
-        children: [
-          new Paragraph({
-            text: `高雄市義勇消防總隊第一救護大隊新興分隊\n${selectedMonth.replace('-', '年')}月打卡紀錄`,
-            alignment: AlignmentType.CENTER,
-            heading: "HEADING_1"
-          }),
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            rows
-          })
-        ]
-      }]
-    });
-
-    const blob = await Packer.toBlob(doc);
-    const fileName = `新興分隊_${selectedMonth.replace('-', '_')}_打卡紀錄.docx`;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
-    showResult(true, 'Word 檔已產生');
-
-  }).fail(() => {
-    $('#loadingSpinner').addClass('d-none');
-    showResult(false, '無法連線至伺服器');
-  });
-});
-
   </script>
 </body>
 </html>
