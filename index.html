@@ -124,15 +124,15 @@
 
   <script>
     const GAS_URL = 'https://script.google.com/macros/s/AKfycby-UvZHQuYGH6zohG5DZZY8d4ZwOR-aFogdQa7425XbOk3_1qo_vZcWwN5F8zBhp46Q/exec';
-    
+
     const targetLocations = [
       { lat: 22.644269524152527, lng: 120.30640604418643 },
       { lat: 22.630554822560363, lng: 120.31129486887772 }
     ];
     const rangeMeters = 1000;
-    
+
     function toRadians(deg) { return deg * Math.PI / 180; }
-    
+
     function calculateDistance(lat1, lng1, lat2, lng2) {
       const R = 6371000;
       const dLat = toRadians(lat2 - lat1);
@@ -142,19 +142,19 @@
                 Math.sin(dLng/2)**2;
       return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     }
-    
+
     function isWithinDistance(lat, lng) {
       return targetLocations.some(loc =>
         calculateDistance(lat, lng, loc.lat, loc.lng) <= rangeMeters
       );
     }
-    
+
     function isTrainingTimeValid() {
       const now = new Date();
       const m = now.getHours()*60 + now.getMinutes();
       return m >= 1170 && m <= 1230; // 19:30–20:30
     }
-    
+
     function updateLocationInfo(lat, lng) {
       let closest = Infinity;
       targetLocations.forEach(loc => {
@@ -165,73 +165,53 @@
       $('#lng').text(lng.toFixed(6));
       $('#distance').text(Math.round(closest));
     }
-    
+
     function showResult(ok, msg) {
       $('#result')
         .removeClass('d-none alert-success alert-danger')
         .addClass('alert ' + (ok ? 'alert-success' : 'alert-danger'))
         .text(msg);
     }
-    
+
     function finishUI() {
       $('#checkInBtn, #trainingBtn').prop('disabled', false);
       $('#loadingSpinner').addClass('d-none');
     }
-    
-    function sendPunchRequest(name, position, type) {
-      $.get(GAS_URL, { name, type, position }, res => {
-        showResult(true, res);
-        finishUI();
-      }).fail(() => {
-        showResult(false, '伺服器連線失敗');
-        finishUI();
-      });
-    }
-    
+
     function submitPunch(name, position, type) {
       $('#checkInBtn, #trainingBtn').prop('disabled', true);
       $('#loadingSpinner').removeClass('d-none');
       showResult(true, '正在傳送打卡資料中...');
       $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>正在取得 GPS 座標…');
-    
+
       navigator.geolocation.getCurrentPosition(pos => {
         const lat = pos.coords.latitude, lng = pos.coords.longitude;
         updateLocationInfo(lat, lng);
         $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>已取得座標');
-    
+
         if (!isWithinDistance(lat, lng)) {
           showResult(false, '您不在指定範圍內');
           return finishUI();
         }
-    
-        if (type === '常訓' && !isTrainingTimeValid()) {
+        if (type==='常訓' && !isTrainingTimeValid()) {
           showResult(false, '目前不在常訓時段');
           return finishUI();
         }
-    
-        if (type === '協勤') {
-          // 加入簽退確認流程
-          $.get(GAS_URL, { name, action: 'checkSignOut' }, res => {
-            if (res === '1') {
-              if (!confirm("系統偵測您可能要簽退，是否確認簽退？")) {
-                showResult(false, '您已取消簽退操作');
-                return finishUI();
-              }
-            }
-            sendPunchRequest(name, position, type);
-          }).fail(() => {
-            showResult(false, '簽退狀態檢查失敗');
-            finishUI();
-          });
-        } else {
-          sendPunchRequest(name, position, type);
-        }
+
+        $.get(GAS_URL, { name, type, position }, res => {
+          showResult(true, res);
+          finishUI();
+        }).fail(() => {
+          showResult(false, '伺服器連線失敗');
+          finishUI();
+        });
+
       }, () => {
         showResult(false, '無法取得 GPS');
         finishUI();
       });
     }
-    
+
     $('#checkInBtn').click(() => {
       const n = $('#name').val().trim();
       const p = $('#position').val();
@@ -247,14 +227,56 @@
       if (!p) return showResult(false, '請選擇職稱');
       submitPunch(n, p, '常訓');
     });
-    
-    $('#getLocationBtn').click(() => {
+
+    $('#getLocationBtn').click(()=>{
       $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>正在取得 GPS 座標…');
-      navigator.geolocation.getCurrentPosition(pos => {
+      navigator.geolocation.getCurrentPosition(pos=>{
         updateLocationInfo(pos.coords.latitude, pos.coords.longitude);
         $('#gpsStatus').html('<i class="fas fa-satellite me-1"></i>已取得座標');
-      }, () => {
-        showResult(false, '無法取得 GPS');
+      },()=>{
+        showResult(false,'無法取得 GPS');
+      });
+    });
+
+    $('#queryBtn').click(() => {
+      const name = $('#name').val().trim();
+      if (!name) return showResult(false, '請輸入姓名才能查詢');
+    
+      $('#result').addClass('d-none');
+      $('#recordBodyModal').empty();
+      $('#loadingSpinner').removeClass('d-none');
+    
+      $.get(GAS_URL, { name, query: 1 }, response => {
+        $('#loadingSpinner').addClass('d-none');
+        let data;
+        try {
+          data = typeof response === 'string' ? JSON.parse(response) : response;
+        } catch {
+          return showResult(false, '伺服器回傳格式錯誤');
+        }
+    
+        if (data.length === 0) {
+          return showResult(false, '本月無紀錄');
+        }
+    
+        $('#recordBodyModal').empty();
+        data.forEach(r => {
+          $('#recordBodyModal').append(
+            <tr>
+              <td>${r.position}</td>
+              <td>${r.name}</td>
+              <td>${r.startTime}</td>
+              <td>${r.endTime}</td>
+              <td>${r.type}</td>
+              <td>${r.duration}</td>
+            </tr>);
+        });
+    
+        const modal = new bootstrap.Modal(document.getElementById('recordModal'));
+        modal.show();
+      }).fail(() => {
+        $('#loadingSpinner').addClass('d-none');
+        showResult(false, '查詢失敗');
       });
     });
   </script>
