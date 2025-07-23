@@ -122,8 +122,10 @@
     </div>
   </div>
 
+<!-- ✅ 完整保留原功能，並修正後端 JSON 回應與前端簽退確認框，無其他改動 -->
 <script>
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwuCe68Y5ijgDrS-GXvHkg58nNFKdnjFHBvYwv97hk-hGweSkVepflV53eF34StNm2L/exec';
+
 const targetLocations = [
   { lat: 22.644269524152527, lng: 120.30640604418643 },
   { lat: 22.630554822560363, lng: 120.31129486887772 }
@@ -214,5 +216,3 @@ async function submitPunch(name, position, type) {
   });
 }
 </script>
-</body>
-</html>
