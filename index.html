@@ -123,7 +123,7 @@
   </div>
 
   <script>
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzISPby2aC--yvTSHZfQZhc75GAoXFL8Sd2Haj4_nUmWkaWsHmTvpP0A9CQOMhaehln/exec';
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbxrsHM0srkCv8Mgn_PrEQjSJLtZlYGOCwF1TEPEYYiYVwfT12Jyo9aJ6zzUkjPJb0P0/exec';
 
     const targetLocations = [
       { lat: 22.644269524152527, lng: 120.30640604418643 },
@@ -261,7 +261,7 @@
     
         $('#recordBodyModal').empty();
         data.forEach(r => {
-          $('#recordBodyModal').append(
+          $('#recordBodyModal').append(`
             <tr>
               <td>${r.position}</td>
               <td>${r.name}</td>
@@ -269,7 +269,7 @@
               <td>${r.endTime}</td>
               <td>${r.type}</td>
               <td>${r.duration}</td>
-            </tr>);
+            </tr>`);
         });
     
         const modal = new bootstrap.Modal(document.getElementById('recordModal'));
