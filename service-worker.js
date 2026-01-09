@@ -1,4 +1,3 @@
-/* service-worker.js */
 "use strict";
 
 var cacheName = "duty-system-cache-v1";
@@ -6,7 +5,6 @@ var cacheFiles = [
   "./",
   "./index.html",
   "./manifest.json"
-  // 若你有本機 css/js/icon，也可以加進來
 ];
 
 self.addEventListener("install", function (evt) {
@@ -38,7 +36,6 @@ self.addEventListener("fetch", function (evt) {
   );
 });
 
-// 通知點擊後把 app 打開/切回來
 self.addEventListener("notificationclick", function (evt) {
   evt.notification.close();
   evt.waitUntil(
