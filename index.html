@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>新興救護義消分隊出勤系統</title>
 
+  <!-- PWA -->
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#212529">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
   <!-- Bootstrap 5.3.x -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Font Awesome 6.5.x -->
@@ -40,12 +47,43 @@
       border-radius:999px;
       font-size:.85rem;
       border:1px solid rgba(255,255,255,.15);
+      user-select:none;
     }
     .chipOk { background: rgba(25,135,84,.15); color:#d1ffe6; }
     .chipOff { background: rgba(108,117,125,.2); color:#f1f3f5; }
+
+    /* PWA 安裝提示（你自己控制的橫幅） */
+    .pwaBar {
+      position: sticky;
+      top: 0;
+      z-index: 1030;
+      background: #fff;
+      border-bottom: 1px solid #e9ecef;
+      padding: .6rem .75rem;
+      display: none;
+    }
   </style>
 </head>
 <body>
+
+  <!-- 你自己做的「橫幅提醒」：PWA 安裝（可控） -->
+  <div class="pwaBar" id="pwaBar">
+    <div class="container d-flex align-items-start gap-2">
+      <div class="pt-1 text-primary"><i class="fa-solid fa-mobile-screen-button"></i></div>
+      <div class="flex-grow-1">
+        <div class="fw-bold">建議安裝到主畫面</div>
+        <div class="smallMuted" id="pwaBarText">可離線開啟、圖示啟動更方便。</div>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-primary btn-sm" id="btnPwaInstall" style="display:none;">
+          <i class="fa-solid fa-download me-1"></i> 安裝
+        </button>
+        <button class="btn btn-outline-secondary btn-sm" id="btnPwaDismiss">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Navbar -->
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
@@ -83,6 +121,7 @@
             <div class="fw-bold">目前定位</div>
             <div class="smallMuted" id="locationText">尚未取得定位</div>
             <div class="smallMuted mono" id="locationLatLng"></div>
+            <div class="smallMuted" id="locationHint" style="display:none;"></div>
           </div>
           <div class="text-end">
             <button type="button" class="btn btn-outline-primary btn-sm" id="btnGetLocation">
@@ -97,7 +136,7 @@
     <div class="card">
       <div class="card-body">
 
-        <!-- 勤務類型（新增） -->
+        <!-- 勤務類型 -->
         <div class="mb-3">
           <label class="form-label fw-bold">
             <i class="fa-solid fa-list-check me-1"></i> 勤務類型
@@ -113,7 +152,7 @@
           </div>
         </div>
 
-        <!-- 職稱（下拉） -->
+        <!-- 職稱 -->
         <div class="mb-3">
           <label class="form-label fw-bold">
             <i class="fa-solid fa-user-tie me-1"></i> 職稱
@@ -295,7 +334,7 @@
     </div>
   </div>
 
-  <!-- 通知提示視窗（首次開啟詢問） -->
+  <!-- 通知提示視窗（你自己的提醒：可控頻率；按下開啟才會跳系統 permission） -->
   <div class="modal fade" id="notifyModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
@@ -311,7 +350,7 @@
           <div class="mb-2">為了提醒你「未完成事項」（例如：已簽到尚未簽退），建議開啟通知。</div>
           <div class="smallMuted">
             <i class="fa-solid fa-circle-info me-1"></i>
-            若你已開啟通知，之後不會再跳出此提醒。
+            按下「開啟」後才會跳出系統授權視窗（iOS 也需要這樣）。
           </div>
         </div>
 
@@ -329,696 +368,668 @@
   </div>
 
 <script>
-  (function () {
-    "use strict";
+(function () {
+  "use strict";
 
-    // -----------------------------
-    // 你之後可改成從後端/Sheet 讀取
-    // -----------------------------
-    var geoConfig = {
-      allowedRadiusMeters: 120, // 比對半徑
-      standbyPoint: { latitude: 22.000000, longitude: 120.000000, name: "備勤定位" }, // 只會一個定位
-      trainingPoints: [
-        { latitude: 22.000000, longitude: 120.000000, name: "常訓定位A" },
-        { latitude: 22.000500, longitude: 120.000500, name: "常訓定位B" }
-      ]
-    };
+  // -----------------------------
+  // 你之後可改成從後端/Sheet 讀取
+  // -----------------------------
+  var geoConfig = {
+    allowedRadiusMeters: 120,
+    standbyPoint: { latitude: 22.000000, longitude: 120.000000, name: "備勤定位" },
+    trainingPoints: [
+      { latitude: 22.000000, longitude: 120.000000, name: "常訓定位A" },
+      { latitude: 22.000500, longitude: 120.000500, name: "常訓定位B" }
+    ]
+  };
 
-    var timerId = null;
-    var lastPosition = null;
+  // 你要的「多久提醒一次」（自己橫幅/Modal 的頻率）
+  var remindConfig = {
+    notifyRemindHours: 24,   // 通知提醒：未開啟時，每 24 小時提醒一次（你可改 6/12/24）
+    pwaRemindDays: 7         // 安裝提醒：每 7 天提醒一次
+  };
 
-    var confirmModal = null;
-    var notifyModal = null;
+  var timerId = null;
+  var lastPosition = null;
 
-    var pendingAction = null;     // "checkIn" | "checkOut"
-    var pendingPayload = null;
+  var confirmModal = null;
+  var notifyModal = null;
 
-    // 未完成事務：只存「最後一次簽到」的狀態（同一人/同一設備使用情境）
-    // 若你要多人共用同一台，就要把 key 加上 name/title 或 device id
-    var storageKeys = {
-      title: "dutySystem.basic.title",
-      name: "dutySystem.basic.name",
-      notifyAsked: "dutySystem.notify.asked",
-      notifyEnabled: "dutySystem.notify.enabled",
-      pendingState: "dutySystem.pending.state" // JSON
-    };
+  var pendingPayload = null;
 
-    function pad2(num) { return String(num).padStart(2, "0"); }
+  // PWA install（Android/Chrome 才有）
+  var deferredInstallPrompt = null;
 
-    function formatDateYmd(dt) {
-      return dt.getFullYear() + "-" + pad2(dt.getMonth() + 1) + "-" + pad2(dt.getDate());
+  var storageKeys = {
+    title: "dutySystem.basic.title",
+    name: "dutySystem.basic.name",
+
+    pendingState: "dutySystem.pending.state",
+
+    notifyLastShownAt: "dutySystem.notify.lastShownAt",
+    pwaLastShownAt: "dutySystem.pwa.lastShownAt"
+  };
+
+  function pad2(num) { return String(num).padStart(2, "0"); }
+  function formatDateYmd(dt) { return dt.getFullYear() + "-" + pad2(dt.getMonth() + 1) + "-" + pad2(dt.getDate()); }
+  function formatTimeHms(dt) { return pad2(dt.getHours()) + ":" + pad2(dt.getMinutes()) + ":" + pad2(dt.getSeconds()); }
+
+  function safeSetLocalStorage(key, value) { try { localStorage.setItem(key, value); } catch (e) { } }
+  function safeGetLocalStorage(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+
+  function safeSetJson(key, obj) { try { localStorage.setItem(key, JSON.stringify(obj)); } catch (e) { } }
+  function safeGetJson(key) {
+    try { var s = localStorage.getItem(key); if (!s) return null; return JSON.parse(s); }
+    catch (e) { return null; }
+  }
+
+  function nowMs() { return Date.now(); }
+  function hoursToMs(h) { return h * 60 * 60 * 1000; }
+  function daysToMs(d) { return d * 24 * 60 * 60 * 1000; }
+
+  function updateNowClock() {
+    var now = new Date();
+    $("#nowDate").text(formatDateYmd(now));
+    $("#nowTime").text(formatTimeHms(now));
+    updateEffectiveTimePreview();
+  }
+
+  function isManualMode() { return $("#timeModeManual").is(":checked"); }
+
+  function getEffectiveDateTime() {
+    if (!isManualMode()) return new Date();
+
+    var manualDate = $("#manualDateInput").val();
+    var manualTime = $("#manualTimeInput").val();
+    if (!manualDate || !manualTime) return null;
+
+    var timeParts = manualTime.split(":");
+    var hh = parseInt(timeParts[0] || "0", 10);
+    var mm = parseInt(timeParts[1] || "0", 10);
+    var ss = parseInt(timeParts[2] || "0", 10);
+
+    var dateParts = manualDate.split("-");
+    var yyyy = parseInt(dateParts[0] || "1970", 10);
+    var mon = parseInt(dateParts[1] || "1", 10) - 1;
+    var dd = parseInt(dateParts[2] || "1", 10);
+
+    return new Date(yyyy, mon, dd, hh, mm, ss);
+  }
+
+  function updateEffectiveTimePreview() {
+    var dt = getEffectiveDateTime();
+    if (!dt) { $("#effectiveTimePreview").text("（請輸入日期與時間）"); return; }
+    $("#effectiveTimePreview").text(formatDateYmd(dt) + " " + formatTimeHms(dt));
+  }
+
+  function setManualInputsToNow() {
+    var now = new Date();
+    $("#manualDateInput").val(formatDateYmd(now));
+    $("#manualTimeInput").val(formatTimeHms(now));
+  }
+
+  function setLocationStatus(text, latLngText, hint) {
+    $("#locationText").text(text || "");
+    $("#locationLatLng").text(latLngText || "");
+    if (hint) {
+      $("#locationHint").text(hint).show();
+    } else {
+      $("#locationHint").hide().text("");
+    }
+  }
+
+  function explainGeoError(err) {
+    if (!err) return "定位失敗";
+    if (err.code === 1) return "定位權限被拒絕（請到瀏覽器/系統設定允許定位）";
+    if (err.code === 2) return "無法取得定位（GPS/網路訊號不佳，請移到較空曠處或開啟定位服務）";
+    if (err.code === 3) return "定位逾時（Timeout expired）";
+    return "定位失敗：" + (err.message || "");
+  }
+
+  // ✅ 定位：高精度→超時→低精度重試
+  function getLocation() {
+    if (!navigator.geolocation) {
+      setLocationStatus("此瀏覽器不支援定位功能", "", "");
+      return;
     }
 
-    function formatTimeHms(dt) {
-      return pad2(dt.getHours()) + ":" + pad2(dt.getMinutes()) + ":" + pad2(dt.getSeconds());
-    }
-
-    function safeSetLocalStorage(key, value) {
-      try { localStorage.setItem(key, value); } catch (e) { }
-    }
-
-    function safeGetLocalStorage(key) {
-      try { return localStorage.getItem(key); } catch (e) { return null; }
-    }
-
-    function safeSetJson(key, obj) {
-      try { localStorage.setItem(key, JSON.stringify(obj)); } catch (e) { }
-    }
-
-    function safeGetJson(key) {
-      try {
-        var s = localStorage.getItem(key);
-        if (!s) return null;
-        return JSON.parse(s);
-      } catch (e) {
-        return null;
-      }
-    }
-
-    function updateNowClock() {
-      var now = new Date();
-      $("#nowDate").text(formatDateYmd(now));
-      $("#nowTime").text(formatTimeHms(now));
-      updateEffectiveTimePreview();
-    }
-
-    function isManualMode() {
-      return $("#timeModeManual").is(":checked");
-    }
-
-    function getEffectiveDateTime() {
-      if (!isManualMode()) return new Date();
-
-      var manualDate = $("#manualDateInput").val();
-      var manualTime = $("#manualTimeInput").val();
-      if (!manualDate || !manualTime) return null;
-
-      var timeParts = manualTime.split(":");
-      var hh = parseInt(timeParts[0] || "0", 10);
-      var mm = parseInt(timeParts[1] || "0", 10);
-      var ss = parseInt(timeParts[2] || "0", 10);
-
-      var dateParts = manualDate.split("-");
-      var yyyy = parseInt(dateParts[0] || "1970", 10);
-      var mon = parseInt(dateParts[1] || "1", 10) - 1;
-      var dd = parseInt(dateParts[2] || "1", 10);
-
-      return new Date(yyyy, mon, dd, hh, mm, ss);
-    }
-
-    function updateEffectiveTimePreview() {
-      var dt = getEffectiveDateTime();
-      if (!dt) {
-        $("#effectiveTimePreview").text("（請輸入日期與時間）");
-        return;
-      }
-      $("#effectiveTimePreview").text(formatDateYmd(dt) + " " + formatTimeHms(dt));
-    }
-
-    function setManualInputsToNow() {
-      var now = new Date();
-      $("#manualDateInput").val(formatDateYmd(now));
-      $("#manualTimeInput").val(formatTimeHms(now));
-    }
-
-    function setLocationStatus(text, latLngText) {
-      $("#locationText").text(text || "");
-      $("#locationLatLng").text(latLngText || "");
-    }
-
-    function getLocation() {
-      if (!navigator.geolocation) {
-        setLocationStatus("此瀏覽器不支援定位功能", "");
-        return;
-      }
-
-      setLocationStatus("定位中…", "");
-
-      navigator.geolocation.getCurrentPosition(
-        function (pos) {
-          lastPosition = pos;
-          var lat = pos.coords.latitude;
-          var lng = pos.coords.longitude;
-          var acc = pos.coords.accuracy;
-          setLocationStatus("定位成功（精度約 " + Math.round(acc) + " m）", "lat=" + lat + ", lng=" + lng);
-        },
-        function (err) {
-          lastPosition = null;
-          var msg = "定位失敗";
-          if (err && err.message) msg += "：" + err.message;
-          setLocationStatus(msg, "");
-        },
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
-      );
-    }
-
-    function loadBasicProfile() {
-      var savedTitle = safeGetLocalStorage(storageKeys.title);
-      var savedName = safeGetLocalStorage(storageKeys.name);
-      if (savedTitle) $("#titleSelect").val(savedTitle);
-      if (savedName) $("#nameInput").val(savedName);
-    }
-
-    function bindBasicProfileStorage() {
-      $("#titleSelect").on("change", function () {
-        safeSetLocalStorage(storageKeys.title, $("#titleSelect").val() || "");
-      });
-      $("#nameInput").on("input", function () {
-        safeSetLocalStorage(storageKeys.name, ($("#nameInput").val() || "").trim());
-      });
-    }
-
-    function dutyType() {
-      return $("#dutyTypeSelect").val() || "standby";
-    }
-
-    function dutyText(duty) {
-      if (duty === "standby") return "備勤";
-      if (duty === "training") return "常訓";
-      if (duty === "work") return "公差勤務";
-      return duty || "-";
-    }
-
-    function actionText(action) {
-      if (action === "checkIn") return "簽到";
-      if (action === "checkOut") return "簽退";
-      return action || "-";
-    }
-
-    function needsGeoCheck(duty) {
-      if (duty === "work") return false;
-      return true; // standby, training
-    }
-
-    function supportsCheckout(duty) {
-      if (duty === "training") return false;
-      return true; // standby, work
-    }
-
-    function needsCheckoutNote(duty, action) {
-      return (action === "checkOut") && (duty === "standby" || duty === "work");
-    }
-
-    function buildLocationDisplayFromPos(pos) {
-      if (!pos || !pos.coords) return "（未取得定位）";
-      var lat = pos.coords.latitude;
-      var lng = pos.coords.longitude;
-      var acc = pos.coords.accuracy;
-      return "lat=" + lat + ", lng=" + lng + "（±" + Math.round(acc) + "m）";
-    }
-
-    function buildLocationDisplayFromPayload(payload) {
-      if (!payload || !payload.location) return "（未取得定位）";
-      return "lat=" + payload.location.latitude + ", lng=" + payload.location.longitude + "（±" + Math.round(payload.location.accuracy) + "m）";
-    }
-
-    function toRadians(deg) { return deg * Math.PI / 180; }
-
-    function distanceMeters(lat1, lon1, lat2, lon2) {
-      // Haversine
-      var R = 6371000;
-      var dLat = toRadians(lat2 - lat1);
-      var dLon = toRadians(lon2 - lon1);
-      var a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-      var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    }
-
-    function checkGeoAllowed(duty) {
-      // 公差勤務不比對
-      if (!needsGeoCheck(duty)) return { ok: true, message: "" };
-
-      if (!lastPosition || !lastPosition.coords) {
-        return { ok: false, message: "需要定位才能打卡，請先取得定位" };
-      }
-
-      var lat = lastPosition.coords.latitude;
-      var lng = lastPosition.coords.longitude;
-
-      var radius = geoConfig.allowedRadiusMeters || 100;
-
-      if (duty === "standby") {
-        var p = geoConfig.standbyPoint;
-        var d = distanceMeters(lat, lng, p.latitude, p.longitude);
-        if (d <= radius) return { ok: true, message: "" };
-        return { ok: false, message: "不在備勤指定範圍內（距離約 " + Math.round(d) + " m）" };
-      }
-
-      if (duty === "training") {
-        var list = geoConfig.trainingPoints || [];
-        if (!list.length) return { ok: false, message: "常訓定位未設定" };
-
-        var best = null;
-        for (var i = 0; i < list.length; i++) {
-          var pi = list[i];
-          var di = distanceMeters(lat, lng, pi.latitude, pi.longitude);
-          if (best === null || di < best.distance) {
-            best = { distance: di, name: pi.name || ("定位" + (i + 1)) };
-          }
-        }
-
-        if (best && best.distance <= radius) return { ok: true, message: "" };
-        return { ok: false, message: "不在常訓指定範圍內（最近點 " + (best ? best.name : "") + " 距離約 " + Math.round(best.distance) + " m）" };
-      }
-
-      return { ok: true, message: "" };
-    }
-
-    function validateForm(action) {
-      var title = ($("#titleSelect").val() || "").trim();
-      var name = ($("#nameInput").val() || "").trim();
-      var duty = dutyType();
-
-      if (!duty) return { ok: false, message: "請選擇勤務類型" };
-      if (!title) return { ok: false, message: "請選擇職稱" };
-      if (!name) return { ok: false, message: "請輸入姓名" };
-
-      if (!supportsCheckout(duty) && action === "checkOut") {
-        return { ok: false, message: "常訓只需要簽到，不需要簽退" };
-      }
-
-      if (isManualMode()) {
-        var dt = getEffectiveDateTime();
-        if (!dt) return { ok: false, message: "請輸入打卡日期與時間" };
-      }
-
-      var geoCheck = checkGeoAllowed(duty);
-      if (!geoCheck.ok) return geoCheck;
-
-      return { ok: true, message: "" };
-    }
-
-    function buildPunchPayload(action) {
-      var duty = dutyType();
-      var title = ($("#titleSelect").val() || "").trim();
-      var name = ($("#nameInput").val() || "").trim();
-      var dt = getEffectiveDateTime();
-
-      var payload = {
-        duty: duty,         // standby | training | work
-        action: action,     // checkIn | checkOut
-        title: title,
-        name: name,
-        punchDate: dt ? formatDateYmd(dt) : null,
-        punchTime: dt ? formatTimeHms(dt) : null,
-        punchIso: dt ? dt.toISOString() : null,
-        timeMode: isManualMode() ? "manual" : "now",
-        location: null,
-        note: null          // 簽退勤務內容（必要時填）
-      };
-
-      if (lastPosition && lastPosition.coords) {
-        payload.location = {
-          latitude: lastPosition.coords.latitude,
-          longitude: lastPosition.coords.longitude,
-          accuracy: lastPosition.coords.accuracy
-        };
-      }
-
-      return payload;
-    }
-
-    function showResultSuccess(payload) {
-      $("#resultArea").show();
-      $("#resultAlert").removeClass("alert-danger alert-info").addClass("alert-success");
-
-      var lines = [];
-      lines.push("勤務：" + dutyText(payload.duty));
-      lines.push("動作：" + actionText(payload.action));
-      lines.push("職稱：" + (payload.title || "-"));
-      lines.push("姓名：" + (payload.name || "-"));
-      lines.push("時間：" + (payload.punchDate || "-") + " " + (payload.punchTime || "-"));
-      lines.push("定位：" + buildLocationDisplayFromPayload(payload));
-      if (payload.note) lines.push("勤務內容：" + payload.note);
-
-      $("#resultText").html("<div>" + lines.map(function (s) {
-        return $("<div/>").text(s).html();
-      }).join("</div><div>") + "</div>");
-    }
-
-    function showResultError(message) {
-      $("#resultArea").show();
-      $("#resultAlert").removeClass("alert-success alert-info").addClass("alert-danger");
-      $("#resultText").text(message || "發生錯誤");
-    }
-
-    // -----------------------------
-    // 未完成事務（簽到未簽退）
-    // -----------------------------
-    function getPendingState() {
-      return safeGetJson(storageKeys.pendingState);
-    }
-
-    function setPendingState(state) {
-      if (!state) {
-        safeSetLocalStorage(storageKeys.pendingState, "");
-        try { localStorage.removeItem(storageKeys.pendingState); } catch (e) { }
-        return;
-      }
-      safeSetJson(storageKeys.pendingState, state);
-    }
-
-    function isPendingActive() {
-      var s = getPendingState();
-      return !!(s && s.isCheckedIn === true);
-    }
-
-    function updatePendingUi() {
-      var s = getPendingState();
-      if (!s || !s.isCheckedIn) {
-        $("#pendingAlert").hide();
-        return;
-      }
-
-      var text = "你已簽到尚未簽退：" +
-        dutyText(s.duty) + " / " + (s.title || "-") + " " + (s.name || "-") +
-        "（" + (s.punchDate || "-") + " " + (s.punchTime || "-") + "）";
-
-      $("#pendingText").text(text);
-      $("#pendingAlert").show();
-    }
-
-    function applyDutyRulesUi() {
-      var duty = dutyType();
-
-      // 常訓：隱藏簽退
-      if (!supportsCheckout(duty)) {
-        $("#btnCheckOut").hide();
-      } else {
-        $("#btnCheckOut").show();
-      }
-    }
-
-    // -----------------------------
-    // 通知（Web Notification）
-    // - iOS Safari 限制多，需用使用者手勢觸發 requestPermission
-    // - 這裡先做「頁面開啟提醒 + 點開啟」；已開啟不再跳
-    // - 未完成事項：若有 pending 就通知一次（避免洗版）
-    // -----------------------------
-    function isNotificationSupported() {
-      return ("Notification" in window);
-    }
-
-    function getNotifyEnabledFlag() {
-      return safeGetLocalStorage(storageKeys.notifyEnabled) === "1";
-    }
-
-    function setNotifyEnabledFlag(enabled) {
-      safeSetLocalStorage(storageKeys.notifyEnabled, enabled ? "1" : "0");
-    }
-
-    function getNotifyAskedFlag() {
-      return safeGetLocalStorage(storageKeys.notifyAsked) === "1";
-    }
-
-    function setNotifyAskedFlag(asked) {
-      safeSetLocalStorage(storageKeys.notifyAsked, asked ? "1" : "0");
-    }
-
-    function getNotificationPermission() {
-      if (!isNotificationSupported()) return "unsupported";
-      return Notification.permission; // "default" | "granted" | "denied"
-    }
-
-    function updateNotifyChip() {
-      var perm = getNotificationPermission();
-      var enabled = (perm === "granted");
-
-      if (enabled) {
-        $("#notifyChip").removeClass("chipOff").addClass("chipOk");
-        $("#notifyChipText").text("通知已開啟");
-        setNotifyEnabledFlag(true);
-      } else {
-        $("#notifyChip").removeClass("chipOk").addClass("chipOff");
-        $("#notifyChipText").text("通知未開啟");
-        setNotifyEnabledFlag(false);
-      }
-    }
-
-    function askEnableNotifyIfNeeded() {
-      // 每次開頁面：iOS/Android 都提醒，但「已開啟」就不跳
-      // 若不支援通知，則不跳
-      if (!isNotificationSupported()) {
-        updateNotifyChip();
-        return;
-      }
-
-      var perm = getNotificationPermission();
-      updateNotifyChip();
-
-      if (perm === "granted") {
-        setNotifyAskedFlag(true);
-        return;
-      }
-
-      // 若曾經提醒過且使用者選擇稍後，就下次仍提醒？你需求是「每次開啟頁面時跳出提醒」
-      // 但又說「若已開啟則不須跳出」—所以這裡只要未 granted 就會跳出（符合每次提醒）
-      notifyModal.show();
-    }
-
-    function requestEnableNotify() {
-      if (!isNotificationSupported()) {
-        showResultError("此瀏覽器不支援通知功能");
-        return;
-      }
-
-      Notification.requestPermission().then(function (perm) {
-        setNotifyAskedFlag(true);
-        updateNotifyChip();
-
-        if (perm === "granted") {
-          // 開啟後：若有未完成事項，就通知
-          notifyPendingIfAny(true);
-          notifyModal.hide();
-        } else if (perm === "denied") {
-          showResultError("通知已被封鎖，請到瀏覽器設定中允許通知");
-          notifyModal.hide();
-        } else {
-          // default
-          notifyModal.hide();
-        }
-      }).catch(function () {
-        showResultError("無法請求通知權限");
-      });
-    }
-
-    function showBrowserNotification(title, body) {
-      try {
-        if (!isNotificationSupported()) return;
-        if (Notification.permission !== "granted") return;
-
-        new Notification(title, {
-          body: body || "",
-          icon: "" // 需要的話你可放 icon url
-        });
-      } catch (e) { }
-    }
-
-    function notifyPendingIfAny(force) {
-      // 避免每次 reload 都狂跳：用 sessionStorage 做本次頁面只通知一次
-      var sessionKey = "dutySystem.pending.notifiedThisSession";
-      var already = null;
-      try { already = sessionStorage.getItem(sessionKey); } catch (e) { }
-
-      if (!force && already === "1") return;
-
-      var s = getPendingState();
-      if (!s || !s.isCheckedIn) return;
-
-      var title = "尚有未完成事項";
-      var body = "你已簽到尚未簽退：" + dutyText(s.duty) + " / " + (s.name || "-") +
-        "（" + (s.punchDate || "-") + " " + (s.punchTime || "-") + "）";
-
-      showBrowserNotification(title, body);
-
-      try { sessionStorage.setItem(sessionKey, "1"); } catch (e) { }
-    }
-
-    // -----------------------------
-    // 送出確認
-    // -----------------------------
-    function showConfirmModal(action, payload) {
-      pendingAction = action;
-      pendingPayload = payload;
-
-      $("#confirmDutyText").text(dutyText(payload.duty));
-      $("#confirmActionText").text(actionText(action));
-      $("#confirmTitleText").text(payload.title || "-");
-      $("#confirmNameText").text(payload.name || "-");
-      $("#confirmTimeText").text((payload.punchDate || "-") + " " + (payload.punchTime || "-"));
-      $("#confirmLocationText").text(buildLocationDisplayFromPayload(payload));
-
-      // 簽退勤務內容需求
-      if (needsCheckoutNote(payload.duty, action)) {
-        $("#checkoutNoteWrap").show();
-        $("#checkoutNoteInput").val("");
-      } else {
-        $("#checkoutNoteWrap").hide();
-        $("#checkoutNoteInput").val("");
-      }
-
-      confirmModal.show();
-    }
-
-    function submitPunch(payload) {
-      // TODO: 串接後端/Google Sheet 時，把這裡換成 $.ajax(...)
-      // 目前先做 UI 成功回饋 + pending 管理 + 未完成通知
-
-      if (payload.action === "checkIn") {
-        // 記錄未完成（只有備勤/公差 需要簽退；常訓也可視為完成，不留 pending）
-        if (supportsCheckout(payload.duty)) {
-          setPendingState({
-            isCheckedIn: true,
-            duty: payload.duty,
-            title: payload.title,
-            name: payload.name,
-            punchDate: payload.punchDate,
-            punchTime: payload.punchTime
-          });
-        } else {
-          setPendingState(null);
-        }
-      }
-
-      if (payload.action === "checkOut") {
-        setPendingState(null);
-      }
-
-      showResultSuccess(payload);
-      updatePendingUi();
-      notifyPendingIfAny(false);
-    }
-
-    function onPunch(action) {
-      var v = validateForm(action);
-      if (!v.ok) {
-        showResultError(v.message);
-        return;
-      }
-
-      var payload = buildPunchPayload(action);
-      showConfirmModal(action, payload);
-    }
-
-    function validateConfirmNoteIfNeeded() {
-      if (!pendingPayload) return { ok: false, message: "無送出資料" };
-
-      if (needsCheckoutNote(pendingPayload.duty, pendingPayload.action)) {
-        var note = ($("#checkoutNoteInput").val() || "").trim();
-        if (!note) return { ok: false, message: "簽退需填寫勤務內容" };
-      }
-
-      return { ok: true, message: "" };
-    }
-
-    // -----------------------------
-    // UI 綁定
-    // -----------------------------
-    function bindEvents() {
-      $("#btnGetLocation").on("click", function () { getLocation(); });
-
-      $("#timeModeNow").on("change", function () {
-        $("#manualTimeRow").hide();
-        updateEffectiveTimePreview();
-      });
-
-      $("#timeModeManual").on("change", function () {
-        $("#manualTimeRow").show();
-        setManualInputsToNow();
-        updateEffectiveTimePreview();
-      });
-
-      $("#manualDateInput, #manualTimeInput").on("input change", function () {
-        updateEffectiveTimePreview();
-      });
-
-      $("#dutyTypeSelect").on("change", function () {
-        applyDutyRulesUi();
-      });
-
-      $("#btnCheckIn").on("click", function () { onPunch("checkIn"); });
-      $("#btnCheckOut").on("click", function () { onPunch("checkOut"); });
-
-      $("#btnConfirmSubmit").on("click", function () {
-        if (!pendingPayload) return;
-
-        var v = validateConfirmNoteIfNeeded();
-        if (!v.ok) {
-          // 不用 alert，改用 textarea 下方/結果區顯示
-          showResultError(v.message);
+    setLocationStatus("定位中…", "", "若一直逾時，請確認：已開啟手機定位服務、允許瀏覽器定位、或移到戶外/窗邊。");
+
+    var optsHigh = { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 };
+    var optsLow  = { enableHighAccuracy: false, timeout: 20000, maximumAge: 0 };
+
+    navigator.geolocation.getCurrentPosition(
+      function (pos) {
+        lastPosition = pos;
+        var lat = pos.coords.latitude;
+        var lng = pos.coords.longitude;
+        var acc = pos.coords.accuracy;
+        setLocationStatus("定位成功（精度約 " + Math.round(acc) + " m）", "lat=" + lat + ", lng=" + lng, "");
+      },
+      function (err) {
+        // 若是 timeout，改用低精度再試一次
+        if (err && err.code === 3) {
+          setLocationStatus("定位逾時，改用低精度重試…", "", "請確認手機定位/GPS已開啟，或移到較空曠處。");
+          navigator.geolocation.getCurrentPosition(
+            function (pos2) {
+              lastPosition = pos2;
+              var lat2 = pos2.coords.latitude;
+              var lng2 = pos2.coords.longitude;
+              var acc2 = pos2.coords.accuracy;
+              setLocationStatus("定位成功（低精度）（約 " + Math.round(acc2) + " m）", "lat=" + lat2 + ", lng=" + lng2, "");
+            },
+            function (err2) {
+              lastPosition = null;
+              setLocationStatus(explainGeoError(err2), "", "可能原因：室內/GPS訊號弱、省電模式、或系統定位未開啟。");
+            },
+            optsLow
+          );
           return;
         }
 
-        // 把 note 填進 payload
-        if (needsCheckoutNote(pendingPayload.duty, pendingPayload.action)) {
-          pendingPayload.note = ($("#checkoutNoteInput").val() || "").trim();
-        }
+        lastPosition = null;
+        setLocationStatus(explainGeoError(err), "", "請確認：網站為 HTTPS、已允許定位、手機系統定位服務已開啟。");
+      },
+      optsHigh
+    );
+  }
 
-        confirmModal.hide();
-        submitPunch(pendingPayload);
-      });
+  function loadBasicProfile() {
+    var savedTitle = safeGetLocalStorage(storageKeys.title);
+    var savedName = safeGetLocalStorage(storageKeys.name);
+    if (savedTitle) $("#titleSelect").val(savedTitle);
+    if (savedName) $("#nameInput").val(savedName);
+  }
 
-      $("#confirmModal").on("hidden.bs.modal", function () {
-        pendingAction = null;
-        pendingPayload = null;
-        $("#checkoutNoteInput").val("");
-      });
+  function bindBasicProfileStorage() {
+    $("#titleSelect").on("change", function () { safeSetLocalStorage(storageKeys.title, $("#titleSelect").val() || ""); });
+    $("#nameInput").on("input", function () { safeSetLocalStorage(storageKeys.name, ($("#nameInput").val() || "").trim()); });
+  }
 
-      // 通知
-      $("#btnEnableNotify").on("click", function () {
-        requestEnableNotify();
-      });
+  function dutyType() { return $("#dutyTypeSelect").val() || "standby"; }
 
-      $("#notifyChip").on("click keydown", function (e) {
-        if (e.type === "keydown" && e.key !== "Enter" && e.key !== " ") return;
-        updateNotifyChip();
-        // 未開啟就提醒一次
-        if (getNotificationPermission() !== "granted") {
-          notifyModal.show();
-        }
-      });
+  function dutyText(duty) {
+    if (duty === "standby") return "備勤";
+    if (duty === "training") return "常訓";
+    if (duty === "work") return "公差勤務";
+    return duty || "-";
+  }
+
+  function actionText(action) {
+    if (action === "checkIn") return "簽到";
+    if (action === "checkOut") return "簽退";
+    return action || "-";
+  }
+
+  function needsGeoCheck(duty) { return duty !== "work"; }
+  function supportsCheckout(duty) { return duty !== "training"; }
+  function needsCheckoutNote(duty, action) { return (action === "checkOut") && (duty === "standby" || duty === "work"); }
+
+  function buildLocationDisplayFromPayload(payload) {
+    if (!payload || !payload.location) return "（未取得定位）";
+    return "lat=" + payload.location.latitude + ", lng=" + payload.location.longitude + "（±" + Math.round(payload.location.accuracy) + "m）";
+  }
+
+  function toRadians(deg) { return deg * Math.PI / 180; }
+  function distanceMeters(lat1, lon1, lat2, lon2) {
+    var R = 6371000;
+    var dLat = toRadians(lat2 - lat1);
+    var dLon = toRadians(lon2 - lon1);
+    var a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  function checkGeoAllowed(duty) {
+    if (!needsGeoCheck(duty)) return { ok: true, message: "" };
+
+    if (!lastPosition || !lastPosition.coords) {
+      return { ok: false, message: "需要定位才能打卡，請先取得定位（若逾時請按重新定位或移到較空曠處）" };
     }
 
-    function initModals() {
-      confirmModal = new bootstrap.Modal(document.getElementById("confirmModal"), {
-        backdrop: "static",
-        keyboard: false
-      });
+    var lat = lastPosition.coords.latitude;
+    var lng = lastPosition.coords.longitude;
+    var radius = geoConfig.allowedRadiusMeters || 100;
 
-      notifyModal = new bootstrap.Modal(document.getElementById("notifyModal"), {
-        backdrop: "static",
-        keyboard: true
-      });
+    if (duty === "standby") {
+      var p = geoConfig.standbyPoint;
+      var d = distanceMeters(lat, lng, p.latitude, p.longitude);
+      if (d <= radius) return { ok: true, message: "" };
+      return { ok: false, message: "不在備勤指定範圍內（距離約 " + Math.round(d) + " m）" };
     }
 
-    function init() {
-      initModals();
+    if (duty === "training") {
+      var list = geoConfig.trainingPoints || [];
+      if (!list.length) return { ok: false, message: "常訓定位未設定" };
 
-      loadBasicProfile();
-      bindBasicProfileStorage();
-      bindEvents();
+      var best = null;
+      for (var i = 0; i < list.length; i++) {
+        var pi = list[i];
+        var di = distanceMeters(lat, lng, pi.latitude, pi.longitude);
+        if (best === null || di < best.distance) best = { distance: di, name: pi.name || ("定位" + (i + 1)) };
+      }
 
-      applyDutyRulesUi();
+      if (best && best.distance <= radius) return { ok: true, message: "" };
+      return { ok: false, message: "不在常訓指定範圍內（最近點 " + (best ? best.name : "") + " 距離約 " + Math.round(best.distance) + " m）" };
+    }
 
-      updateNowClock();
-      timerId = window.setInterval(updateNowClock, 1000);
+    return { ok: true, message: "" };
+  }
 
-      getLocation();
+  function validateForm(action) {
+    var title = ($("#titleSelect").val() || "").trim();
+    var name = ($("#nameInput").val() || "").trim();
+    var duty = dutyType();
 
+    if (!duty) return { ok: false, message: "請選擇勤務類型" };
+    if (!title) return { ok: false, message: "請選擇職稱" };
+    if (!name) return { ok: false, message: "請輸入姓名" };
+
+    if (!supportsCheckout(duty) && action === "checkOut") return { ok: false, message: "常訓只需要簽到，不需要簽退" };
+
+    if (isManualMode()) {
+      var dt = getEffectiveDateTime();
+      if (!dt) return { ok: false, message: "請輸入打卡日期與時間" };
+    }
+
+    var geoCheck = checkGeoAllowed(duty);
+    if (!geoCheck.ok) return geoCheck;
+
+    return { ok: true, message: "" };
+  }
+
+  function buildPunchPayload(action) {
+    var duty = dutyType();
+    var title = ($("#titleSelect").val() || "").trim();
+    var name = ($("#nameInput").val() || "").trim();
+    var dt = getEffectiveDateTime();
+
+    var payload = {
+      duty: duty,
+      action: action,
+      title: title,
+      name: name,
+      punchDate: dt ? formatDateYmd(dt) : null,
+      punchTime: dt ? formatTimeHms(dt) : null,
+      punchIso: dt ? dt.toISOString() : null,
+      timeMode: isManualMode() ? "manual" : "now",
+      location: null,
+      note: null
+    };
+
+    if (lastPosition && lastPosition.coords) {
+      payload.location = {
+        latitude: lastPosition.coords.latitude,
+        longitude: lastPosition.coords.longitude,
+        accuracy: lastPosition.coords.accuracy
+      };
+    }
+
+    return payload;
+  }
+
+  function showResultSuccess(payload) {
+    $("#resultArea").show();
+    $("#resultAlert").removeClass("alert-danger alert-info").addClass("alert-success");
+
+    var lines = [];
+    lines.push("勤務：" + dutyText(payload.duty));
+    lines.push("動作：" + actionText(payload.action));
+    lines.push("職稱：" + (payload.title || "-"));
+    lines.push("姓名：" + (payload.name || "-"));
+    lines.push("時間：" + (payload.punchDate || "-") + " " + (payload.punchTime || "-"));
+    lines.push("定位：" + buildLocationDisplayFromPayload(payload));
+    if (payload.note) lines.push("勤務內容：" + payload.note);
+
+    $("#resultText").html("<div>" + lines.map(function (s) {
+      return $("<div/>").text(s).html();
+    }).join("</div><div>") + "</div>");
+  }
+
+  function showResultError(message) {
+    $("#resultArea").show();
+    $("#resultAlert").removeClass("alert-success alert-info").addClass("alert-danger");
+    $("#resultText").text(message || "發生錯誤");
+  }
+
+  // -----------------------------
+  // 未完成事務（簽到未簽退）
+  // -----------------------------
+  function getPendingState() { return safeGetJson(storageKeys.pendingState); }
+  function setPendingState(state) {
+    if (!state) {
+      try { localStorage.removeItem(storageKeys.pendingState); } catch (e) { }
+      return;
+    }
+    safeSetJson(storageKeys.pendingState, state);
+  }
+
+  function updatePendingUi() {
+    var s = getPendingState();
+    if (!s || !s.isCheckedIn) { $("#pendingAlert").hide(); return; }
+
+    var text = "你已簽到尚未簽退：" +
+      dutyText(s.duty) + " / " + (s.title || "-") + " " + (s.name || "-") +
+      "（" + (s.punchDate || "-") + " " + (s.punchTime || "-") + "）";
+
+    $("#pendingText").text(text);
+    $("#pendingAlert").show();
+  }
+
+  function applyDutyRulesUi() {
+    var duty = dutyType();
+    if (!supportsCheckout(duty)) $("#btnCheckOut").hide();
+    else $("#btnCheckOut").show();
+  }
+
+  // -----------------------------
+  // 通知（Web Notification）
+  // -----------------------------
+  function isNotificationSupported() { return ("Notification" in window); }
+  function getNotificationPermission() { if (!isNotificationSupported()) return "unsupported"; return Notification.permission; }
+
+  function updateNotifyChip() {
+    var perm = getNotificationPermission();
+    var enabled = (perm === "granted");
+    if (enabled) {
+      $("#notifyChip").removeClass("chipOff").addClass("chipOk");
+      $("#notifyChipText").text("通知已開啟");
+    } else {
+      $("#notifyChip").removeClass("chipOk").addClass("chipOff");
+      $("#notifyChipText").text("通知未開啟");
+    }
+  }
+
+  function shouldShowNotifyReminder() {
+    if (!isNotificationSupported()) return false;
+    if (getNotificationPermission() === "granted") return false;
+
+    var last = parseInt(safeGetLocalStorage(storageKeys.notifyLastShownAt) || "0", 10);
+    if (!last) return true;
+
+    return (nowMs() - last) >= hoursToMs(remindConfig.notifyRemindHours);
+  }
+
+  function markNotifyReminderShown() {
+    safeSetLocalStorage(storageKeys.notifyLastShownAt, String(nowMs()));
+  }
+
+  function showNotifyReminderIfNeeded() {
+    // 你想「每次開頁提醒」就把 shouldShowNotifyReminder() 改成 true
+    if (!shouldShowNotifyReminder()) return;
+    markNotifyReminderShown();
+    notifyModal.show();
+  }
+
+  function showBrowserNotification(title, body) {
+    try {
+      if (!isNotificationSupported()) return;
+      if (Notification.permission !== "granted") return;
+      new Notification(title, { body: body || "", icon: "./icons/icon-192.png" });
+    } catch (e) { }
+  }
+
+  function notifyPendingIfAnyOncePerSession() {
+    var sessionKey = "dutySystem.pending.notifiedThisSession";
+    var already = null;
+    try { already = sessionStorage.getItem(sessionKey); } catch (e) { }
+    if (already === "1") return;
+
+    var s = getPendingState();
+    if (!s || !s.isCheckedIn) return;
+    if (getNotificationPermission() !== "granted") return;
+
+    showBrowserNotification(
+      "尚有未完成事項",
+      "你已簽到尚未簽退：" + dutyText(s.duty) + " / " + (s.name || "-") +
+      "（" + (s.punchDate || "-") + " " + (s.punchTime || "-") + "）"
+    );
+
+    try { sessionStorage.setItem(sessionKey, "1"); } catch (e) { }
+  }
+
+  function requestEnableNotify() {
+    if (!isNotificationSupported()) { showResultError("此瀏覽器不支援通知功能"); return; }
+
+    Notification.requestPermission().then(function (perm) {
       updateNotifyChip();
-      askEnableNotifyIfNeeded();  // 每次開啟頁面提醒（已開啟則不跳）
 
-      updatePendingUi();
-      // 若已開啟通知：未完成事項提醒
-      notifyPendingIfAny(false);
+      if (perm === "granted") {
+        notifyPendingIfAnyOncePerSession();
+        notifyModal.hide();
+      } else if (perm === "denied") {
+        showResultError("通知已被封鎖，請到瀏覽器設定中允許通知");
+        notifyModal.hide();
+      } else {
+        notifyModal.hide();
+      }
+    }).catch(function () {
+      showResultError("無法請求通知權限");
+    });
+  }
+
+  // -----------------------------
+  // PWA：Service Worker 註冊 + 自己的安裝橫幅（可控頻率）
+  // -----------------------------
+  function isIos() {
+    return /iphone|ipad|ipod/i.test(navigator.userAgent);
+  }
+
+  function isInStandaloneMode() {
+    return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || (window.navigator.standalone === true);
+  }
+
+  function shouldShowPwaBar() {
+    if (isInStandaloneMode()) return false; // 已安裝
+    var last = parseInt(safeGetLocalStorage(storageKeys.pwaLastShownAt) || "0", 10);
+    if (!last) return true;
+    return (nowMs() - last) >= daysToMs(remindConfig.pwaRemindDays);
+  }
+
+  function markPwaBarShown() {
+    safeSetLocalStorage(storageKeys.pwaLastShownAt, String(nowMs()));
+  }
+
+  function showPwaBarIfNeeded() {
+    if (!shouldShowPwaBar()) return;
+    markPwaBarShown();
+
+    // iOS：沒有 beforeinstallprompt → 只能教學
+    if (isIos()) {
+      $("#pwaBarText").text("iPhone/iPad：點「分享」→「加入主畫面」即可安裝。");
+      $("#btnPwaInstall").hide();
+    } else {
+      $("#pwaBarText").text("建議安裝到主畫面：可圖示啟動、更像 APP。");
+      // btn 是否顯示由 beforeinstallprompt 決定
     }
 
-    $(document).ready(init);
+    $("#pwaBar").show();
+  }
 
-  })();
+  function hidePwaBar() {
+    $("#pwaBar").hide();
+  }
+
+  function registerServiceWorker() {
+    if (!("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("./sw.js").catch(function(){ /* ignore */ });
+  }
+
+  // -----------------------------
+  // 送出確認
+  // -----------------------------
+  function showConfirmModal(action, payload) {
+    pendingPayload = payload;
+
+    $("#confirmDutyText").text(dutyText(payload.duty));
+    $("#confirmActionText").text(actionText(action));
+    $("#confirmTitleText").text(payload.title || "-");
+    $("#confirmNameText").text(payload.name || "-");
+    $("#confirmTimeText").text((payload.punchDate || "-") + " " + (payload.punchTime || "-"));
+    $("#confirmLocationText").text(buildLocationDisplayFromPayload(payload));
+
+    if (needsCheckoutNote(payload.duty, action)) {
+      $("#checkoutNoteWrap").show();
+      $("#checkoutNoteInput").val("");
+    } else {
+      $("#checkoutNoteWrap").hide();
+      $("#checkoutNoteInput").val("");
+    }
+
+    confirmModal.show();
+  }
+
+  function validateConfirmNoteIfNeeded() {
+    if (!pendingPayload) return { ok: false, message: "無送出資料" };
+    if (needsCheckoutNote(pendingPayload.duty, pendingPayload.action)) {
+      var note = ($("#checkoutNoteInput").val() || "").trim();
+      if (!note) return { ok: false, message: "簽退需填寫勤務內容" };
+    }
+    return { ok: true, message: "" };
+  }
+
+  function submitPunch(payload) {
+    // TODO: 串接後端/Google Sheet 時，把這裡換成 $.ajax(...)
+
+    if (payload.action === "checkIn") {
+      if (supportsCheckout(payload.duty)) {
+        setPendingState({
+          isCheckedIn: true,
+          duty: payload.duty,
+          title: payload.title,
+          name: payload.name,
+          punchDate: payload.punchDate,
+          punchTime: payload.punchTime
+        });
+      } else {
+        setPendingState(null);
+      }
+    }
+
+    if (payload.action === "checkOut") {
+      setPendingState(null);
+    }
+
+    showResultSuccess(payload);
+    updatePendingUi();
+    notifyPendingIfAnyOncePerSession();
+  }
+
+  function onPunch(action) {
+    var v = validateForm(action);
+    if (!v.ok) { showResultError(v.message); return; }
+
+    var payload = buildPunchPayload(action);
+    showConfirmModal(action, payload);
+  }
+
+  function initModals() {
+    confirmModal = new bootstrap.Modal(document.getElementById("confirmModal"), { backdrop: "static", keyboard: false });
+    notifyModal = new bootstrap.Modal(document.getElementById("notifyModal"), { backdrop: "static", keyboard: true });
+  }
+
+  function bindEvents() {
+    $("#btnGetLocation").on("click", function () { getLocation(); });
+
+    $("#timeModeNow").on("change", function () { $("#manualTimeRow").hide(); updateEffectiveTimePreview(); });
+    $("#timeModeManual").on("change", function () { $("#manualTimeRow").show(); setManualInputsToNow(); updateEffectiveTimePreview(); });
+
+    $("#manualDateInput, #manualTimeInput").on("input change", function () { updateEffectiveTimePreview(); });
+
+    $("#dutyTypeSelect").on("change", function () { applyDutyRulesUi(); });
+
+    $("#btnCheckIn").on("click", function () { onPunch("checkIn"); });
+    $("#btnCheckOut").on("click", function () { onPunch("checkOut"); });
+
+    $("#btnConfirmSubmit").on("click", function () {
+      if (!pendingPayload) return;
+
+      var v = validateConfirmNoteIfNeeded();
+      if (!v.ok) { showResultError(v.message); return; }
+
+      if (needsCheckoutNote(pendingPayload.duty, pendingPayload.action)) {
+        pendingPayload.note = ($("#checkoutNoteInput").val() || "").trim();
+      }
+
+      confirmModal.hide();
+      submitPunch(pendingPayload);
+    });
+
+    $("#confirmModal").on("hidden.bs.modal", function () {
+      pendingPayload = null;
+      $("#checkoutNoteInput").val("");
+    });
+
+    // 通知
+    $("#btnEnableNotify").on("click", function () { requestEnableNotify(); });
+
+    $("#notifyChip").on("click keydown", function (e) {
+      if (e.type === "keydown" && e.key !== "Enter" && e.key !== " ") return;
+      updateNotifyChip();
+      if (getNotificationPermission() !== "granted") notifyModal.show();
+    });
+
+    // PWA Bar
+    $("#btnPwaDismiss").on("click", function(){ hidePwaBar(); });
+    $("#btnPwaInstall").on("click", function(){
+      if (!deferredInstallPrompt) return;
+      deferredInstallPrompt.prompt();
+      deferredInstallPrompt.userChoice.finally(function(){
+        deferredInstallPrompt = null;
+        hidePwaBar();
+      });
+    });
+  }
+
+  function initPwaInstallPromptHook() {
+    // Android Chrome：會觸發 beforeinstallprompt（但是否觸發由 Chrome 判斷）
+    window.addEventListener("beforeinstallprompt", function (e) {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+
+      // 你的橫幅顯示安裝按鈕
+      $("#btnPwaInstall").show();
+      showPwaBarIfNeeded();
+    });
+
+    // 安裝完成
+    window.addEventListener("appinstalled", function () {
+      hidePwaBar();
+    });
+  }
+
+  function init() {
+    initModals();
+
+    loadBasicProfile();
+    bindBasicProfileStorage();
+    bindEvents();
+
+    applyDutyRulesUi();
+
+    updateNowClock();
+    timerId = window.setInterval(updateNowClock, 1000);
+
+    registerServiceWorker();
+    initPwaInstallPromptHook();
+
+    // 若沒有 beforeinstallprompt（iOS / 或 Chrome 未給），仍可用你自己的條件顯示
+    showPwaBarIfNeeded();
+
+    getLocation();
+
+    updateNotifyChip();
+    showNotifyReminderIfNeeded();   // ✅ 你可控的提醒頻率（預設 24h）
+    updatePendingUi();
+    notifyPendingIfAnyOncePerSession();
+  }
+
+  $(document).ready(init);
+
+})();
 </script>
 
 </body>
