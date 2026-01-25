@@ -3,74 +3,142 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>簽到簽退</title>
+  <title>出勤系統</title>
 
   <!-- Bootstrap 5.3.x -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- jQuery 3.7.x -->
+  <!-- jQuery 3.7.x + Bootstrap bundle -->
   <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
-  <!-- Bootstrap bundle -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <style>
     body { background:#f6f7f9; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .clock {
+      font-weight: 800;
+      letter-spacing: 1px;
+      background: #000;
+      color: #fff;
+      border-radius: 12px;
+      padding: 18px 16px;
+      text-align: center;
+      font-size: clamp(24px, 3vw, 42px);
+    }
   </style>
 </head>
 
 <body>
-  <div class="container py-4" style="max-width:720px;">
+  <nav class="navbar navbar-dark bg-dark">
+    <div class="container-fluid">
+      <span class="navbar-brand mb-0 h1">出勤系統</span>
+    </div>
+  </nav>
+
+  <div class="container py-4">
+    <div id="clock" class="clock mb-4">----</div>
+
     <div class="card shadow-sm">
       <div class="card-body">
-        <h5 class="mb-3">簽到 / 簽退（GitHub → Apps Script → Sheet）</h5>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">職稱</label>
+            <select id="titleSelect" class="form-select"></select>
+          </div>
 
-        <div class="mb-3">
-          <label class="form-label">單位職稱</label>
-          <input id="unitTitleInput" class="form-control" placeholder="例：新興分隊 義消" />
+          <div class="col-md-4">
+            <label class="form-label">姓名</label>
+            <select id="nameSelect" class="form-select"></select>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">協勤內容</label>
+            <input id="dutyContent" class="form-control" placeholder="可留空" />
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label">簽到日期</label>
+            <input id="signInDate" type="date" class="form-control" />
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label">簽到時間</label>
+            <input id="signInTime" type="time" class="form-control" />
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label">簽退日期</label>
+            <input id="signOutDate" type="date" class="form-control" />
+          </div>
+
+          <div class="col-md-3">
+            <label class="form-label">簽退時間</label>
+            <input id="signOutTime" type="time" class="form-control" />
+          </div>
         </div>
 
-        <div class="mb-3">
-          <label class="form-label">姓名</label>
-          <select id="nameSelect" class="form-select"></select>
-          <div class="form-text">資料來自 Sheet：people</div>
+        <div class="d-flex gap-2 mt-4">
+          <button id="signInBtn" class="btn btn-primary w-50">簽到</button>
+          <button id="signOutBtn" class="btn btn-outline-primary w-50">簽退</button>
         </div>
 
-        <div class="mb-3">
-          <label class="form-label">協勤內容</label>
-          <textarea id="dutyContentInput" class="form-control" rows="3" placeholder="例：夜間協勤、訓練支援..."></textarea>
+        <div class="mt-3">
+          <div id="status" class="small text-muted"></div>
         </div>
-
-        <div class="d-flex gap-2">
-          <button id="signInBtn" class="btn btn-primary">簽到</button>
-          <button id="signOutBtn" class="btn btn-outline-primary">簽退</button>
-          <button id="reloadPeopleBtn" class="btn btn-light ms-auto">重載姓名</button>
-        </div>
-
-        <hr class="my-3" />
-
-        <div class="alert alert-secondary mb-0 mono" id="resultBox">ready</div>
       </div>
     </div>
   </div>
 
   <script>
-    // 你的 Apps Script Web App /exec URL（換成你自己的）
-    const scriptUrl = "https://script.google.com/macros/s/AKfycbw9K3xGRiRW8YZEDKWLX8OqC_qO0z28t1GDP2boC8j9dvpnGpKrRp1nNIv_shlPCEI5/exec";
+    // 1) 改成你的 Apps Script Web App exec URL
+    // 例：https://script.google.com/macros/s/xxxxxxxxxxxxxxxxxxxxxxxx/exec
+    var scriptUrl = "https://script.google.com/macros/s/AKfycbxklh_50lReBLPjGvf2NFgxU6tVkHXpKH6qRCM3_R8B7Z5ae-lRMXr73u9FO0kkvq10/exec";
+
+    var peopleCache = [];
 
     $(function () {
-      $("#reloadPeopleBtn").on("click", loadPeople);
-      $("#signInBtn").on("click", signIn);
-      $("#signOutBtn").on("click", signOut);
+      startClock_();
+      initDefaultDateTime_();
+      loadPeople_();
 
-      loadPeople();
+      $("#titleSelect").on("change", function () {
+        var selectedTitle = $("#titleSelect").val();
+        fillNamesByTitle_(selectedTitle);
+      });
+
+      $("#signInBtn").on("click", function () {
+        signIn_();
+      });
+
+      $("#signOutBtn").on("click", function () {
+        signOut_();
+      });
     });
 
-    function setResult(text) {
-      $("#resultBox").text(text);
+    function startClock_() {
+      function pad2_(n) { return String(n).padStart(2, "0"); }
+      function tick_() {
+        var now = new Date();
+        var yyyy = now.getFullYear();
+        var MM = pad2_(now.getMonth() + 1);
+        var dd = pad2_(now.getDate());
+        var HH = pad2_(now.getHours());
+        var mm = pad2_(now.getMinutes());
+        var ss = pad2_(now.getSeconds());
+        $("#clock").text(yyyy + "-" + MM + "-" + dd + " " + HH + ":" + mm + ":" + ss);
+      }
+      tick_();
+      setInterval(tick_, 1000);
     }
 
-    function loadPeople() {
-      setResult("loading people...");
+    function initDefaultDateTime_() {
+      var now = new Date();
+      $("#signInDate").val(toDateValue_(now));
+      $("#signOutDate").val(toDateValue_(now));
+      $("#signInTime").val(toTimeValue_(now));
+      $("#signOutTime").val(toTimeValue_(now));
+    }
+
+    function loadPeople_() {
+      setStatus_("載入人員名單中...");
 
       $.ajax({
         url: scriptUrl,
@@ -79,90 +147,144 @@
         timeout: 15000
       }).done(function (res) {
         if (!res || res.ok !== true) {
-          setResult("people failed: " + (res && res.message ? res.message : "unknown"));
+          setStatus_("載入失敗：" + (res && res.message ? res.message : "unknown"));
           return;
         }
 
-        const people = Array.isArray(res.people) ? res.people : [];
-        const $sel = $("#nameSelect");
-        $sel.empty();
+        peopleCache = Array.isArray(res.people) ? res.people : [];
+        fillTitles_(peopleCache);
+        setStatus_("名單載入完成");
+      }).fail(function () {
+        setStatus_("載入失敗：請確認 scriptUrl 是否正確、Web App 是否已部署公開");
+      });
+    }
 
-        if (people.length === 0) {
-          $sel.append(`<option value="">(people 為空)</option>`);
+    function fillTitles_(people) {
+      var titleSet = {};
+      people.forEach(function (p) {
+        if (p && p.title) titleSet[p.title] = true;
+      });
+
+      var titles = Object.keys(titleSet);
+      titles.sort();
+
+      var $title = $("#titleSelect");
+      $title.empty();
+
+      if (titles.length === 0) {
+        $title.append(new Option("（無資料）", ""));
+        $("#nameSelect").empty().append(new Option("（無資料）", ""));
+        return;
+      }
+
+      titles.forEach(function (t) {
+        $title.append(new Option(t, t));
+      });
+
+      // default first
+      fillNamesByTitle_(titles[0]);
+    }
+
+    function fillNamesByTitle_(title) {
+      var names = peopleCache
+        .filter(function (p) { return p && p.title === title; })
+        .map(function (p) { return p.name; });
+
+      names.sort();
+
+      var $name = $("#nameSelect");
+      $name.empty();
+
+      if (names.length === 0) {
+        $name.append(new Option("（無資料）", ""));
+        return;
+      }
+
+      names.forEach(function (n) {
+        $name.append(new Option(n, n));
+      });
+    }
+
+    function signIn_() {
+      var payload = {
+        action: "signIn",
+        unitTitle: $("#titleSelect").val() || "",
+        name: $("#nameSelect").val() || "",
+        signInDate: $("#signInDate").val() || "",
+        signInTime: $("#signInTime").val() || "",
+        dutyContent: $("#dutyContent").val() || ""
+      };
+
+      if (!payload.unitTitle || !payload.name || !payload.signInDate || !payload.signInTime) {
+        setStatus_("簽到失敗：請選職稱/姓名，並填寫簽到日期時間");
+        return;
+      }
+
+      setStatus_("簽到送出中...");
+
+      $.ajax({
+        url: scriptUrl,
+        dataType: "jsonp",
+        data: payload,
+        timeout: 15000
+      }).done(function (res) {
+        if (res && res.ok === true) {
+          setStatus_("簽到成功");
         } else {
-          for (const name of people) {
-            $sel.append(`<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`);
-          }
+          setStatus_("簽到失敗：" + (res && res.message ? res.message : "unknown"));
         }
-
-        setResult("people loaded: " + people.length);
-      }).fail(function (xhr, status) {
-        setResult("people ajax failed: " + status);
+      }).fail(function () {
+        setStatus_("簽到失敗：連線錯誤（請確認 Web App 部署與權限）");
       });
     }
 
-    function signIn() {
-      const unitTitle = $("#unitTitleInput").val().trim();
-      const name = $("#nameSelect").val().trim();
-      const dutyContent = $("#dutyContentInput").val().trim();
+    function signOut_() {
+      var payload = {
+        action: "signOut",
+        unitTitle: $("#titleSelect").val() || "",
+        name: $("#nameSelect").val() || "",
+        signOutDate: $("#signOutDate").val() || "",
+        signOutTime: $("#signOutTime").val() || ""
+      };
 
-      if (!name) { setResult("請先選姓名"); return; }
+      if (!payload.unitTitle || !payload.name || !payload.signOutDate || !payload.signOutTime) {
+        setStatus_("簽退失敗：請選職稱/姓名，並填寫簽退日期時間");
+        return;
+      }
 
-      setResult("signIn...");
+      setStatus_("簽退送出中...");
 
       $.ajax({
         url: scriptUrl,
         dataType: "jsonp",
-        data: {
-          action: "signIn",
-          unitTitle: unitTitle,
-          name: name,
-          dutyContent: dutyContent
-        },
+        data: payload,
         timeout: 15000
       }).done(function (res) {
-        if (!res || res.ok !== true) {
-          setResult("signIn failed: " + (res && res.message ? res.message : "unknown"));
-          return;
+        if (res && res.ok === true) {
+          setStatus_("簽退成功");
+        } else {
+          setStatus_("簽退失敗：" + (res && res.message ? res.message : "unknown"));
         }
-        setResult(`signIn ok: ${res.signInDate} ${res.signInTime}`);
-      }).fail(function (xhr, status) {
-        setResult("signIn ajax failed: " + status);
+      }).fail(function () {
+        setStatus_("簽退失敗：連線錯誤（請確認 Web App 部署與權限）");
       });
     }
 
-    function signOut() {
-      const name = $("#nameSelect").val().trim();
-      if (!name) { setResult("請先選姓名"); return; }
-
-      setResult("signOut...");
-
-      $.ajax({
-        url: scriptUrl,
-        dataType: "jsonp",
-        data: {
-          action: "signOut",
-          name: name
-        },
-        timeout: 15000
-      }).done(function (res) {
-        if (!res || res.ok !== true) {
-          setResult("signOut failed: " + (res && res.message ? res.message : "unknown"));
-          return;
-        }
-        setResult(`signOut ok: ${res.signOutDate} ${res.signOutTime}`);
-      }).fail(function (xhr, status) {
-        setResult("signOut ajax failed: " + status);
-      });
+    function setStatus_(text) {
+      $("#status").text(text);
     }
 
-    function escapeHtml(s) {
-      return String(s)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+    function toDateValue_(dt) {
+      var y = dt.getFullYear();
+      var m = String(dt.getMonth() + 1).padStart(2, "0");
+      var d = String(dt.getDate()).padStart(2, "0");
+      return y + "-" + m + "-" + d;
+    }
+
+    function toTimeValue_(dt) {
+      var hh = String(dt.getHours()).padStart(2, "0");
+      var mm = String(dt.getMinutes()).padStart(2, "0");
+      return hh + ":" + mm;
     }
   </script>
 </body>
