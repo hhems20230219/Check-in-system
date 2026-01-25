@@ -1,321 +1,136 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8">
   <title>出勤系統</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Bootstrap 5.3.x -->
+  <!-- Bootstrap -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- jQuery 3.7.x + Bootstrap bundle -->
   <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <style>
-    body { background:#f6f7f9; }
-    .timeBox {
-      background:#000;
-      color:#fff;
-      font-weight:800;
-      font-size:32px;
-      letter-spacing:1px;
-      padding:12px 16px;
-      border-radius:12px;
-      text-align:center;
+    #nowTime {
+      background: #000;
+      color: #fff;
+      font-size: 2rem;
+      text-align: center;
+      padding: 10px;
+      font-weight: bold;
     }
-    .hint { color:#6c757d; font-size:12px; }
   </style>
 </head>
-
 <body>
-  <!-- Navbar -->
-  <nav class="navbar navbar-dark bg-dark">
-    <div class="container-fluid">
-      <span class="navbar-brand mb-0 h1">出勤系統</span>
+
+<!-- Navbar -->
+<nav class="navbar navbar-dark bg-dark">
+  <div class="container-fluid">
+    <span class="navbar-brand">出勤系統</span>
+  </div>
+</nav>
+
+<!-- 現在時間 -->
+<div id="nowTime"></div>
+
+<div class="container mt-3">
+
+  <!-- 基本資料 -->
+  <div class="row g-2">
+    <div class="col-md-4">
+      <input id="jobTitle" class="form-control" placeholder="職稱">
     </div>
-  </nav>
-
-  <div class="container py-3">
-    <!-- 大字時間 -->
-    <div class="timeBox mb-3" id="nowTimeText">----</div>
-
-    <div class="row g-3">
-      <!-- 左：基本資料 -->
-      <div class="col-12 col-lg-6">
-        <div class="card shadow-sm">
-          <div class="card-header fw-bold">基本資料</div>
-          <div class="card-body">
-            <div class="mb-2">
-              <label class="form-label">職稱</label>
-              <input type="text" class="form-control" id="unitTitle" placeholder="例如：分隊長" />
-            </div>
-
-            <div class="mb-2">
-              <label class="form-label">姓名</label>
-              <input type="text" class="form-control" id="personName" placeholder="例如：吳宇樺" />
-              <div class="hint mt-1">會自動從 people 讀取並帶入（你也可手動改）</div>
-            </div>
-
-            <div class="mb-2">
-              <label class="form-label">下拉式選單</label>
-              <select class="form-select" id="dutyType">
-                <option value="協勤">協勤（抓GPS｜簽到+簽退）</option>
-                <option value="常年訓練">常年訓練（抓GPS｜只簽到）</option>
-                <option value="公差勤務">公差勤務（不抓GPS｜簽到+簽退）</option>
-              </select>
-            </div>
-
-            <div class="mt-3">
-              <button class="btn btn-outline-primary" id="btnLoadPeople">讀取 people</button>
-              <span class="hint ms-2" id="peopleStatus"></span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 右：簽到簽退 -->
-      <div class="col-12 col-lg-6">
-        <div class="card shadow-sm">
-          <div class="card-header fw-bold">簽到 / 簽退</div>
-          <div class="card-body">
-            <div class="row g-2">
-              <div class="col-12 col-md-6">
-                <label class="form-label">簽到日期時間</label>
-                <div class="input-group">
-                  <input type="datetime-local" class="form-control" id="checkInDateTime" />
-                  <button class="btn btn-outline-secondary" id="btnCheckInNow" type="button">現在</button>
-                </div>
-              </div>
-
-              <div class="col-12 col-md-6">
-                <label class="form-label">簽退日期時間</label>
-                <div class="input-group">
-                  <input type="datetime-local" class="form-control" id="checkOutDateTime" />
-                  <button class="btn btn-outline-secondary" id="btnCheckOutNow" type="button">現在</button>
-                </div>
-              </div>
-            </div>
-
-            <div class="mt-3">
-              <label class="form-label">工作內容</label>
-              <textarea class="form-control" id="workNote" rows="3" placeholder="例如：支援OO活動、器材整備、訓練紀錄..."></textarea>
-            </div>
-
-            <div class="mt-3 d-flex gap-2 flex-wrap">
-              <button class="btn btn-success" id="btnSubmit">送出</button>
-              <span class="hint" id="submitStatus"></span>
-            </div>
-
-            <hr />
-
-            <div class="hint">
-              GPS 規則：<br/>
-              - 協勤 / 常年訓練：送出前會抓 GPS（若抓不到會提示）<br/>
-              - 公差勤務：不抓 GPS
-            </div>
-          </div>
-        </div>
-      </div>
+    <div class="col-md-4">
+      <input id="userName" class="form-control" placeholder="姓名">
+    </div>
+    <div class="col-md-4">
+      <select id="workType" class="form-select">
+        <option value="">請選擇類型</option>
+        <option value="assist">協勤（需 GPS、簽到簽退）</option>
+        <option value="training">常年訓練（需 GPS、只簽到）</option>
+        <option value="duty">公差勤務（不用 GPS、簽到簽退）</option>
+      </select>
     </div>
   </div>
 
+  <!-- 時間 -->
+  <div class="row g-2 mt-2">
+    <div class="col-md-3">
+      <input type="date" id="checkInDate" class="form-control">
+    </div>
+    <div class="col-md-3">
+      <input type="time" id="checkInTime" class="form-control">
+    </div>
+    <div class="col-md-3">
+      <input type="date" id="checkOutDate" class="form-control">
+    </div>
+    <div class="col-md-3">
+      <input type="time" id="checkOutTime" class="form-control">
+    </div>
+  </div>
+
+  <!-- 工作內容 -->
+  <div class="mt-2">
+    <textarea id="workContent" class="form-control" rows="2" placeholder="工作內容"></textarea>
+  </div>
+
+  <!-- 按鈕 -->
+  <div class="mt-3 d-flex gap-2">
+    <button id="btnCheckIn" class="btn btn-success">簽到</button>
+    <button id="btnCheckOut" class="btn btn-danger">簽退</button>
+  </div>
+</div>
+
 <script>
-  // TODO：把這個換成你部署後的 Web App URL
-  const gasWebAppUrl = "PUT_YOUR_GAS_WEB_APP_URL_HERE";
+const apiUrl = '👉貼上你的 GAS Web App URL👈';
 
-  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+function updateNowTime() {
+  const now = new Date();
+  $('#nowTime').text(now.toLocaleString());
+}
 
-  function formatNowText(d) {
-    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate())
-      + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + ":" + pad2(d.getSeconds());
-  }
+setInterval(updateNowTime, 1000);
+updateNowTime();
 
-  function toDatetimeLocalValue(d) {
-    // datetime-local 需要 YYYY-MM-DDTHH:mm
-    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate())
-      + "T" + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
-  }
+function checkGpsIfNeeded(workType) {
+  if (workType === 'duty') return Promise.resolve(true);
 
-  function splitDateTime(datetimeLocalValue) {
-    // "YYYY-MM-DDTHH:mm"
-    if (!datetimeLocalValue) return { date: "", time: "" };
-    const parts = datetimeLocalValue.split("T");
-    return {
-      date: parts[0] || "",
-      time: (parts[1] || "") + (parts[1] ? ":00" : "")
-    };
-  }
-
-  function setNowToInput($input) {
-    const now = new Date();
-    $input.val(toDatetimeLocalValue(now));
-  }
-
-  function setStatus($el, text, isError) {
-    $el.text(text || "");
-    $el.css("color", isError ? "#dc3545" : "#6c757d");
-  }
-
-  async function loadPeople() {
-    if (!gasWebAppUrl || gasWebAppUrl.indexOf("http") !== 0) {
-      setStatus($("#peopleStatus"), "請先設定 gasWebAppUrl", true);
-      return;
-    }
-
-    setStatus($("#peopleStatus"), "讀取中...");
-    const url = gasWebAppUrl + "?action=people&_=" + Date.now();
-
-    try {
-      const resp = await fetch(url, { method: "GET" });
-      const data = await resp.json();
-
-      if (!Array.isArray(data)) {
-        setStatus($("#peopleStatus"), "people 回傳格式不正確", true);
-        return;
-      }
-
-      // 最簡單：取第一筆自動帶入
-      if (data.length > 0) {
-        $("#unitTitle").val(data[0].title || "");
-        $("#personName").val(data[0].name || "");
-        setStatus($("#peopleStatus"), "已帶入：" + (data[0].title || "") + " " + (data[0].name || ""));
-      } else {
-        setStatus($("#peopleStatus"), "people 沒資料", true);
-      }
-    } catch (err) {
-      setStatus($("#peopleStatus"), "讀取失敗：" + err, true);
-    }
-  }
-
-  function getGpsPosition() {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(new Error("此瀏覽器不支援 GPS"));
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          resolve({
-            gpsLat: pos.coords.latitude,
-            gpsLng: pos.coords.longitude,
-            gpsAcc: pos.coords.accuracy
-          });
-        },
-        (err) => reject(err),
-        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
-      );
-    });
-  }
-
-  async function submitSign() {
-    if (!gasWebAppUrl || gasWebAppUrl.indexOf("http") !== 0) {
-      setStatus($("#submitStatus"), "請先設定 gasWebAppUrl", true);
-      return;
-    }
-
-    const unitTitle = ($("#unitTitle").val() || "").trim();
-    const personName = ($("#personName").val() || "").trim();
-    const dutyType = ($("#dutyType").val() || "").trim();
-
-    if (!unitTitle || !personName) {
-      setStatus($("#submitStatus"), "職稱/姓名必填", true);
-      return;
-    }
-
-    // 依類別決定簽退必填/可空
-    const checkIn = splitDateTime($("#checkInDateTime").val());
-    const checkOut = splitDateTime($("#checkOutDateTime").val());
-
-    if (!checkIn.date || !checkIn.time) {
-      setStatus($("#submitStatus"), "簽到日期時間必填", true);
-      return;
-    }
-
-    if (dutyType !== "常年訓練") {
-      if (!checkOut.date || !checkOut.time) {
-        setStatus($("#submitStatus"), "簽退日期時間必填（常年訓練除外）", true);
-        return;
-      }
-    }
-
-    setStatus($("#submitStatus"), "準備送出...");
-
-    let gps = { gpsLat: "", gpsLng: "", gpsAcc: "" };
-
-    // 協勤 / 常年訓練 要抓 GPS；公差勤務不用
-    const needGps = (dutyType === "協勤" || dutyType === "常年訓練");
-    if (needGps) {
-      try {
-        setStatus($("#submitStatus"), "抓取 GPS 中...");
-        gps = await getGpsPosition();
-      } catch (err) {
-        setStatus($("#submitStatus"), "GPS 失敗：" + (err.message || err), true);
-        return;
-      }
-    }
-
-    const payload = {
-      unitTitle: unitTitle,
-      personName: personName,
-      dutyType: dutyType,
-      checkInDate: checkIn.date,
-      checkInTime: checkIn.time,
-      checkOutDate: (dutyType === "常年訓練") ? "" : checkOut.date,
-      checkOutTime: (dutyType === "常年訓練") ? "" : checkOut.time,
-      workNote: ($("#workNote").val() || "").trim(),
-      gpsLat: gps.gpsLat,
-      gpsLng: gps.gpsLng,
-      gpsAcc: gps.gpsAcc
-    };
-
-    try {
-      setStatus($("#submitStatus"), "送出中...");
-      const resp = await fetch(gasWebAppUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await resp.json();
-      if (data && data.ok) {
-        setStatus($("#submitStatus"), "送出成功（第 " + data.savedRow + " 列）");
-      } else {
-        setStatus($("#submitStatus"), "送出失敗：" + (data && data.message ? data.message : "unknown"), true);
-      }
-    } catch (err) {
-      setStatus($("#submitStatus"), "送出錯誤：" + err, true);
-    }
-  }
-
-  $(function () {
-    // clock
-    setInterval(() => {
-      $("#nowTimeText").text(formatNowText(new Date()));
-    }, 250);
-
-    // default time = now
-    setNowToInput($("#checkInDateTime"));
-    setNowToInput($("#checkOutDateTime"));
-
-    $("#btnCheckInNow").on("click", function () { setNowToInput($("#checkInDateTime")); });
-    $("#btnCheckOutNow").on("click", function () { setNowToInput($("#checkOutDateTime")); });
-
-    $("#btnLoadPeople").on("click", loadPeople);
-    $("#btnSubmit").on("click", submitSign);
-
-    // 預設自動載入 people（最省事）
-    loadPeople();
-
-    // 常年訓練：簽退欄位視覺上 disable
-    $("#dutyType").on("change", function () {
-      const dutyType = ($("#dutyType").val() || "").trim();
-      const isTraining = (dutyType === "常年訓練");
-      $("#checkOutDateTime").prop("disabled", isTraining);
-      $("#btnCheckOutNow").prop("disabled", isTraining);
-      if (isTraining) $("#checkOutDateTime").val("");
-    }).trigger("change");
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(
+      () => resolve(true),
+      () => reject('GPS 取得失敗')
+    );
   });
+}
+
+function sendData() {
+  const data = {
+    jobTitle: $('#jobTitle').val(),
+    userName: $('#userName').val(),
+    checkInDate: $('#checkInDate').val(),
+    checkInTime: $('#checkInTime').val(),
+    checkOutDate: $('#checkOutDate').val(),
+    checkOutTime: $('#checkOutTime').val(),
+    workContent: $('#workContent').val()
+  };
+
+  $.ajax({
+    url: apiUrl,
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify(data),
+    success: () => alert('送出成功'),
+    error: () => alert('送出失敗')
+  });
+}
+
+$('#btnCheckIn').on('click', function () {
+  const workType = $('#workType').val();
+
+  checkGpsIfNeeded(workType)
+    .then(sendData)
+    .catch(msg => alert(msg));
+});
 </script>
+
 </body>
 </html>
