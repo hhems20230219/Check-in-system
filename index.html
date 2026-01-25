@@ -13,279 +13,309 @@
 
   <style>
     body { background:#f6f7f9; }
-    .clock {
-      font-weight: 800;
-      letter-spacing: 1px;
-      background: #000;
-      color: #fff;
-      border-radius: 12px;
-      padding: 18px 16px;
-      text-align: center;
-      font-size: clamp(24px, 3vw, 42px);
+    .timeBox {
+      background:#000;
+      color:#fff;
+      font-weight:800;
+      font-size:32px;
+      letter-spacing:1px;
+      padding:12px 16px;
+      border-radius:12px;
+      text-align:center;
     }
+    .hint { color:#6c757d; font-size:12px; }
   </style>
 </head>
 
 <body>
+  <!-- Navbar -->
   <nav class="navbar navbar-dark bg-dark">
     <div class="container-fluid">
       <span class="navbar-brand mb-0 h1">出勤系統</span>
     </div>
   </nav>
 
-  <div class="container py-4">
-    <div id="clock" class="clock mb-4">----</div>
+  <div class="container py-3">
+    <!-- 大字時間 -->
+    <div class="timeBox mb-3" id="nowTimeText">----</div>
 
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label class="form-label">職稱</label>
-            <select id="titleSelect" class="form-select"></select>
-          </div>
+    <div class="row g-3">
+      <!-- 左：基本資料 -->
+      <div class="col-12 col-lg-6">
+        <div class="card shadow-sm">
+          <div class="card-header fw-bold">基本資料</div>
+          <div class="card-body">
+            <div class="mb-2">
+              <label class="form-label">職稱</label>
+              <input type="text" class="form-control" id="unitTitle" placeholder="例如：分隊長" />
+            </div>
 
-          <div class="col-md-4">
-            <label class="form-label">姓名</label>
-            <select id="nameSelect" class="form-select"></select>
-          </div>
+            <div class="mb-2">
+              <label class="form-label">姓名</label>
+              <input type="text" class="form-control" id="personName" placeholder="例如：吳宇樺" />
+              <div class="hint mt-1">會自動從 people 讀取並帶入（你也可手動改）</div>
+            </div>
 
-          <div class="col-md-4">
-            <label class="form-label">協勤內容</label>
-            <input id="dutyContent" class="form-control" placeholder="可留空" />
-          </div>
+            <div class="mb-2">
+              <label class="form-label">下拉式選單</label>
+              <select class="form-select" id="dutyType">
+                <option value="協勤">協勤（抓GPS｜簽到+簽退）</option>
+                <option value="常年訓練">常年訓練（抓GPS｜只簽到）</option>
+                <option value="公差勤務">公差勤務（不抓GPS｜簽到+簽退）</option>
+              </select>
+            </div>
 
-          <div class="col-md-3">
-            <label class="form-label">簽到日期</label>
-            <input id="signInDate" type="date" class="form-control" />
-          </div>
-
-          <div class="col-md-3">
-            <label class="form-label">簽到時間</label>
-            <input id="signInTime" type="time" class="form-control" />
-          </div>
-
-          <div class="col-md-3">
-            <label class="form-label">簽退日期</label>
-            <input id="signOutDate" type="date" class="form-control" />
-          </div>
-
-          <div class="col-md-3">
-            <label class="form-label">簽退時間</label>
-            <input id="signOutTime" type="time" class="form-control" />
+            <div class="mt-3">
+              <button class="btn btn-outline-primary" id="btnLoadPeople">讀取 people</button>
+              <span class="hint ms-2" id="peopleStatus"></span>
+            </div>
           </div>
         </div>
+      </div>
 
-        <div class="d-flex gap-2 mt-4">
-          <button id="signInBtn" class="btn btn-primary w-50">簽到</button>
-          <button id="signOutBtn" class="btn btn-outline-primary w-50">簽退</button>
-        </div>
+      <!-- 右：簽到簽退 -->
+      <div class="col-12 col-lg-6">
+        <div class="card shadow-sm">
+          <div class="card-header fw-bold">簽到 / 簽退</div>
+          <div class="card-body">
+            <div class="row g-2">
+              <div class="col-12 col-md-6">
+                <label class="form-label">簽到日期時間</label>
+                <div class="input-group">
+                  <input type="datetime-local" class="form-control" id="checkInDateTime" />
+                  <button class="btn btn-outline-secondary" id="btnCheckInNow" type="button">現在</button>
+                </div>
+              </div>
 
-        <div class="mt-3">
-          <div id="status" class="small text-muted"></div>
+              <div class="col-12 col-md-6">
+                <label class="form-label">簽退日期時間</label>
+                <div class="input-group">
+                  <input type="datetime-local" class="form-control" id="checkOutDateTime" />
+                  <button class="btn btn-outline-secondary" id="btnCheckOutNow" type="button">現在</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-3">
+              <label class="form-label">工作內容</label>
+              <textarea class="form-control" id="workNote" rows="3" placeholder="例如：支援OO活動、器材整備、訓練紀錄..."></textarea>
+            </div>
+
+            <div class="mt-3 d-flex gap-2 flex-wrap">
+              <button class="btn btn-success" id="btnSubmit">送出</button>
+              <span class="hint" id="submitStatus"></span>
+            </div>
+
+            <hr />
+
+            <div class="hint">
+              GPS 規則：<br/>
+              - 協勤 / 常年訓練：送出前會抓 GPS（若抓不到會提示）<br/>
+              - 公差勤務：不抓 GPS
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <script>
-    // 1) 改成你的 Apps Script Web App exec URL
-    // 例：https://script.google.com/macros/s/xxxxxxxxxxxxxxxxxxxxxxxx/exec
-    var scriptUrl = "https://script.google.com/macros/s/AKfycbxklh_50lReBLPjGvf2NFgxU6tVkHXpKH6qRCM3_R8B7Z5ae-lRMXr73u9FO0kkvq10/exec";
+<script>
+  // TODO：把這個換成你部署後的 Web App URL
+  const gasWebAppUrl = "PUT_YOUR_GAS_WEB_APP_URL_HERE";
 
-    var peopleCache = [];
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
 
-    $(function () {
-      startClock_();
-      initDefaultDateTime_();
-      loadPeople_();
+  function formatNowText(d) {
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate())
+      + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + ":" + pad2(d.getSeconds());
+  }
 
-      $("#titleSelect").on("change", function () {
-        var selectedTitle = $("#titleSelect").val();
-        fillNamesByTitle_(selectedTitle);
-      });
+  function toDatetimeLocalValue(d) {
+    // datetime-local 需要 YYYY-MM-DDTHH:mm
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate())
+      + "T" + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  }
 
-      $("#signInBtn").on("click", function () {
-        signIn_();
-      });
+  function splitDateTime(datetimeLocalValue) {
+    // "YYYY-MM-DDTHH:mm"
+    if (!datetimeLocalValue) return { date: "", time: "" };
+    const parts = datetimeLocalValue.split("T");
+    return {
+      date: parts[0] || "",
+      time: (parts[1] || "") + (parts[1] ? ":00" : "")
+    };
+  }
 
-      $("#signOutBtn").on("click", function () {
-        signOut_();
-      });
+  function setNowToInput($input) {
+    const now = new Date();
+    $input.val(toDatetimeLocalValue(now));
+  }
+
+  function setStatus($el, text, isError) {
+    $el.text(text || "");
+    $el.css("color", isError ? "#dc3545" : "#6c757d");
+  }
+
+  async function loadPeople() {
+    if (!gasWebAppUrl || gasWebAppUrl.indexOf("http") !== 0) {
+      setStatus($("#peopleStatus"), "請先設定 gasWebAppUrl", true);
+      return;
+    }
+
+    setStatus($("#peopleStatus"), "讀取中...");
+    const url = gasWebAppUrl + "?action=people&_=" + Date.now();
+
+    try {
+      const resp = await fetch(url, { method: "GET" });
+      const data = await resp.json();
+
+      if (!Array.isArray(data)) {
+        setStatus($("#peopleStatus"), "people 回傳格式不正確", true);
+        return;
+      }
+
+      // 最簡單：取第一筆自動帶入
+      if (data.length > 0) {
+        $("#unitTitle").val(data[0].title || "");
+        $("#personName").val(data[0].name || "");
+        setStatus($("#peopleStatus"), "已帶入：" + (data[0].title || "") + " " + (data[0].name || ""));
+      } else {
+        setStatus($("#peopleStatus"), "people 沒資料", true);
+      }
+    } catch (err) {
+      setStatus($("#peopleStatus"), "讀取失敗：" + err, true);
+    }
+  }
+
+  function getGpsPosition() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("此瀏覽器不支援 GPS"));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          resolve({
+            gpsLat: pos.coords.latitude,
+            gpsLng: pos.coords.longitude,
+            gpsAcc: pos.coords.accuracy
+          });
+        },
+        (err) => reject(err),
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      );
     });
+  }
 
-    function startClock_() {
-      function pad2_(n) { return String(n).padStart(2, "0"); }
-      function tick_() {
-        var now = new Date();
-        var yyyy = now.getFullYear();
-        var MM = pad2_(now.getMonth() + 1);
-        var dd = pad2_(now.getDate());
-        var HH = pad2_(now.getHours());
-        var mm = pad2_(now.getMinutes());
-        var ss = pad2_(now.getSeconds());
-        $("#clock").text(yyyy + "-" + MM + "-" + dd + " " + HH + ":" + mm + ":" + ss);
-      }
-      tick_();
-      setInterval(tick_, 1000);
+  async function submitSign() {
+    if (!gasWebAppUrl || gasWebAppUrl.indexOf("http") !== 0) {
+      setStatus($("#submitStatus"), "請先設定 gasWebAppUrl", true);
+      return;
     }
 
-    function initDefaultDateTime_() {
-      var now = new Date();
-      $("#signInDate").val(toDateValue_(now));
-      $("#signOutDate").val(toDateValue_(now));
-      $("#signInTime").val(toTimeValue_(now));
-      $("#signOutTime").val(toTimeValue_(now));
+    const unitTitle = ($("#unitTitle").val() || "").trim();
+    const personName = ($("#personName").val() || "").trim();
+    const dutyType = ($("#dutyType").val() || "").trim();
+
+    if (!unitTitle || !personName) {
+      setStatus($("#submitStatus"), "職稱/姓名必填", true);
+      return;
     }
 
-    function loadPeople_() {
-      setStatus_("載入人員名單中...");
+    // 依類別決定簽退必填/可空
+    const checkIn = splitDateTime($("#checkInDateTime").val());
+    const checkOut = splitDateTime($("#checkOutDateTime").val());
 
-      $.ajax({
-        url: scriptUrl,
-        dataType: "jsonp",
-        data: { action: "people" },
-        timeout: 15000
-      }).done(function (res) {
-        if (!res || res.ok !== true) {
-          setStatus_("載入失敗：" + (res && res.message ? res.message : "unknown"));
-          return;
-        }
-
-        peopleCache = Array.isArray(res.people) ? res.people : [];
-        fillTitles_(peopleCache);
-        setStatus_("名單載入完成");
-      }).fail(function () {
-        setStatus_("載入失敗：請確認 scriptUrl 是否正確、Web App 是否已部署公開");
-      });
+    if (!checkIn.date || !checkIn.time) {
+      setStatus($("#submitStatus"), "簽到日期時間必填", true);
+      return;
     }
 
-    function fillTitles_(people) {
-      var titleSet = {};
-      people.forEach(function (p) {
-        if (p && p.title) titleSet[p.title] = true;
-      });
-
-      var titles = Object.keys(titleSet);
-      titles.sort();
-
-      var $title = $("#titleSelect");
-      $title.empty();
-
-      if (titles.length === 0) {
-        $title.append(new Option("（無資料）", ""));
-        $("#nameSelect").empty().append(new Option("（無資料）", ""));
+    if (dutyType !== "常年訓練") {
+      if (!checkOut.date || !checkOut.time) {
+        setStatus($("#submitStatus"), "簽退日期時間必填（常年訓練除外）", true);
         return;
       }
-
-      titles.forEach(function (t) {
-        $title.append(new Option(t, t));
-      });
-
-      // default first
-      fillNamesByTitle_(titles[0]);
     }
 
-    function fillNamesByTitle_(title) {
-      var names = peopleCache
-        .filter(function (p) { return p && p.title === title; })
-        .map(function (p) { return p.name; });
+    setStatus($("#submitStatus"), "準備送出...");
 
-      names.sort();
+    let gps = { gpsLat: "", gpsLng: "", gpsAcc: "" };
 
-      var $name = $("#nameSelect");
-      $name.empty();
-
-      if (names.length === 0) {
-        $name.append(new Option("（無資料）", ""));
+    // 協勤 / 常年訓練 要抓 GPS；公差勤務不用
+    const needGps = (dutyType === "協勤" || dutyType === "常年訓練");
+    if (needGps) {
+      try {
+        setStatus($("#submitStatus"), "抓取 GPS 中...");
+        gps = await getGpsPosition();
+      } catch (err) {
+        setStatus($("#submitStatus"), "GPS 失敗：" + (err.message || err), true);
         return;
       }
-
-      names.forEach(function (n) {
-        $name.append(new Option(n, n));
-      });
     }
 
-    function signIn_() {
-      var payload = {
-        action: "signIn",
-        unitTitle: $("#titleSelect").val() || "",
-        name: $("#nameSelect").val() || "",
-        signInDate: $("#signInDate").val() || "",
-        signInTime: $("#signInTime").val() || "",
-        dutyContent: $("#dutyContent").val() || ""
-      };
+    const payload = {
+      unitTitle: unitTitle,
+      personName: personName,
+      dutyType: dutyType,
+      checkInDate: checkIn.date,
+      checkInTime: checkIn.time,
+      checkOutDate: (dutyType === "常年訓練") ? "" : checkOut.date,
+      checkOutTime: (dutyType === "常年訓練") ? "" : checkOut.time,
+      workNote: ($("#workNote").val() || "").trim(),
+      gpsLat: gps.gpsLat,
+      gpsLng: gps.gpsLng,
+      gpsAcc: gps.gpsAcc
+    };
 
-      if (!payload.unitTitle || !payload.name || !payload.signInDate || !payload.signInTime) {
-        setStatus_("簽到失敗：請選職稱/姓名，並填寫簽到日期時間");
-        return;
+    try {
+      setStatus($("#submitStatus"), "送出中...");
+      const resp = await fetch(gasWebAppUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await resp.json();
+      if (data && data.ok) {
+        setStatus($("#submitStatus"), "送出成功（第 " + data.savedRow + " 列）");
+      } else {
+        setStatus($("#submitStatus"), "送出失敗：" + (data && data.message ? data.message : "unknown"), true);
       }
-
-      setStatus_("簽到送出中...");
-
-      $.ajax({
-        url: scriptUrl,
-        dataType: "jsonp",
-        data: payload,
-        timeout: 15000
-      }).done(function (res) {
-        if (res && res.ok === true) {
-          setStatus_("簽到成功");
-        } else {
-          setStatus_("簽到失敗：" + (res && res.message ? res.message : "unknown"));
-        }
-      }).fail(function () {
-        setStatus_("簽到失敗：連線錯誤（請確認 Web App 部署與權限）");
-      });
+    } catch (err) {
+      setStatus($("#submitStatus"), "送出錯誤：" + err, true);
     }
+  }
 
-    function signOut_() {
-      var payload = {
-        action: "signOut",
-        unitTitle: $("#titleSelect").val() || "",
-        name: $("#nameSelect").val() || "",
-        signOutDate: $("#signOutDate").val() || "",
-        signOutTime: $("#signOutTime").val() || ""
-      };
+  $(function () {
+    // clock
+    setInterval(() => {
+      $("#nowTimeText").text(formatNowText(new Date()));
+    }, 250);
 
-      if (!payload.unitTitle || !payload.name || !payload.signOutDate || !payload.signOutTime) {
-        setStatus_("簽退失敗：請選職稱/姓名，並填寫簽退日期時間");
-        return;
-      }
+    // default time = now
+    setNowToInput($("#checkInDateTime"));
+    setNowToInput($("#checkOutDateTime"));
 
-      setStatus_("簽退送出中...");
+    $("#btnCheckInNow").on("click", function () { setNowToInput($("#checkInDateTime")); });
+    $("#btnCheckOutNow").on("click", function () { setNowToInput($("#checkOutDateTime")); });
 
-      $.ajax({
-        url: scriptUrl,
-        dataType: "jsonp",
-        data: payload,
-        timeout: 15000
-      }).done(function (res) {
-        if (res && res.ok === true) {
-          setStatus_("簽退成功");
-        } else {
-          setStatus_("簽退失敗：" + (res && res.message ? res.message : "unknown"));
-        }
-      }).fail(function () {
-        setStatus_("簽退失敗：連線錯誤（請確認 Web App 部署與權限）");
-      });
-    }
+    $("#btnLoadPeople").on("click", loadPeople);
+    $("#btnSubmit").on("click", submitSign);
 
-    function setStatus_(text) {
-      $("#status").text(text);
-    }
+    // 預設自動載入 people（最省事）
+    loadPeople();
 
-    function toDateValue_(dt) {
-      var y = dt.getFullYear();
-      var m = String(dt.getMonth() + 1).padStart(2, "0");
-      var d = String(dt.getDate()).padStart(2, "0");
-      return y + "-" + m + "-" + d;
-    }
-
-    function toTimeValue_(dt) {
-      var hh = String(dt.getHours()).padStart(2, "0");
-      var mm = String(dt.getMinutes()).padStart(2, "0");
-      return hh + ":" + mm;
-    }
-  </script>
+    // 常年訓練：簽退欄位視覺上 disable
+    $("#dutyType").on("change", function () {
+      const dutyType = ($("#dutyType").val() || "").trim();
+      const isTraining = (dutyType === "常年訓練");
+      $("#checkOutDateTime").prop("disabled", isTraining);
+      $("#btnCheckOutNow").prop("disabled", isTraining);
+      if (isTraining) $("#checkOutDateTime").val("");
+    }).trigger("change");
+  });
+</script>
 </body>
 </html>
