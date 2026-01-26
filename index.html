@@ -15,11 +15,27 @@
 
   <style>
     body { background:#f6f7f9; }
+
+    /* ✅ 兩行時間框 */
     .timeBox{
       background:#000; color:#fff; border-radius:16px;
-      padding:14px 12px; font-size:34px; font-weight:800;
-      text-align:center; letter-spacing:1px;
+      padding:12px 12px;
+      text-align:center;
+      letter-spacing:1px;
     }
+    .timeBox .dateLine{
+      font-size:18px;
+      font-weight:700;
+      opacity:.9;
+      line-height:1.2;
+    }
+    .timeBox .timeLine{
+      font-size:38px;
+      font-weight:900;
+      line-height:1.1;
+      margin-top:2px;
+    }
+
     .cardX { border:0; border-radius:16px; box-shadow:0 6px 20px rgba(0,0,0,.06); }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
     .mini { font-size:12px; color:#6c757d; }
@@ -61,7 +77,7 @@
   <nav class="navbar navbar-dark bg-dark">
     <div class="container-fluid">
       <span class="navbar-brand mb-0 h1">
-        <i class="fa-solid fa-helmet-safety me-2"></i>新興救護義消出勤系統
+        <i class="fa-solid fa-fire-flame-curved me-2"></i>新興救護義消出勤系統
       </span>
       <button class="btn btn-sm btn-outline-light" id="btnLoadPeople">
         <i class="fa-solid fa-rotate me-1"></i>更新名單
@@ -70,9 +86,10 @@
   </nav>
 
   <div class="container py-3">
-    <!-- 時間 -->
-    <div class="timeBox mb-3" id="nowTimeText">
-      <i class="fa-regular fa-clock me-2"></i>----
+    <!-- ✅ 時間（兩行） -->
+    <div class="timeBox mb-3" id="nowTimeBox">
+      <div class="dateLine" id="nowDateText">----</div>
+      <div class="timeLine" id="nowClockText">--:--:--</div>
     </div>
 
     <!-- 定位 -->
@@ -100,7 +117,7 @@
       </div>
     </div>
 
-    <!-- 狀態列 -->
+    <!-- 狀態列（保留：一般提示仍可用；GPS 異常不寫這裡） -->
     <div id="statusBar" class="mb-3"></div>
 
     <!-- 主操作 -->
@@ -126,7 +143,6 @@
   <div class="modal fade" id="signInModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content modalPos" style="border-radius:16px;">
-        <!-- overlay -->
         <div class="modalOverlay" id="inOverlay">
           <div class="box">
             <div class="spinner-border text-light spin" role="status" aria-hidden="true"></div>
@@ -147,9 +163,9 @@
             <div class="col-12">
               <label class="form-label">勤務</label>
               <select class="form-select" id="inDutyType">
-                <option value="assist">協勤（GPS）</option>
-                <option value="training">常年訓練（GPS）</option>
-                <option value="work">公差勤務（不GPS）</option>
+                <option value="assist">協勤</option>
+                <option value="training">常年訓練</option>
+                <option value="work">公差勤務</option>
               </select>
             </div>
 
@@ -182,9 +198,7 @@
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary btnRound" data-bs-dismiss="modal" id="btnCancelIn">
-            取消
-          </button>
+          <button type="button" class="btn btn-outline-secondary btnRound" data-bs-dismiss="modal" id="btnCancelIn">取消</button>
           <button type="button" class="btn btn-success btnRound" id="btnSubmitSignIn">
             <i class="fa-solid fa-paper-plane me-1"></i>送出簽到
           </button>
@@ -197,7 +211,6 @@
   <div class="modal fade" id="signOutModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content modalPos" style="border-radius:16px;">
-        <!-- overlay -->
         <div class="modalOverlay" id="outOverlay">
           <div class="box">
             <div class="spinner-border text-light spin" role="status" aria-hidden="true"></div>
@@ -218,19 +231,20 @@
             <div class="col-12">
               <label class="form-label">勤務</label>
               <select class="form-select" id="outDutyType">
-                <option value="assist">協勤（GPS）</option>
-                <option value="work">公差勤務（不GPS）</option>
+                <option value="assist">協勤</option>
+                <option value="work">公差勤務</option>
               </select>
               <div class="mini mt-1">常年訓練只有簽到，不提供簽退。</div>
             </div>
 
-            <div class="col-12">
+            <!-- ✅ 狀態（協勤才顯示） -->
+            <div class="col-12" id="outWorkModeWrap">
               <label class="form-label">狀態</label>
               <select class="form-select" id="outWorkMode">
                 <option value="standby">備勤</option>
                 <option value="dispatch">出勤</option>
               </select>
-              <div class="mini mt-1">選「備勤」會直接寫入「備勤」；選「出勤」才需要填工作內容。</div>
+              <div class="mini mt-1">協勤：備勤不需填工作內容；出勤需要填工作內容。</div>
             </div>
 
             <div class="col-6">
@@ -255,9 +269,11 @@
               <input type="time" class="form-control" id="outTime" step="60">
             </div>
 
+            <!-- ✅ 工作內容 -->
             <div class="col-12" id="outDutyContentWrap">
-              <label class="form-label">工作內容（出勤才需要）</label>
+              <label class="form-label" id="outDutyContentLabel">工作內容</label>
               <textarea class="form-control" id="outDutyContent" rows="2" placeholder="例如：0800車禍三民區吉林街142號"></textarea>
+              <div class="mini mt-1" id="outDutyContentHint">協勤選「出勤」才需要填；公差勤務一定要填。</div>
             </div>
 
             <div class="col-12 mini">
@@ -267,9 +283,7 @@
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary btnRound" data-bs-dismiss="modal" id="btnCancelOut">
-            取消
-          </button>
+          <button type="button" class="btn btn-outline-secondary btnRound" data-bs-dismiss="modal" id="btnCancelOut">取消</button>
           <button type="button" class="btn btn-warning btnRound" id="btnSubmitSignOut">
             <i class="fa-solid fa-paper-plane me-1"></i>送出簽退
           </button>
@@ -289,7 +303,6 @@
   </div>
 
 <script>
-  // ===== GAS Web App exec URL =====
   const webAppUrl = "https://script.google.com/macros/s/AKfycbzft0lPlbdTRdLZTgVHOB4A16xGUAFqYpZjbenWuvw-qoiKvNaTAhsTCuKHhZ3N7lWa/exec";
 
   const targetLat = 22.630760862581145;
@@ -313,7 +326,7 @@
     loadPeople_();
     locate_();
 
-    applyOutModeUi_(); // 初始：備勤/出勤 UI
+    applyOutUiByDuty_();
   });
 
   function bindEvents_() {
@@ -321,12 +334,12 @@
     $("#btnLoadPeople").on("click", loadPeople_);
 
     $("#btnOpenSignIn").on("click", function () {
-      fillNowToSignInModal_();      // 每次開都帶入現在時間
+      fillNowToSignInModal_();
       signInModal.show();
     });
 
     $("#btnOpenSignOut").on("click", function () {
-      fillNowToSignOutModal_();     // 每次開都帶入現在時間
+      fillNowToSignOutModal_();
       signOutModal.show();
     });
 
@@ -340,7 +353,9 @@
       if (unitTitle) $("#outUnitTitle").val(unitTitle);
     });
 
-    $("#outWorkMode").on("change", applyOutModeUi_);
+    // ✅ 簽退 UI 控制
+    $("#outDutyType").on("change", applyOutUiByDuty_);
+    $("#outWorkMode").on("change", applyOutUiByDuty_);
 
     $("#btnSubmitSignIn").on("click", submitSignIn_);
     $("#btnSubmitSignOut").on("click", submitSignOut_);
@@ -353,7 +368,8 @@
 
   function tick_() {
     const now = new Date();
-    $("#nowTimeText").html('<i class="fa-regular fa-clock me-2"></i>' + fmtDateTime_(now));
+    $("#nowDateText").text(fmtDateDisplay_(now));
+    $("#nowClockText").text(fmtTimeDisplay_(now));
   }
 
   function fillNowToSignInModal_(){
@@ -368,11 +384,36 @@
     $("#outTime").val(fmtTime_(now));
   }
 
-  function applyOutModeUi_(){
-    const mode = $("#outWorkMode").val(); // standby / dispatch
+  function applyOutUiByDuty_(){
+    const dutyType = $("#outDutyType").val();     // assist / work
+    const mode = $("#outWorkMode").val();         // standby / dispatch
+
+    const isAssist = dutyType === "assist";
+    const isWork = dutyType === "work";
     const isDispatch = mode === "dispatch";
-    $("#outDutyContentWrap").toggle(isDispatch);
-    if (!isDispatch) $("#outDutyContent").val("");
+
+    // 協勤：顯示狀態；備勤隱藏內容、出勤顯示內容
+    // 公差：不顯示狀態；直接顯示內容
+    $("#outWorkModeWrap").toggle(isAssist);
+
+    if (isWork) {
+      $("#outDutyContentWrap").show();
+      $("#outDutyContentLabel").text("工作內容");
+      $("#outDutyContentHint").text("公差勤務：請填工作內容。");
+      return;
+    }
+
+    // assist
+    if (isDispatch) {
+      $("#outDutyContentWrap").show();
+      $("#outDutyContentLabel").text("工作內容（出勤才需要）");
+      $("#outDutyContentHint").text("協勤選「出勤」請填工作內容；會直接寫入你填的內容（不加前綴）。");
+      return;
+    }
+
+    // assist + standby
+    $("#outDutyContentWrap").hide();
+    $("#outDutyContent").val("");
   }
 
   function locate_() {
@@ -422,6 +463,21 @@
     return dutyType === "assist" || dutyType === "training";
   }
 
+  // ✅ GPS 異常：改用 toast 提示（不寫 statusBar）
+  function ensureGpsOrToast_(dutyType){
+    if (!needGpsByDuty_(dutyType)) return true;
+
+    if (!lastGps.ok) {
+      showToast_("❌ 尚未定位，請先按「重新定位」");
+      return false;
+    }
+    if (lastGps.distanceMeters > allowedRadiusMeters) {
+      showToast_("❌ GPS 不在範圍內（距離約 " + lastGps.distanceMeters + " m）");
+      return false;
+    }
+    return true;
+  }
+
   function setModalBusy_(which, busy){
     const $overlay = (which === "in") ? $("#inOverlay") : $("#outOverlay");
     const disable = !!busy;
@@ -449,10 +505,8 @@
     if (!personName) { showStatus_("danger", "請選姓名"); return; }
     if (!signInDate || !signInTime) { showStatus_("danger", "簽到日期/時間必填"); return; }
 
-    if (needGpsByDuty_(dutyType)) {
-      if (!lastGps.ok) { showStatus_("danger", "尚未定位"); return; }
-      if (lastGps.distanceMeters > allowedRadiusMeters) { showStatus_("danger", "GPS不在半徑內"); return; }
-    }
+    // ✅ GPS 異常 → 直接 toast
+    if (!ensureGpsOrToast_(dutyType)) return;
 
     const params = {
       action: "signIn",
@@ -487,33 +541,35 @@
   }
 
   function submitSignOut_(){
-    const dutyType = $("#outDutyType").val(); // assist / work
-    const workMode = $("#outWorkMode").val(); // standby / dispatch
+    const dutyType = $("#outDutyType").val();     // assist / work
+    const workMode = $("#outWorkMode").val();     // standby / dispatch（協勤才用）
 
     const unitTitle = $("#outUnitTitle").val().trim();
     const personName = $("#outPersonName").val().trim();
     const signOutDate = $("#outDate").val();
     const signOutTime = $("#outTime").val();
-
     const dutyContentText = $("#outDutyContent").val().trim();
 
     if (!personName) { showStatus_("danger", "請選姓名"); return; }
     if (!signOutDate || !signOutTime) { showStatus_("danger", "簽退日期/時間必填"); return; }
 
-    if (needGpsByDuty_(dutyType)) {
-      if (!lastGps.ok) { showStatus_("danger", "尚未定位"); return; }
-      if (lastGps.distanceMeters > allowedRadiusMeters) { showStatus_("danger", "GPS不在半徑內"); return; }
-    }
+    // ✅ GPS 異常 → 直接 toast（協勤才檢查）
+    if (!ensureGpsOrToast_(dutyType)) return;
 
-    // ✅ 協勤內容寫入規則：
-    // - 備勤：寫入「備勤」
-    // - 出勤：只寫你輸入的內容（不加「協勤｜」）
+    // ✅ 簽退內容規則
     let finalContent = "";
-    if (workMode === "standby") {
-      finalContent = "備勤";
+    if (dutyType === "work") {
+      // 公差：一定要填內容
+      if (!dutyContentText) { showStatus_("danger", "公差勤務請填工作內容"); return; }
+      finalContent = dutyContentText;
     } else {
-      if (!dutyContentText) { showStatus_("danger", "出勤請填工作內容"); return; }
-      finalContent = dutyContentText; // 例：0800車禍三民區吉林街142號
+      // 協勤
+      if (workMode === "standby") {
+        finalContent = "備勤";
+      } else {
+        if (!dutyContentText) { showStatus_("danger", "出勤請填工作內容"); return; }
+        finalContent = dutyContentText; // 不加「協勤｜」
+      }
     }
 
     const params = {
@@ -536,7 +592,8 @@
           showToast_("✅ 簽退已送出");
           showStatus_("success", "簽退已送出");
           $("#outDutyContent").val("");
-          $("#outWorkMode").val("standby").trigger("change");
+          $("#outWorkMode").val("standby");
+          applyOutUiByDuty_();
         }else{
           showToast_("❌ 簽退失敗：" + ((res && res.message) ? res.message : "unknown"));
           showStatus_("danger", "簽退失敗：" + ((res && res.message) ? res.message : "unknown"));
@@ -630,14 +687,18 @@
     $("#gpsInfoText").text(info || "--");
   }
 
-  function fmtDateTime_(d) {
+  function fmtDateDisplay_(d){
     const yyyy = d.getFullYear();
     const mm = pad2_(d.getMonth() + 1);
     const dd = pad2_(d.getDate());
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function fmtTimeDisplay_(d){
     const hh = pad2_(d.getHours());
     const mi = pad2_(d.getMinutes());
     const ss = pad2_(d.getSeconds());
-    return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+    return `${hh}:${mi}:${ss}`;
   }
 
   function fmtDate_(d) {
