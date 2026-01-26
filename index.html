@@ -76,7 +76,7 @@
   <!-- Navbar -->
   <nav class="navbar navbar-dark bg-dark">
     <div class="container-fluid">
-      <span class="navbar-brand mb-0 h1">
+      <span class="navbar-brand mb-0 h1 fw-bold">
         <i class="fa-solid fa-fire-flame-curved me-2"></i>新興救護義消出勤系統
       </span>
       <button class="btn btn-sm btn-outline-light" id="btnLoadPeople">
@@ -104,10 +104,8 @@
 
         <div class="mono mb-1" id="gpsRawText">lat=--, lng=--</div>
 
-        <div class="mini mb-3">
-          目標：lat=22.630760862581145, lng=120.31129260397951
-          ／ 半徑：<span id="radiusText">--</span> m
-        </div>
+        <!-- ✅ 依勤務動態顯示目標定位清單 -->
+        <div class="mini mb-3" id="gpsTargetsText">--</div>
 
         <div class="d-grid">
           <button class="btn btn-primary btn-sm btnRound" id="btnRelocate">
@@ -192,7 +190,7 @@
             </div>
 
             <div class="col-12 mini">
-              ※ 點開視窗會自動帶入現在時間；你也可以手動改。
+              ※ 點開視窗會自動帶入現在時間，亦可以手動修改。
             </div>
           </div>
         </div>
@@ -272,7 +270,7 @@
             <!-- ✅ 工作內容 -->
             <div class="col-12" id="outDutyContentWrap">
               <label class="form-label" id="outDutyContentLabel">工作內容</label>
-              <textarea class="form-control" id="outDutyContent" rows="2" placeholder="例如：0800車禍三民區吉林街142號"></textarea>
+              <textarea class="form-control" id="outDutyContent" rows="2" placeholder="例如：參加幹部會議 或 0800車禍三民區吉林街142號"></textarea>
               <div class="mini mt-1" id="outDutyContentHint">協勤選「出勤」才需要填；公差勤務一定要填。</div>
             </div>
 
@@ -305,17 +303,23 @@
 <script>
   const webAppUrl = "https://script.google.com/macros/s/AKfycbzft0lPlbdTRdLZTgVHOB4A16xGUAFqYpZjbenWuvw-qoiKvNaTAhsTCuKHhZ3N7lWa/exec";
 
-  const targetLat = 22.630760862581145;
-  const targetLng = 120.31129260397951;
-  const allowedRadiusMeters = 500;
+  // ✅ 勤務對應定位（協勤：單一；常訓：多點）
+  const gpsTargets = {
+    assist: [
+      { name: "新興分隊", lat: 22.630760862581145, lng: 120.31129260397951, radius: 100 }
+    ],
+    training: [
+      { name: "新興分隊", lat: 22.630760862581145, lng: 120.31129260397951, radius: 100 },
+      { name: "日月光K11", lat: 22.72225048412894,  lng: 120.30465547103677, radius: 100 }
+    ]
+  };
 
-  let lastGps = { ok: false, lat: null, lng: null, accuracyMeters: null, distanceMeters: null };
+  let currentGpsDuty = "assist"; // assist / training / work(不需GPS)
+  let lastGps = { ok: false, lat: null, lng: null, accuracyMeters: null };
 
   let signInModal, signOutModal, toast;
 
   $(function () {
-    $("#radiusText").text(allowedRadiusMeters);
-
     signInModal = new bootstrap.Modal(document.getElementById("signInModal"));
     signOutModal = new bootstrap.Modal(document.getElementById("signOutModal"));
     toast = new bootstrap.Toast(document.getElementById("toastMsg"), { delay: 2500 });
@@ -324,6 +328,7 @@
     startClock_();
 
     loadPeople_();
+    setGpsDuty_("assist");
     locate_();
 
     applyOutUiByDuty_();
@@ -335,11 +340,13 @@
 
     $("#btnOpenSignIn").on("click", function () {
       fillNowToSignInModal_();
+      setGpsDuty_($("#inDutyType").val());
       signInModal.show();
     });
 
     $("#btnOpenSignOut").on("click", function () {
       fillNowToSignOutModal_();
+      setGpsDuty_($("#outDutyType").val());
       signOutModal.show();
     });
 
@@ -353,8 +360,16 @@
       if (unitTitle) $("#outUnitTitle").val(unitTitle);
     });
 
+    // ✅ 勤務切換時，同步切換定位目標顯示
+    $("#inDutyType").on("change", function () {
+      setGpsDuty_($(this).val());
+    });
+    $("#outDutyType").on("change", function () {
+      setGpsDuty_($(this).val());
+      applyOutUiByDuty_();
+    });
+
     // ✅ 簽退 UI 控制
-    $("#outDutyType").on("change", applyOutUiByDuty_);
     $("#outWorkMode").on("change", applyOutUiByDuty_);
 
     $("#btnSubmitSignIn").on("click", submitSignIn_);
@@ -406,14 +421,56 @@
     // assist
     if (isDispatch) {
       $("#outDutyContentWrap").show();
-      $("#outDutyContentLabel").text("工作內容（出勤才需要）");
-      $("#outDutyContentHint").text("協勤選「出勤」請填工作內容；會直接寫入你填的內容（不加前綴）。");
+      $("#outDutyContentLabel").text("工作內容");
+      $("#outDutyContentHint").text("協勤選「出勤」請填工作內容");
       return;
     }
 
     // assist + standby
     $("#outDutyContentWrap").hide();
     $("#outDutyContent").val("");
+  }
+
+  function setGpsDuty_(dutyType){
+    // dutyType: assist / training / work
+    currentGpsDuty = dutyType || "assist";
+    renderTargets_();
+    refreshGpsUi_(); // 定位結果已存在時，切換目標要重新判斷 PASS
+  }
+
+  function getActiveTargetsByDuty_(dutyType){
+    if (dutyType === "training") return gpsTargets.training;
+    if (dutyType === "assist") return gpsTargets.assist;
+    return []; // work 不需GPS
+  }
+
+  function needGpsByDuty_(dutyType){
+    return dutyType === "assist" || dutyType === "training";
+  }
+
+  function renderTargets_(){
+    if (!needGpsByDuty_(currentGpsDuty)) {
+      $("#gpsTargetsText").text("此勤務不需 GPS。");
+      return;
+    }
+
+    const targets = getActiveTargetsByDuty_(currentGpsDuty);
+    if (!targets.length) {
+      $("#gpsTargetsText").text("--");
+      return;
+    }
+
+    const lines = [];
+    for (let i = 0; i < targets.length; i++) {
+      const t = targets[i];
+      if (t.name === "新興分隊") {
+        lines.push(`${t.name}： lat=${t.lat}, lng=${t.lng} ／ 半徑：${t.radius} m`);
+      } else {
+        lines.push(`${t.name}：${t.lat}, ${t.lng} ／ 半徑：${t.radius} m`);
+      }
+    }
+
+    $("#gpsTargetsText").html(lines.map(s => esc_(s)).join("<br>"));
   }
 
   function locate_() {
@@ -430,14 +487,13 @@
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         const acc = Math.round(pos.coords.accuracy || 0);
-        const dist = Math.round(distMeters_(lat, lng, targetLat, targetLng));
 
-        lastGps = { ok: true, lat: lat, lng: lng, accuracyMeters: acc, distanceMeters: dist };
+        lastGps = { ok: true, lat: lat, lng: lng, accuracyMeters: acc };
         refreshGpsUi_();
-        showStatus_("success", "定位成功（精度約 " + acc + " m，距離約 " + dist + " m）");
+        showStatus_("success", "定位成功（精度約 " + acc + " m）");
       },
       function (err) {
-        lastGps = { ok: false, lat: null, lng: null, accuracyMeters: null, distanceMeters: null };
+        lastGps = { ok: false, lat: null, lng: null, accuracyMeters: null };
         setGpsBadge_("secondary", "定位失敗", (err && err.message) ? err.message : "unknown");
         $("#gpsRawText").text("lat=--, lng=--");
         showStatus_("danger", "定位失敗：" + ((err && err.message) ? err.message : "unknown"));
@@ -447,23 +503,48 @@
   }
 
   function refreshGpsUi_() {
+    if (!needGpsByDuty_(currentGpsDuty)) {
+      setGpsBadge_("secondary", "不需GPS", "--");
+      if (!lastGps.ok) $("#gpsRawText").text("lat=--, lng=--");
+      else $("#gpsRawText").text("lat=" + lastGps.lat + ", lng=" + lastGps.lng);
+      $("#gpsInfoText").text("--");
+      return;
+    }
+
     if (!lastGps.ok) {
       setGpsBadge_("secondary", "尚未定位", "--");
       $("#gpsRawText").text("lat=--, lng=--");
       return;
     }
 
-    const pass = lastGps.distanceMeters <= allowedRadiusMeters;
-    const info = "精度 " + lastGps.accuracyMeters + " m / 距離 " + lastGps.distanceMeters + " m";
-    setGpsBadge_(pass ? "success" : "danger", pass ? "GPS通過" : "GPS不通過", info);
+    const targets = getActiveTargetsByDuty_(currentGpsDuty);
+    const result = calcGpsPass_(lastGps.lat, lastGps.lng, targets);
+
+    const info = "精度 " + lastGps.accuracyMeters + " m / 最近：" + result.nearestName + " 距離 " + result.nearestDistance + " m";
+    setGpsBadge_(result.passAny ? "success" : "danger", result.passAny ? "GPS通過" : "GPS不通過", info);
     $("#gpsRawText").text("lat=" + lastGps.lat + ", lng=" + lastGps.lng);
   }
 
-  function needGpsByDuty_(dutyType){
-    return dutyType === "assist" || dutyType === "training";
+  function calcGpsPass_(lat, lng, targets){
+    let passAny = false;
+    let nearestDistance = 999999999;
+    let nearestName = "--";
+
+    for (let i = 0; i < targets.length; i++) {
+      const t = targets[i];
+      const dist = Math.round(distMeters_(lat, lng, t.lat, t.lng));
+      if (dist < nearestDistance) {
+        nearestDistance = dist;
+        nearestName = t.name;
+      }
+      if (dist <= (t.radius || 0)) passAny = true;
+    }
+
+    if (nearestDistance === 999999999) nearestDistance = 0;
+    return { passAny, nearestDistance, nearestName };
   }
 
-  // ✅ GPS 異常：改用 toast 提示（不寫 statusBar）
+  // ✅ GPS 異常：用 toast 提示（不寫 statusBar）
   function ensureGpsOrToast_(dutyType){
     if (!needGpsByDuty_(dutyType)) return true;
 
@@ -471,10 +552,15 @@
       showToast_("❌ 尚未定位，請先按「重新定位」");
       return false;
     }
-    if (lastGps.distanceMeters > allowedRadiusMeters) {
-      showToast_("❌ GPS 不在範圍內（距離約 " + lastGps.distanceMeters + " m）");
+
+    const targets = getActiveTargetsByDuty_(dutyType);
+    const result = calcGpsPass_(lastGps.lat, lastGps.lng, targets);
+
+    if (!result.passAny) {
+      showToast_("❌ GPS 不在範圍內（最近：" + result.nearestName + " 距離約 " + result.nearestDistance + " m）");
       return false;
     }
+
     return true;
   }
 
@@ -505,7 +591,6 @@
     if (!personName) { showStatus_("danger", "請選姓名"); return; }
     if (!signInDate || !signInTime) { showStatus_("danger", "簽到日期/時間必填"); return; }
 
-    // ✅ GPS 異常 → 直接 toast
     if (!ensureGpsOrToast_(dutyType)) return;
 
     const params = {
@@ -553,17 +638,13 @@
     if (!personName) { showStatus_("danger", "請選姓名"); return; }
     if (!signOutDate || !signOutTime) { showStatus_("danger", "簽退日期/時間必填"); return; }
 
-    // ✅ GPS 異常 → 直接 toast（協勤才檢查）
     if (!ensureGpsOrToast_(dutyType)) return;
 
-    // ✅ 簽退內容規則
     let finalContent = "";
     if (dutyType === "work") {
-      // 公差：一定要填內容
       if (!dutyContentText) { showStatus_("danger", "公差勤務請填工作內容"); return; }
       finalContent = dutyContentText;
     } else {
-      // 協勤
       if (workMode === "standby") {
         finalContent = "備勤";
       } else {
