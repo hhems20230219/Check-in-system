@@ -222,7 +222,8 @@
             </div>
             <div class="col-6">
               <label class="form-label">簽到時間</label>
-              <input class="form-control" id="inTime" type="time" step="1">
+              <!-- ✅ 只要 HH:mm -->
+              <input class="form-control" id="inTime" type="time" step="60">
             </div>
           </div>
         </div>
@@ -294,7 +295,8 @@
             </div>
             <div class="col-6">
               <label class="form-label">簽退時間</label>
-              <input class="form-control" id="outTime" type="time" step="1">
+              <!-- ✅ 只要 HH:mm -->
+              <input class="form-control" id="outTime" type="time" step="60">
             </div>
           </div>
 
@@ -438,7 +440,8 @@
   function tick_(){
     const now = new Date();
     $("#nowDateText").text(fmtDate_(now));
-    $("#nowClockText").text(fmtClock_(now));
+    // ✅ 主畫面時間仍顯示到秒（你沒要求改）
+    $("#nowClockText").text(fmtClockHms_(now));
   }
 
   // ---------- People / selected ----------
@@ -621,9 +624,9 @@
             <tr>
               <td>${esc_(r.dutyTypeText || "")}</td>
               <td>${esc_(r.signInDate || "")}</td>
-              <td>${esc_(r.signInTime || "")}</td>
+              <td>${esc_(toHm_(r.signInTime || ""))}</td>
               <td>${esc_(r.signOutDate || "")}</td>
-              <td>${esc_(r.signOutTime || "")}</td>
+              <td>${esc_(toHm_(r.signOutTime || ""))}</td>
             </tr>
           `);
         }
@@ -642,7 +645,8 @@
     $("#inPersonName").val(selected.personName || "");
 
     $("#inDate").val(fmtDate_(now));
-    $("#inTime").val(fmtClock_(now));
+    // ✅ 只填 HH:mm
+    $("#inTime").val(fmtClockHm_(now));
 
     if (!$("#inDutyType").val()) $("#inDutyType").val("assist");
   }
@@ -654,7 +658,8 @@
     $("#outPersonName").val(selected.personName || "");
 
     $("#outDate").val(fmtDate_(now));
-    $("#outTime").val(fmtClock_(now));
+    // ✅ 只填 HH:mm
+    $("#outTime").val(fmtClockHm_(now));
 
     if (!$("#outDutyType").val()) $("#outDutyType").val("assist");
   }
@@ -680,7 +685,8 @@
     const unitTitle = $("#inUnitTitle").val().trim();
     const personName = $("#inPersonName").val().trim();
     const signInDate = $("#inDate").val();
-    const signInTime = $("#inTime").val();
+    // ✅ 保險：只留 HH:mm
+    const signInTime = toHm_($("#inTime").val());
 
     if (!personName) { showStatus_("danger", "請選姓名"); return; }
     if (!signInDate || !signInTime) { showStatus_("danger", "簽到日期／時間為必填"); return; }
@@ -716,7 +722,8 @@
     const unitTitle = $("#outUnitTitle").val().trim();
     const personName = $("#outPersonName").val().trim();
     const signOutDate = $("#outDate").val();
-    const signOutTime = $("#outTime").val();
+    // ✅ 保險：只留 HH:mm
+    const signOutTime = toHm_($("#outTime").val());
     const mode = $("#outMode").val();
     const content = $("#outContent").val().trim();
 
@@ -792,11 +799,28 @@
     return `${y}-${m}`;
   }
 
-  function fmtClock_(d){
+  // ✅ 主畫面時間：HH:mm:ss
+  function fmtClockHms_(d){
     const hh = pad2_(d.getHours());
     const mm = pad2_(d.getMinutes());
     const ss = pad2_(d.getSeconds());
     return `${hh}:${mm}:${ss}`;
+  }
+
+  // ✅ 簽到/簽退時間：HH:mm
+  function fmtClockHm_(d){
+    const hh = pad2_(d.getHours());
+    const mm = pad2_(d.getMinutes());
+    return `${hh}:${mm}`;
+  }
+
+  // ✅ 將任何時間字串轉成 HH:mm（例："08:30:12" -> "08:30"）
+  function toHm_(s){
+    const t = String(s || "").trim();
+    if (!t) return "";
+    // 允許 "HH:mm" / "HH:mm:ss" / "HH:mm:ss.sss"
+    if (t.length >= 5) return t.substring(0, 5);
+    return t;
   }
 
   function pad2_(n){ return (n<10 ? "0" : "") + n; }
