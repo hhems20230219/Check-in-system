@@ -154,7 +154,9 @@
         <div class="modal-body">
           <div class="mb-3">
             <label class="form-label">職稱</label>
-            <input class="form-control" id="pickUnitTitle" type="text" readonly>
+            <!-- ✅ 只能看：disabled + readonly + 不可聚焦 -->
+            <input class="form-control" id="pickUnitTitle" type="text"
+                   value="" readonly disabled tabindex="-1" aria-readonly="true">
           </div>
           <div class="mb-2">
             <label class="form-label">姓名</label>
@@ -207,7 +209,9 @@
           <div class="row g-2 mb-3">
             <div class="col-6">
               <label class="form-label">職稱</label>
-              <input class="form-control" id="inUnitTitle" type="text" readonly>
+              <!-- ✅ 只能看：disabled + readonly + 不可聚焦 -->
+              <input class="form-control" id="inUnitTitle" type="text"
+                     value="" readonly disabled tabindex="-1" aria-readonly="true">
             </div>
             <div class="col-6">
               <label class="form-label">姓名</label>
@@ -222,7 +226,6 @@
             </div>
             <div class="col-6">
               <label class="form-label">簽到時間</label>
-              <!-- ✅ 只要 HH:mm -->
               <input class="form-control" id="inTime" type="time" step="60">
             </div>
           </div>
@@ -280,7 +283,9 @@
           <div class="row g-2 mb-3">
             <div class="col-6">
               <label class="form-label">職稱</label>
-              <input class="form-control" id="outUnitTitle" type="text" readonly>
+              <!-- ✅ 只能看：disabled + readonly + 不可聚焦 -->
+              <input class="form-control" id="outUnitTitle" type="text"
+                     value="" readonly disabled tabindex="-1" aria-readonly="true">
             </div>
             <div class="col-6">
               <label class="form-label">姓名</label>
@@ -295,7 +300,6 @@
             </div>
             <div class="col-6">
               <label class="form-label">簽退時間</label>
-              <!-- ✅ 只要 HH:mm -->
               <input class="form-control" id="outTime" type="time" step="60">
             </div>
           </div>
@@ -319,10 +323,8 @@
   </div>
 
 <script>
-  // 你的 GAS WebApp URL
   const webAppUrl = "https://script.google.com/macros/s/AKfycbzft0lPlbdTRdLZTgVHOB4A16xGUAFqYpZjbenWuvw-qoiKvNaTAhsTCuKHhZ3N7lWa/exec";
 
-  // ✅ GPS（依你指定）
   const gpsRules = {
     assist: [
       { name: "新興分隊", lat: 22.630760865622978, lng: 120.31122281518338, radius: 100 }
@@ -360,8 +362,6 @@
 
       setDefaultMonth_();
       refreshSign_();
-
-      // 預先定位一次
       locate_();
     });
   });
@@ -375,8 +375,19 @@
 
     $("#pickPersonName").on("change", function(){
       const name = $(this).val();
-      const p = people.find(x => x.personName === name);
-      $("#pickUnitTitle").val(p ? p.unitTitle : "");
+      setUnitTitleByName_(name, "#pickUnitTitle");
+    });
+
+    // ✅【新增】簽到：改姓名 -> 職稱跟著變
+    $("#inPersonName").on("change", function(){
+      const name = $(this).val();
+      setUnitTitleByName_(name, "#inUnitTitle");
+    });
+
+    // ✅【新增】簽退：改姓名 -> 職稱跟著變
+    $("#outPersonName").on("change", function(){
+      const name = $(this).val();
+      setUnitTitleByName_(name, "#outUnitTitle");
     });
 
     $("#btnPickCancel").on("click", function(){
@@ -386,7 +397,7 @@
 
     $("#btnPickOk").on("click", function(){
       const name = $("#pickPersonName").val();
-      const p = people.find(x => x.personName === name);
+      const p = findPersonByName_(name);
       if (!p) { showStatus_("danger", "請先選擇姓名"); return; }
 
       selected.unitTitle = p.unitTitle || "";
@@ -431,6 +442,19 @@
     $("#signYmPicker").on("change", refreshSign_);
   }
 
+  // ✅【新增】工具：依姓名找人
+  function findPersonByName_(name){
+    const n = String(name || "").trim();
+    if (!n) return null;
+    return people.find(x => x && x.personName === n) || null;
+  }
+
+  // ✅【新增】工具：依姓名回填職稱到指定 input
+  function setUnitTitleByName_(name, unitTitleSelector){
+    const p = findPersonByName_(name);
+    $(unitTitleSelector).val(p ? (p.unitTitle || "") : "");
+  }
+
   // ---------- UI: clock ----------
   function startClock_(){
     tick_();
@@ -440,7 +464,6 @@
   function tick_(){
     const now = new Date();
     $("#nowDateText").text(fmtDate_(now));
-    // ✅ 主畫面時間仍顯示到秒（你沒要求改）
     $("#nowClockText").text(fmtClockHms_(now));
   }
 
@@ -481,7 +504,7 @@
       const obj = JSON.parse(raw);
       selected.unitTitle = String(obj.unitTitle || "");
       selected.personName = String(obj.personName || "");
-    } catch { /* ignore */ }
+    } catch { }
   }
 
   function saveSelectedToStorage_(){
@@ -490,7 +513,7 @@
         unitTitle: selected.unitTitle || "",
         personName: selected.personName || ""
       }));
-    } catch { /* ignore */ }
+    } catch { }
   }
 
   function isSelectedValid_(){
@@ -641,11 +664,11 @@
   function fillSignInModal_(){
     const now = new Date();
 
-    $("#inUnitTitle").val(selected.unitTitle || "");
     $("#inPersonName").val(selected.personName || "");
+    // ✅ 用「姓名」反推職稱，避免 selected/unitTitle 舊資料
+    setUnitTitleByName_($("#inPersonName").val(), "#inUnitTitle");
 
     $("#inDate").val(fmtDate_(now));
-    // ✅ 只填 HH:mm
     $("#inTime").val(fmtClockHm_(now));
 
     if (!$("#inDutyType").val()) $("#inDutyType").val("assist");
@@ -654,11 +677,11 @@
   function fillSignOutModal_(){
     const now = new Date();
 
-    $("#outUnitTitle").val(selected.unitTitle || "");
     $("#outPersonName").val(selected.personName || "");
+    // ✅ 用「姓名」反推職稱，避免 selected/unitTitle 舊資料
+    setUnitTitleByName_($("#outPersonName").val(), "#outUnitTitle");
 
     $("#outDate").val(fmtDate_(now));
-    // ✅ 只填 HH:mm
     $("#outTime").val(fmtClockHm_(now));
 
     if (!$("#outDutyType").val()) $("#outDutyType").val("assist");
@@ -685,7 +708,6 @@
     const unitTitle = $("#inUnitTitle").val().trim();
     const personName = $("#inPersonName").val().trim();
     const signInDate = $("#inDate").val();
-    // ✅ 保險：只留 HH:mm
     const signInTime = toHm_($("#inTime").val());
 
     if (!personName) { showStatus_("danger", "請選姓名"); return; }
@@ -722,7 +744,6 @@
     const unitTitle = $("#outUnitTitle").val().trim();
     const personName = $("#outPersonName").val().trim();
     const signOutDate = $("#outDate").val();
-    // ✅ 保險：只留 HH:mm
     const signOutTime = toHm_($("#outTime").val());
     const mode = $("#outMode").val();
     const content = $("#outContent").val().trim();
@@ -799,7 +820,6 @@
     return `${y}-${m}`;
   }
 
-  // ✅ 主畫面時間：HH:mm:ss
   function fmtClockHms_(d){
     const hh = pad2_(d.getHours());
     const mm = pad2_(d.getMinutes());
@@ -807,18 +827,15 @@
     return `${hh}:${mm}:${ss}`;
   }
 
-  // ✅ 簽到/簽退時間：HH:mm
   function fmtClockHm_(d){
     const hh = pad2_(d.getHours());
     const mm = pad2_(d.getMinutes());
     return `${hh}:${mm}`;
   }
 
-  // ✅ 將任何時間字串轉成 HH:mm（例："08:30:12" -> "08:30"）
   function toHm_(s){
     const t = String(s || "").trim();
     if (!t) return "";
-    // 允許 "HH:mm" / "HH:mm:ss" / "HH:mm:ss.sss"
     if (t.length >= 5) return t.substring(0, 5);
     return t;
   }
@@ -838,6 +855,7 @@
     const R = 6371000;
     const toRad = x => x * Math.PI / 180;
     const dLat = toRad(lat2-lat1);
+    // ✅ 修正：dLng 應該用 lng2-lng1
     const dLng = toRad(lng2-lng1);
 
     const a =
@@ -849,7 +867,6 @@
     return R * c;
   }
 
-  // ---------- PWA ----------
   function registerServiceWorker_(){
     if (!("serviceWorker" in navigator)) return;
     navigator.serviceWorker.register("./sw.js").catch(function(){});
