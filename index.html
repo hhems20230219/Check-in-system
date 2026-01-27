@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-title" content="義消出勤">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
 
-  <!-- Bootstrap -->
+  <!-- Bootstrap 5.3 -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Font Awesome -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
@@ -25,572 +25,654 @@
   <style>
     body { background:#f6f7f9; }
 
-    /* ✅ 兩行時間框 */
     .timeBox{
       background:#000; color:#fff; border-radius:16px;
-      padding:12px 12px;
-      text-align:center;
-      letter-spacing:1px;
+      padding:12px 12px; text-align:center;
     }
-    .timeBox .dateLine{
-      font-size:18px;
-      font-weight:700;
-      opacity:.9;
-      line-height:1.2;
-    }
-    .timeBox .timeLine{
-      font-size:38px;
-      font-weight:900;
-      line-height:1.1;
-      margin-top:2px;
-    }
+    .timeBox .dateLine{ font-size:18px; font-weight:700; opacity:.92; line-height:1.2; }
+    .timeBox .timeLine{ font-size:40px; font-weight:900; line-height:1.1; margin-top:2px; letter-spacing:1px; }
 
-    .cardX { border:0; border-radius:16px; box-shadow:0 6px 20px rgba(0,0,0,.06); }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    .mini { font-size:12px; color:#6c757d; }
-    .badgeBig { font-size:14px; padding:8px 10px; border-radius:999px; }
-    .alertRound { border-radius:14px; }
-    .btnRound { border-radius:14px; }
-
-    /* Modal spinner overlay */
-    .modalOverlay {
-      position: absolute;
-      inset: 0;
-      background: rgba(0,0,0,.45);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 5;
-      border-radius: 16px;
-    }
-    .modalOverlay .box {
-      background: rgba(0,0,0,.75);
-      color: #fff;
-      padding: 18px 18px;
-      border-radius: 16px;
-      text-align: center;
-      min-width: 220px;
-      box-shadow: 0 12px 32px rgba(0,0,0,.25);
-    }
-    .modalOverlay .spin {
-      width: 3.2rem;
-      height: 3.2rem;
-      margin-bottom: 12px;
-    }
-    .modalPos { position: relative; }
+    .roundedX { border-radius:16px; }
+    .badgeRound { border-radius:999px; padding:.5rem .75rem; }
   </style>
 </head>
 
 <body>
-  <!-- Navbar -->
+  <!-- 第一區 Navbar -->
   <nav class="navbar navbar-dark bg-dark">
     <div class="container-fluid">
-      <span class="navbar-brand mb-0 h1 fw-bold">
+      <span class="navbar-brand fw-bold">
         <i class="fa-solid fa-fire-flame-curved me-2"></i>新興救護義消出勤系統
       </span>
-      <button class="btn btn-sm btn-outline-light" id="btnLoadPeople">
-        <i class="fa-solid fa-rotate me-1"></i>更新名單
-      </button>
+
+      <div class="d-flex align-items-center gap-2">
+        <span class="text-white-50 small">
+          <i class="fa-solid fa-id-badge me-1"></i><span id="navUnitTitle">--</span>
+        </span>
+        <span class="text-white small fw-semibold">
+          <i class="fa-solid fa-user me-1"></i><span id="navPersonName">--</span>
+        </span>
+        <button class="btn btn-sm btn-outline-light" id="btnSwitchPerson" type="button">
+          <i class="fa-solid fa-repeat me-1"></i>切換姓名
+        </button>
+      </div>
     </div>
   </nav>
 
   <div class="container py-3">
-    <!-- ✅ 時間（兩行） -->
-    <div class="timeBox mb-3" id="nowTimeBox">
+
+    <!-- 第二區 時間框 -->
+    <div class="timeBox mb-3">
       <div class="dateLine" id="nowDateText">----</div>
       <div class="timeLine" id="nowClockText">--:--:--</div>
     </div>
 
-    <!-- 定位 -->
-    <div class="card cardX mb-3">
+    <!-- 第三區 定位 -->
+    <div class="card roundedX mb-3">
       <div class="card-body">
-        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-          <span class="badge text-bg-secondary badgeBig" id="gpsPassBadge">
+        <div class="mb-2">
+          <span class="badge text-bg-secondary badgeRound" id="gpsBadge">
             <i class="fa-solid fa-location-dot me-1"></i>尚未定位
           </span>
-          <span class="mini" id="gpsInfoText">--</span>
         </div>
 
-        <div class="mono mb-1" id="gpsRawText">lat=--, lng=--</div>
-
-        <!-- ✅ 依勤務動態顯示目標定位清單 -->
-        <div class="mini mb-3" id="gpsTargetsText">--</div>
-
-        <div class="d-grid">
-          <button class="btn btn-primary btn-sm btnRound" id="btnRelocate">
-            <i class="fa-solid fa-crosshairs me-1"></i>重新定位
-          </button>
+        <div class="mono mb-1" id="gpsRawText">使用者定位：lat=--, lng=--</div>
+        <div class="small text-muted mb-3" id="gpsTargetText">
+          新興分隊： lat=22.630760865622978, lng=120.31122281518338 ／ 半徑：100 m
         </div>
+
+        <button class="btn btn-primary w-100" id="btnRelocate" type="button">
+          <i class="fa-solid fa-crosshairs me-1"></i>重新定位
+        </button>
       </div>
     </div>
 
-    <!-- 狀態列（保留：一般提示仍可用；GPS 異常不寫這裡） -->
+    <!-- 第四區 狀態區 -->
     <div id="statusBar" class="mb-3"></div>
 
-    <!-- 主操作 -->
-    <div class="card cardX">
+    <!-- 第五區 按鈕區 -->
+    <div class="card roundedX mb-3">
       <div class="card-body">
-        <div class="d-grid gap-2">
-          <button class="btn btn-success btn-lg btnRound" id="btnOpenSignIn">
-            <i class="fa-solid fa-right-to-bracket me-2"></i>簽到
-          </button>
-          <button class="btn btn-warning btn-lg btnRound" id="btnOpenSignOut">
-            <i class="fa-solid fa-right-from-bracket me-2"></i>簽退
-          </button>
+        <button class="btn btn-success w-100 mb-2" id="btnOpenSignIn" type="button">
+          <i class="fa-solid fa-right-to-bracket me-2"></i>簽到
+        </button>
+        <button class="btn btn-warning w-100" id="btnOpenSignOut" type="button">
+          <i class="fa-solid fa-right-from-bracket me-2"></i>簽退
+        </button>
+      </div>
+    </div>
+
+    <!-- 第六區 出勤紀錄 -->
+    <div class="card roundedX">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+          <div class="fw-bold">
+            <i class="fa-solid fa-clipboard-list me-2"></i>出勤紀錄
+            <span class="text-muted fw-normal" id="signYmText">----</span>
+          </div>
+
+          <div class="d-flex align-items-center gap-2">
+            <input type="month" class="form-control form-control-sm" id="signYmPicker" style="max-width:160px;">
+            <button class="btn btn-sm btn-outline-primary" id="btnRefreshSign" type="button">
+              <i class="fa-solid fa-rotate me-1"></i>更新
+            </button>
+          </div>
         </div>
 
-        <div class="mini mt-3">
-          協勤/常年訓練：需 GPS 通過；公差勤務：不需 GPS。
+        <div class="table-responsive">
+          <table class="table table-sm table-striped align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th style="white-space:nowrap;">勤務類型</th>
+                <th style="white-space:nowrap;">簽到日期</th>
+                <th style="white-space:nowrap;">簽到時間</th>
+                <th style="white-space:nowrap;">簽退日期</th>
+                <th style="white-space:nowrap;">簽退時間</th>
+              </tr>
+            </thead>
+            <tbody id="signTbody">
+              <tr><td colspan="5" class="text-center text-muted py-3">載入中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 1) 開啟頁面先選人 Modal -->
+  <div class="modal fade" id="pickPersonModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content roundedX">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fa-solid fa-user-check me-2"></i>選擇使用者
+          </h5>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">職稱</label>
+            <input class="form-control" id="pickUnitTitle" type="text" readonly>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">姓名</label>
+            <select class="form-select" id="pickPersonName"></select>
+          </div>
+          <div class="small text-muted">選擇後會儲存在 Local Storage，下次自動帶入。</div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" id="btnPickCancel" type="button">
+            <i class="fa-solid fa-xmark me-1"></i>取消
+          </button>
+          <button class="btn btn-primary" id="btnPickOk" type="button">
+            <i class="fa-solid fa-check me-1"></i>確定
+          </button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 簽到 Modal -->
+  <!-- 2) 簽到 Modal -->
   <div class="modal fade" id="signInModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content modalPos" style="border-radius:16px;">
-        <div class="modalOverlay" id="inOverlay">
-          <div class="box">
-            <div class="spinner-border text-light spin" role="status" aria-hidden="true"></div>
-            <div style="font-weight:800; font-size:16px;">送出中...</div>
-            <div class="mini mt-1" style="color:rgba(255,255,255,.8);">請稍候，避免重複點擊</div>
-          </div>
-        </div>
-
+      <div class="modal-content roundedX">
         <div class="modal-header">
           <h5 class="modal-title">
             <i class="fa-solid fa-right-to-bracket me-2"></i>簽到
           </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="btnCloseIn"></button>
+          <button class="btn-close" data-bs-dismiss="modal" aria-label="Close" type="button"></button>
         </div>
 
         <div class="modal-body">
-          <div class="row g-3">
-            <div class="col-12">
-              <label class="form-label">勤務</label>
-              <select class="form-select" id="inDutyType">
-                <option value="assist">協勤</option>
-                <option value="training">常年訓練</option>
-                <option value="work">公差勤務</option>
-              </select>
-            </div>
+          <div class="mb-3">
+            <span class="badge text-bg-secondary badgeRound" id="inGpsBadge">
+              <i class="fa-solid fa-location-dot me-1"></i>GPS 尚未判斷
+            </span>
+          </div>
 
+          <div class="mb-3">
+            <label class="form-label">勤務類別</label>
+            <select class="form-select" id="inDutyType">
+              <option value="assist">協勤</option>
+              <option value="training">常年訓練</option>
+              <option value="work">公差勤務</option>
+            </select>
+            <div class="form-text">
+              協勤／常年訓練：需要通過 GPS；公差勤務：不需 GPS。
+            </div>
+          </div>
+
+          <div class="row g-2 mb-3">
             <div class="col-6">
               <label class="form-label">職稱</label>
-              <input type="text" class="form-control" id="inUnitTitle" placeholder="分隊長">
+              <input class="form-control" id="inUnitTitle" type="text" readonly>
             </div>
-
             <div class="col-6">
               <label class="form-label">姓名</label>
-              <select class="form-select" id="inPersonName">
-                <option value="">載入中...</option>
-              </select>
+              <select class="form-select" id="inPersonName"></select>
             </div>
+          </div>
 
+          <div class="row g-2">
             <div class="col-6">
               <label class="form-label">簽到日期</label>
-              <input type="date" class="form-control" id="inDate">
+              <input class="form-control" id="inDate" type="date">
             </div>
-
             <div class="col-6">
               <label class="form-label">簽到時間</label>
-              <input type="time" class="form-control" id="inTime" step="60">
-            </div>
-
-            <div class="col-12 mini">
-              ※ 點開視窗會自動帶入現在時間，亦可以手動修改。
+              <input class="form-control" id="inTime" type="time" step="1">
             </div>
           </div>
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary btnRound" data-bs-dismiss="modal" id="btnCancelIn">取消</button>
-          <button type="button" class="btn btn-success btnRound" id="btnSubmitSignIn">
-            <i class="fa-solid fa-paper-plane me-1"></i>送出簽到
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">
+            <i class="fa-solid fa-xmark me-1"></i>取消
+          </button>
+          <button class="btn btn-success" id="btnSubmitSignIn" type="button">
+            <i class="fa-solid fa-paper-plane me-1"></i>送出
           </button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 簽退 Modal -->
+  <!-- 3) 簽退 Modal -->
   <div class="modal fade" id="signOutModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content modalPos" style="border-radius:16px;">
-        <div class="modalOverlay" id="outOverlay">
-          <div class="box">
-            <div class="spinner-border text-light spin" role="status" aria-hidden="true"></div>
-            <div style="font-weight:800; font-size:16px;">送出中...</div>
-            <div class="mini mt-1" style="color:rgba(255,255,255,.8);">請稍候，避免重複點擊</div>
-          </div>
-        </div>
-
+      <div class="modal-content roundedX">
         <div class="modal-header">
           <h5 class="modal-title">
             <i class="fa-solid fa-right-from-bracket me-2"></i>簽退
           </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="btnCloseOut"></button>
+          <button class="btn-close" data-bs-dismiss="modal" aria-label="Close" type="button"></button>
         </div>
 
         <div class="modal-body">
-          <div class="row g-3">
-            <div class="col-12">
-              <label class="form-label">勤務</label>
-              <select class="form-select" id="outDutyType">
-                <option value="assist">協勤</option>
-                <option value="work">公差勤務</option>
-              </select>
-              <div class="mini mt-1">常年訓練只有簽到，不提供簽退。</div>
-            </div>
+          <div class="mb-3">
+            <span class="badge text-bg-secondary badgeRound" id="outGpsBadge">
+              <i class="fa-solid fa-location-dot me-1"></i>GPS 尚未判斷
+            </span>
+          </div>
 
-            <!-- ✅ 狀態（協勤才顯示） -->
-            <div class="col-12" id="outWorkModeWrap">
-              <label class="form-label">狀態</label>
-              <select class="form-select" id="outWorkMode">
-                <option value="standby">備勤</option>
-                <option value="dispatch">出勤</option>
-              </select>
-              <div class="mini mt-1">協勤：備勤不需填工作內容；出勤需要填工作內容。</div>
+          <div class="mb-3">
+            <label class="form-label">勤務類別</label>
+            <select class="form-select" id="outDutyType">
+              <option value="assist">協勤</option>
+              <option value="work">公差勤務</option>
+            </select>
+            <div class="form-text">
+              協勤：需要通過 GPS，並可選「備勤／出勤」；公差勤務：不需 GPS（需填工作內容）。
             </div>
+          </div>
 
+          <div class="mb-3" id="outModeWrap" style="display:none;">
+            <label class="form-label">狀態</label>
+            <select class="form-select" id="outMode">
+              <option value="standby">備勤</option>
+              <option value="dispatch">出勤</option>
+            </select>
+          </div>
+
+          <div class="row g-2 mb-3">
             <div class="col-6">
               <label class="form-label">職稱</label>
-              <input type="text" class="form-control" id="outUnitTitle" placeholder="分隊長">
+              <input class="form-control" id="outUnitTitle" type="text" readonly>
             </div>
-
             <div class="col-6">
               <label class="form-label">姓名</label>
-              <select class="form-select" id="outPersonName">
-                <option value="">載入中...</option>
-              </select>
+              <select class="form-select" id="outPersonName"></select>
             </div>
+          </div>
 
+          <div class="row g-2 mb-3">
             <div class="col-6">
               <label class="form-label">簽退日期</label>
-              <input type="date" class="form-control" id="outDate">
+              <input class="form-control" id="outDate" type="date">
             </div>
-
             <div class="col-6">
               <label class="form-label">簽退時間</label>
-              <input type="time" class="form-control" id="outTime" step="60">
+              <input class="form-control" id="outTime" type="time" step="1">
             </div>
+          </div>
 
-            <!-- ✅ 工作內容 -->
-            <div class="col-12" id="outDutyContentWrap">
-              <label class="form-label" id="outDutyContentLabel">工作內容</label>
-              <textarea class="form-control" id="outDutyContent" rows="2" placeholder="例如：參加幹部會議 或 0800車禍三民區吉林街142號"></textarea>
-              <div class="mini mt-1" id="outDutyContentHint">協勤選「出勤」才需要填；公差勤務一定要填。</div>
-            </div>
-
-            <div class="col-12 mini">
-              ※ 點開視窗會自動帶入現在時間；你也可以手動改。
-            </div>
+          <div class="mb-3" id="outContentWrap" style="display:none;">
+            <label class="form-label">工作內容</label>
+            <textarea class="form-control" id="outContent" rows="2" placeholder="例如：參加幹部會議 或 0800車禍三民區吉林街142號"></textarea>
           </div>
         </div>
 
         <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary btnRound" data-bs-dismiss="modal" id="btnCancelOut">取消</button>
-          <button type="button" class="btn btn-warning btnRound" id="btnSubmitSignOut">
-            <i class="fa-solid fa-paper-plane me-1"></i>送出簽退
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">
+            <i class="fa-solid fa-xmark me-1"></i>取消
+          </button>
+          <button class="btn btn-warning" id="btnSubmitSignOut" type="button">
+            <i class="fa-solid fa-paper-plane me-1"></i>送出
           </button>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Toast -->
-  <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
-    <div id="toastMsg" class="toast align-items-center text-bg-dark border-0" role="alert" aria-live="assertive" aria-atomic="true" style="border-radius:14px;">
-      <div class="d-flex">
-        <div class="toast-body" id="toastText">--</div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
       </div>
     </div>
   </div>
 
 <script>
+  // 你的 GAS WebApp URL
   const webAppUrl = "https://script.google.com/macros/s/AKfycbzft0lPlbdTRdLZTgVHOB4A16xGUAFqYpZjbenWuvw-qoiKvNaTAhsTCuKHhZ3N7lWa/exec";
 
-  // ✅ 勤務對應定位（協勤：單一；常訓：多點）
-  const gpsTargets = {
+  // ✅ GPS（依你指定）
+  const gpsRules = {
     assist: [
-      { name: "新興分隊", lat: 22.630760862581145, lng: 120.31129260397951, radius: 100 }
+      { name: "新興分隊", lat: 22.630760865622978, lng: 120.31122281518338, radius: 100 }
     ],
     training: [
-      { name: "新興分隊", lat: 22.630760862581145, lng: 120.31129260397951, radius: 100 },
-      { name: "日月光K11", lat: 22.72225048412894,  lng: 120.30465547103677, radius: 100 }
+      { name: "新興分隊", lat: 22.630760865622978, lng: 120.31122281518338, radius: 100 },
+      { name: "日月光K11", lat: 22.722363004033074, lng: 120.30469365772642, radius: 100 }
     ]
   };
 
-  let currentGpsDuty = "assist"; // assist / training / work(不需GPS)
-  let lastGps = { ok: false, lat: null, lng: null, accuracyMeters: null };
+  const LS_KEY = "xh_ems_person_v1"; // { unitTitle, personName }
+  let people = [];
+  let selected = { unitTitle: "", personName: "" };
+  let lastGps = { ok:false, lat:null, lng:null, accuracy:null };
 
-  let signInModal, signOutModal, toast;
+  let pickModal, inModal, outModal;
 
-  $(function () {
-    signInModal = new bootstrap.Modal(document.getElementById("signInModal"));
-    signOutModal = new bootstrap.Modal(document.getElementById("signOutModal"));
-    toast = new bootstrap.Toast(document.getElementById("toastMsg"), { delay: 2500 });
+  $(function(){
+    pickModal = new bootstrap.Modal(document.getElementById("pickPersonModal"));
+    inModal = new bootstrap.Modal(document.getElementById("signInModal"));
+    outModal = new bootstrap.Modal(document.getElementById("signOutModal"));
 
-    bindEvents_();
-    startClock_();
-
-    loadPeople_();
-    setGpsDuty_("assist");
-    locate_();
-
-    applyOutUiByDuty_();
-
-    // ✅ PWA: 註冊 Service Worker
     registerServiceWorker_();
+    startClock_();
+    bindEvents_();
+
+    loadPeople_().then(function(){
+      loadSelectedFromStorage_();
+
+      if (!isSelectedValid_()) {
+        openPickModal_();
+      } else {
+        applySelectedToUi_();
+      }
+
+      setDefaultMonth_();
+      refreshSign_();
+
+      // 預先定位一次
+      locate_();
+    });
   });
 
-  function registerServiceWorker_(){
-    if (!("serviceWorker" in navigator)) return;
-    navigator.serviceWorker.register("./sw.js").catch(function(){ /* 註冊失敗不影響主流程 */ });
-  }
-
-  function bindEvents_() {
+  function bindEvents_(){
     $("#btnRelocate").on("click", locate_);
-    $("#btnLoadPeople").on("click", loadPeople_);
 
-    $("#btnOpenSignIn").on("click", function () {
-      fillNowToSignInModal_();
-      setGpsDuty_($("#inDutyType").val());
-      signInModal.show();
+    $("#btnSwitchPerson").on("click", function(){
+      openPickModal_();
     });
 
-    $("#btnOpenSignOut").on("click", function () {
-      fillNowToSignOutModal_();
-      setGpsDuty_($("#outDutyType").val());
-      signOutModal.show();
+    $("#pickPersonName").on("change", function(){
+      const name = $(this).val();
+      const p = people.find(x => x.personName === name);
+      $("#pickUnitTitle").val(p ? p.unitTitle : "");
     });
 
-    $("#inPersonName").on("change", function () {
-      const unitTitle = $(this).find("option:selected").attr("data-unit-title") || "";
-      if (unitTitle) $("#inUnitTitle").val(unitTitle);
+    $("#btnPickCancel").on("click", function(){
+      if (!isSelectedValid_()) return;
+      pickModal.hide();
     });
 
-    $("#outPersonName").on("change", function () {
-      const unitTitle = $(this).find("option:selected").attr("data-unit-title") || "";
-      if (unitTitle) $("#outUnitTitle").val(unitTitle);
+    $("#btnPickOk").on("click", function(){
+      const name = $("#pickPersonName").val();
+      const p = people.find(x => x.personName === name);
+      if (!p) { showStatus_("danger", "請先選擇姓名"); return; }
+
+      selected.unitTitle = p.unitTitle || "";
+      selected.personName = p.personName || "";
+      saveSelectedToStorage_();
+      applySelectedToUi_();
+      pickModal.hide();
+
+      refreshSign_();
     });
 
-    // ✅ 勤務切換時，同步切換定位目標顯示
-    $("#inDutyType").on("change", function () {
-      setGpsDuty_($(this).val());
-    });
-    $("#outDutyType").on("change", function () {
-      setGpsDuty_($(this).val());
-      applyOutUiByDuty_();
+    $("#btnOpenSignIn").on("click", function(){
+      fillSignInModal_();
+      updateGpsBadgeForModal_("in");
+      inModal.show();
     });
 
-    // ✅ 簽退 UI 控制
-    $("#outWorkMode").on("change", applyOutUiByDuty_);
+    $("#btnOpenSignOut").on("click", function(){
+      fillSignOutModal_();
+      updateOutUiByDuty_();
+      updateGpsBadgeForModal_("out");
+      outModal.show();
+    });
+
+    $("#inDutyType").on("change", function(){
+      updateGpsBadgeForModal_("in");
+    });
+
+    $("#outDutyType").on("change", function(){
+      updateOutUiByDuty_();
+      updateGpsBadgeForModal_("out");
+    });
+
+    $("#outMode").on("change", function(){
+      updateOutUiByDuty_();
+    });
 
     $("#btnSubmitSignIn").on("click", submitSignIn_);
     $("#btnSubmitSignOut").on("click", submitSignOut_);
+
+    $("#btnRefreshSign").on("click", refreshSign_);
+    $("#signYmPicker").on("change", refreshSign_);
   }
 
-  function startClock_() {
+  // ---------- UI: clock ----------
+  function startClock_(){
     tick_();
     setInterval(tick_, 1000);
   }
 
-  function tick_() {
+  function tick_(){
     const now = new Date();
-    $("#nowDateText").text(fmtDateDisplay_(now));
-    $("#nowClockText").text(fmtTimeDisplay_(now));
+    $("#nowDateText").text(fmtDate_(now));
+    $("#nowClockText").text(fmtClock_(now));
   }
 
-  function fillNowToSignInModal_(){
-    const now = new Date();
-    $("#inDate").val(fmtDate_(now));
-    $("#inTime").val(fmtTime_(now));
+  // ---------- People / selected ----------
+  function loadPeople_(){
+    showStatus_("info", "載入名單中...");
+    return $.get(webAppUrl, { action:"people" })
+      .then(function(res){
+        if (!res || !res.ok) throw new Error((res && res.message) ? res.message : "名單載入失敗");
+        people = res.data || [];
+        if (!people.length) showStatus_("warning", "people 無資料");
+        else showStatus_("success", "名單載入完成");
+
+        buildPeopleSelects_();
+      })
+      .catch(function(err){
+        showStatus_("danger", "名單載入失敗：" + (err && err.message ? err.message : err));
+      });
   }
 
-  function fillNowToSignOutModal_(){
-    const now = new Date();
-    $("#outDate").val(fmtDate_(now));
-    $("#outTime").val(fmtTime_(now));
-  }
-
-  function applyOutUiByDuty_(){
-    const dutyType = $("#outDutyType").val();     // assist / work
-    const mode = $("#outWorkMode").val();         // standby / dispatch
-
-    const isAssist = dutyType === "assist";
-    const isWork = dutyType === "work";
-    const isDispatch = mode === "dispatch";
-
-    $("#outWorkModeWrap").toggle(isAssist);
-
-    if (isWork) {
-      $("#outDutyContentWrap").show();
-      $("#outDutyContentLabel").text("工作內容");
-      $("#outDutyContentHint").text("公差勤務：請填工作內容。");
-      return;
+  function buildPeopleSelects_(){
+    const opts = [];
+    for (let i=0;i<people.length;i++){
+      const p = people[i];
+      opts.push(`<option value="${esc_(p.personName)}">${esc_(p.personName)}</option>`);
     }
+    const html = opts.join("") || `<option value="">無資料</option>`;
 
-    if (isDispatch) {
-      $("#outDutyContentWrap").show();
-      $("#outDutyContentLabel").text("工作內容");
-      $("#outDutyContentHint").text("協勤選「出勤」請填工作內容");
-      return;
+    $("#pickPersonName").html(html);
+    $("#inPersonName").html(html);
+    $("#outPersonName").html(html);
+  }
+
+  function loadSelectedFromStorage_(){
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      const obj = JSON.parse(raw);
+      selected.unitTitle = String(obj.unitTitle || "");
+      selected.personName = String(obj.personName || "");
+    } catch { /* ignore */ }
+  }
+
+  function saveSelectedToStorage_(){
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        unitTitle: selected.unitTitle || "",
+        personName: selected.personName || ""
+      }));
+    } catch { /* ignore */ }
+  }
+
+  function isSelectedValid_(){
+    if (!selected.personName) return false;
+    return people.some(p => p.personName === selected.personName);
+  }
+
+  function applySelectedToUi_(){
+    $("#navUnitTitle").text(selected.unitTitle || "--");
+    $("#navPersonName").text(selected.personName || "--");
+  }
+
+  function openPickModal_(){
+    if (isSelectedValid_()){
+      $("#pickPersonName").val(selected.personName);
+      $("#pickUnitTitle").val(selected.unitTitle);
+    } else {
+      const first = people[0];
+      $("#pickPersonName").val(first ? first.personName : "");
+      $("#pickUnitTitle").val(first ? first.unitTitle : "");
     }
-
-    $("#outDutyContentWrap").hide();
-    $("#outDutyContent").val("");
+    pickModal.show();
   }
 
-  function setGpsDuty_(dutyType){
-    currentGpsDuty = dutyType || "assist";
-    renderTargets_();
-    refreshGpsUi_();
-  }
-
-  function getActiveTargetsByDuty_(dutyType){
-    if (dutyType === "training") return gpsTargets.training;
-    if (dutyType === "assist") return gpsTargets.assist;
-    return [];
-  }
-
-  function needGpsByDuty_(dutyType){
-    return dutyType === "assist" || dutyType === "training";
-  }
-
-  function renderTargets_(){
-    if (!needGpsByDuty_(currentGpsDuty)) {
-      $("#gpsTargetsText").text("此勤務不需 GPS。");
-      return;
-    }
-
-    const targets = getActiveTargetsByDuty_(currentGpsDuty);
-    if (!targets.length) {
-      $("#gpsTargetsText").text("--");
-      return;
-    }
-
-    const lines = [];
-    for (let i = 0; i < targets.length; i++) {
-      const t = targets[i];
-      if (t.name === "新興分隊") {
-        lines.push(`${t.name}： lat=${t.lat}, lng=${t.lng} ／ 半徑：${t.radius} m`);
-      } else {
-        lines.push(`${t.name}：${t.lat}, ${t.lng} ／ 半徑：${t.radius} m`);
-      }
-    }
-
-    $("#gpsTargetsText").html(lines.map(s => esc_(s)).join("<br>"));
-  }
-
-  function locate_() {
+  // ---------- GPS ----------
+  function locate_(){
     if (!("geolocation" in navigator)) {
-      setGpsBadge_("secondary", "不支援定位", "--");
-      showStatus_("danger", "此瀏覽器不支援定位");
+      setGpsUi_("secondary", "不支援定位", null);
+      showStatus_("danger", "此瀏覽器不支援定位功能");
       return;
     }
 
-    setGpsBadge_("secondary", "定位中...", "--");
+    setGpsUi_("secondary", "定位中...", null);
 
     navigator.geolocation.getCurrentPosition(
-      function (pos) {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const acc = Math.round(pos.coords.accuracy || 0);
+      function(pos){
+        lastGps.ok = true;
+        lastGps.lat = pos.coords.latitude;
+        lastGps.lng = pos.coords.longitude;
+        lastGps.accuracy = Math.round(pos.coords.accuracy || 0);
 
-        lastGps = { ok: true, lat: lat, lng: lng, accuracyMeters: acc };
-        refreshGpsUi_();
-        showStatus_("success", "定位成功（精度約 " + acc + " m）");
+        $("#gpsRawText").text(`使用者定位：lat=${lastGps.lat}, lng=${lastGps.lng}`);
+        setGpsUi_("success", "定位成功", `精度約 ${lastGps.accuracy} 公尺`);
+        updateGpsBadgeForModal_("in");
+        updateGpsBadgeForModal_("out");
       },
-      function (err) {
-        lastGps = { ok: false, lat: null, lng: null, accuracyMeters: null };
-        setGpsBadge_("secondary", "定位失敗", (err && err.message) ? err.message : "unknown");
-        $("#gpsRawText").text("lat=--, lng=--");
-        showStatus_("danger", "定位失敗：" + ((err && err.message) ? err.message : "unknown"));
+      function(err){
+        lastGps.ok = false;
+        lastGps.lat = null;
+        lastGps.lng = null;
+        lastGps.accuracy = null;
+
+        $("#gpsRawText").text("使用者定位：lat=--, lng=--");
+        setGpsUi_("danger", "定位失敗", (err && err.message) ? err.message : "定位失敗");
+        showStatus_("danger", "定位失敗，請確認定位權限或 GPS 設定");
       },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      { enableHighAccuracy:true, timeout:12000, maximumAge:0 }
     );
   }
 
-  function refreshGpsUi_() {
-    if (!needGpsByDuty_(currentGpsDuty)) {
-      setGpsBadge_("secondary", "不需GPS", "--");
-      if (!lastGps.ok) $("#gpsRawText").text("lat=--, lng=--");
-      else $("#gpsRawText").text("lat=" + lastGps.lat + ", lng=" + lastGps.lng);
-      $("#gpsInfoText").text("--");
-      return;
-    }
+  function setGpsUi_(bsType, text, info){
+    $("#gpsBadge")
+      .removeClass("text-bg-secondary text-bg-success text-bg-danger text-bg-warning")
+      .addClass("text-bg-" + bsType)
+      .html(`<i class="fa-solid fa-location-dot me-1"></i>${esc_(text)}`);
 
-    if (!lastGps.ok) {
-      setGpsBadge_("secondary", "尚未定位", "--");
-      $("#gpsRawText").text("lat=--, lng=--");
-      return;
-    }
-
-    const targets = getActiveTargetsByDuty_(currentGpsDuty);
-    const result = calcGpsPass_(lastGps.lat, lastGps.lng, targets);
-
-    const info = "精度 " + lastGps.accuracyMeters + " m / 最近：" + result.nearestName + " 距離 " + result.nearestDistance + " m";
-    setGpsBadge_(result.passAny ? "success" : "danger", result.passAny ? "GPS通過" : "GPS不通過", info);
-    $("#gpsRawText").text("lat=" + lastGps.lat + ", lng=" + lastGps.lng);
+    if (info) showStatus_("info", info);
   }
 
-  function calcGpsPass_(lat, lng, targets){
+  function needGps_(dutyType){
+    return dutyType === "assist" || dutyType === "training";
+  }
+
+  function gpsPass_(dutyType){
+    if (!needGps_(dutyType)) return { pass:true, msg:"不需比對 GPS" };
+    if (!lastGps.ok) return { pass:false, msg:"尚未定位" };
+
+    const rules = (dutyType === "training") ? gpsRules.training : gpsRules.assist;
+
     let passAny = false;
-    let nearestDistance = 999999999;
-    let nearestName = "--";
-
-    for (let i = 0; i < targets.length; i++) {
-      const t = targets[i];
-      const dist = Math.round(distMeters_(lat, lng, t.lat, t.lng));
-      if (dist < nearestDistance) {
-        nearestDistance = dist;
-        nearestName = t.name;
-      }
-      if (dist <= (t.radius || 0)) passAny = true;
+    for (let i=0;i<rules.length;i++){
+      const t = rules[i];
+      const d = Math.round(distMeters_(lastGps.lat, lastGps.lng, t.lat, t.lng));
+      if (d <= (t.radius || 0)) passAny = true;
     }
-
-    if (nearestDistance === 999999999) nearestDistance = 0;
-    return { passAny, nearestDistance, nearestName };
+    return { pass: passAny, msg: passAny ? "GPS 通過" : "GPS 未通過" };
   }
 
-  // ✅ GPS 異常：用 toast 提示（不寫 statusBar）
-  function ensureGpsOrToast_(dutyType){
-    if (!needGpsByDuty_(dutyType)) return true;
+  function updateGpsBadgeForModal_(which){
+    const duty = (which === "in") ? $("#inDutyType").val() : $("#outDutyType").val();
+    const r = gpsPass_(duty);
 
-    if (!lastGps.ok) {
-      showToast_("❌ 尚未定位，請先按「重新定位」");
-      return false;
-    }
-
-    const targets = getActiveTargetsByDuty_(dutyType);
-    const result = calcGpsPass_(lastGps.lat, lastGps.lng, targets);
-
-    if (!result.passAny) {
-      showToast_("❌ GPS 不在範圍內（最近：" + result.nearestName + " 距離約 " + result.nearestDistance + " m）");
-      return false;
-    }
-
-    return true;
+    const $b = (which === "in") ? $("#inGpsBadge") : $("#outGpsBadge");
+    $b.removeClass("text-bg-secondary text-bg-success text-bg-danger")
+      .addClass("text-bg-" + (r.pass ? "success" : "danger"))
+      .html(`<i class="fa-solid fa-location-dot me-1"></i>${esc_(r.msg)}`);
   }
 
-  function setModalBusy_(which, busy){
-    const $overlay = (which === "in") ? $("#inOverlay") : $("#outOverlay");
-    const disable = !!busy;
+  // ---------- Sign list ----------
+  function setDefaultMonth_(){
+    const now = new Date();
+    const ym = fmtYearMonth_(now);
+    $("#signYmPicker").val(ym);
+    $("#signYmText").text(ym);
+  }
 
-    $overlay.css("display", disable ? "flex" : "none");
+  function refreshSign_(){
+    const ym = $("#signYmPicker").val() || fmtYearMonth_(new Date());
+    $("#signYmText").text(ym);
 
-    if (which === "in") {
-      $("#btnSubmitSignIn").prop("disabled", disable);
-      $("#btnCancelIn").prop("disabled", disable);
-      $("#btnCloseIn").prop("disabled", disable);
-    } else {
-      $("#btnSubmitSignOut").prop("disabled", disable);
-      $("#btnCancelOut").prop("disabled", disable);
-      $("#btnCloseOut").prop("disabled", disable);
+    $("#signTbody").html(`<tr><td colspan="5" class="text-center text-muted py-3">載入中...</td></tr>`);
+
+    $.get(webAppUrl, { action:"sign", ym: ym })
+      .done(function(res){
+        if (!res || !res.ok) {
+          const msg = (res && res.message) ? res.message : "載入失敗";
+          $("#signTbody").html(`<tr><td colspan="5" class="text-center text-danger py-3">${esc_(msg)}</td></tr>`);
+          return;
+        }
+
+        const list = res.data || [];
+        if (!list.length) {
+          $("#signTbody").html(`<tr><td colspan="5" class="text-center text-muted py-3">無資料</td></tr>`);
+          return;
+        }
+
+        const rows = [];
+        for (let i=0;i<list.length;i++){
+          const r = list[i];
+          rows.push(`
+            <tr>
+              <td>${esc_(r.dutyTypeText || "")}</td>
+              <td>${esc_(r.signInDate || "")}</td>
+              <td>${esc_(r.signInTime || "")}</td>
+              <td>${esc_(r.signOutDate || "")}</td>
+              <td>${esc_(r.signOutTime || "")}</td>
+            </tr>
+          `);
+        }
+        $("#signTbody").html(rows.join(""));
+      })
+      .fail(function(){
+        $("#signTbody").html(`<tr><td colspan="5" class="text-center text-danger py-3">載入失敗（請確認 GAS 部署/權限）</td></tr>`);
+      });
+  }
+
+  // ---------- SignIn / SignOut ----------
+  function fillSignInModal_(){
+    const now = new Date();
+
+    $("#inUnitTitle").val(selected.unitTitle || "");
+    $("#inPersonName").val(selected.personName || "");
+
+    $("#inDate").val(fmtDate_(now));
+    $("#inTime").val(fmtClock_(now));
+
+    if (!$("#inDutyType").val()) $("#inDutyType").val("assist");
+  }
+
+  function fillSignOutModal_(){
+    const now = new Date();
+
+    $("#outUnitTitle").val(selected.unitTitle || "");
+    $("#outPersonName").val(selected.personName || "");
+
+    $("#outDate").val(fmtDate_(now));
+    $("#outTime").val(fmtClock_(now));
+
+    if (!$("#outDutyType").val()) $("#outDutyType").val("assist");
+  }
+
+  function updateOutUiByDuty_(){
+    const duty = $("#outDutyType").val();
+    const mode = $("#outMode").val();
+
+    if (duty === "assist") {
+      $("#outModeWrap").show();
+      $("#outContentWrap").toggle(mode === "dispatch");
+      if (mode !== "dispatch") $("#outContent").val("");
+      return;
     }
+
+    $("#outModeWrap").hide();
+    $("#outMode").val("standby");
+    $("#outContentWrap").show();
   }
 
   function submitSignIn_(){
@@ -601,236 +683,152 @@
     const signInTime = $("#inTime").val();
 
     if (!personName) { showStatus_("danger", "請選姓名"); return; }
-    if (!signInDate || !signInTime) { showStatus_("danger", "簽到日期/時間必填"); return; }
+    if (!signInDate || !signInTime) { showStatus_("danger", "簽到日期／時間為必填"); return; }
 
-    if (!ensureGpsOrToast_(dutyType)) return;
+    const gps = gpsPass_(dutyType);
+    if (!gps.pass && needGps_(dutyType)) { showStatus_("danger", "GPS 未通過，無法簽到"); return; }
 
-    const params = {
-      action: "signIn",
+    showStatus_("info", "簽到送出中...");
+    $.get(webAppUrl, {
+      action:"signIn",
       dutyType: dutyType,
       unitTitle: unitTitle,
       personName: personName,
       signInDate: signInDate,
       signInTime: signInTime
-    };
-
-    setModalBusy_("in", true);
-    showStatus_("info", "送出簽到...");
-
-    $.get(webAppUrl + "?" + $.param(params))
-      .done(function(res){
-        if(res && res.ok){
-          signInModal.hide();
-          showToast_("✅ 簽到已送出");
-          showStatus_("success", "簽到已送出");
-        }else{
-          showToast_("❌ 簽到失敗：" + ((res && res.message) ? res.message : "unknown"));
-          showStatus_("danger", "簽到失敗：" + ((res && res.message) ? res.message : "unknown"));
-        }
-      })
-      .fail(function(){
-        showToast_("❌ 簽到送出失敗：請確認 GAS 部署/權限");
-        showStatus_("danger", "簽到送出失敗：請確認 GAS 部署/權限");
-      })
-      .always(function(){
-        setModalBusy_("in", false);
-      });
+    })
+    .done(function(res){
+      if (res && res.ok) {
+        showStatus_("success", "簽到完成");
+        inModal.hide();
+        refreshSign_();
+      } else {
+        showStatus_("danger", "簽到失敗：" + ((res && res.message) ? res.message : "原因不明"));
+      }
+    })
+    .fail(function(){
+      showStatus_("danger", "簽到送出失敗（請確認 GAS 部署／權限）");
+    });
   }
 
   function submitSignOut_(){
-    const dutyType = $("#outDutyType").val();     // assist / work
-    const workMode = $("#outWorkMode").val();     // standby / dispatch（協勤才用）
-
+    const dutyType = $("#outDutyType").val();
     const unitTitle = $("#outUnitTitle").val().trim();
     const personName = $("#outPersonName").val().trim();
     const signOutDate = $("#outDate").val();
     const signOutTime = $("#outTime").val();
-    const dutyContentText = $("#outDutyContent").val().trim();
+    const mode = $("#outMode").val();
+    const content = $("#outContent").val().trim();
 
     if (!personName) { showStatus_("danger", "請選姓名"); return; }
-    if (!signOutDate || !signOutTime) { showStatus_("danger", "簽退日期/時間必填"); return; }
+    if (!signOutDate || !signOutTime) { showStatus_("danger", "簽退日期／時間為必填"); return; }
 
-    if (!ensureGpsOrToast_(dutyType)) return;
+    const gps = gpsPass_(dutyType);
+    if (!gps.pass && needGps_(dutyType)) { showStatus_("danger", "GPS 未通過，無法簽退"); return; }
 
-    let finalContent = "";
-    if (dutyType === "work") {
-      if (!dutyContentText) { showStatus_("danger", "公差勤務請填工作內容"); return; }
-      finalContent = dutyContentText;
-    } else {
-      if (workMode === "standby") {
-        finalContent = "備勤";
+    let dutyContent = "";
+    if (dutyType === "assist") {
+      if (mode === "standby") {
+        dutyContent = "備勤";
       } else {
-        if (!dutyContentText) { showStatus_("danger", "出勤請填工作內容"); return; }
-        finalContent = dutyContentText;
+        if (!content) { showStatus_("danger", "協勤「出勤」請填工作內容"); return; }
+        dutyContent = content;
       }
+    } else {
+      if (!content) { showStatus_("danger", "公差勤務請填工作內容"); return; }
+      dutyContent = content;
     }
 
-    const params = {
-      action: "signOut",
+    showStatus_("info", "簽退送出中...");
+    $.get(webAppUrl, {
+      action:"signOut",
       dutyType: dutyType,
       unitTitle: unitTitle,
       personName: personName,
       signOutDate: signOutDate,
       signOutTime: signOutTime,
-      dutyContent: finalContent
-    };
-
-    setModalBusy_("out", true);
-    showStatus_("info", "送出簽退...");
-
-    $.get(webAppUrl + "?" + $.param(params))
-      .done(function(res){
-        if(res && res.ok){
-          signOutModal.hide();
-          showToast_("✅ 簽退已送出");
-          showStatus_("success", "簽退已送出");
-          $("#outDutyContent").val("");
-          $("#outWorkMode").val("standby");
-          applyOutUiByDuty_();
-        }else{
-          showToast_("❌ 簽退失敗：" + ((res && res.message) ? res.message : "unknown"));
-          showStatus_("danger", "簽退失敗：" + ((res && res.message) ? res.message : "unknown"));
-        }
-      })
-      .fail(function(){
-        showToast_("❌ 簽退送出失敗：請確認 GAS 部署/權限");
-        showStatus_("danger", "簽退送出失敗：請確認 GAS 部署/權限");
-      })
-      .always(function(){
-        setModalBusy_("out", false);
-      });
+      dutyContent: dutyContent
+    })
+    .done(function(res){
+      if (res && res.ok) {
+        showStatus_("success", "簽退完成");
+        outModal.hide();
+        refreshSign_();
+      } else {
+        showStatus_("danger", "簽退失敗：" + ((res && res.message) ? res.message : "原因不明"));
+      }
+    })
+    .fail(function(){
+      showStatus_("danger", "簽退送出失敗（請確認 GAS 部署／權限）");
+    });
   }
 
-  function loadPeople_() {
-    if (!webAppUrl || webAppUrl.indexOf("http") !== 0) {
-      setPeopleSelectHtml_("<option value=''>請先設定 webAppUrl</option>");
-      showStatus_("warning", "尚未設定 webAppUrl");
-      return;
-    }
-
-    setPeopleSelectHtml_("<option value=''>載入中...</option>");
-
-    $.get(webAppUrl + "?" + $.param({ action: "people" }))
-      .done(function (res) {
-        if (!res || !res.ok) {
-          setPeopleSelectHtml_("<option value=''>載入失敗</option>");
-          showStatus_("danger", "名單載入失敗");
-          return;
-        }
-
-        const list = res.data || [];
-        if (!list.length) {
-          setPeopleSelectHtml_("<option value=''>people 無資料</option>");
-          showStatus_("warning", "people 無資料");
-          return;
-        }
-
-        const options = ["<option value=''>請選擇</option>"];
-        for (let i = 0; i < list.length; i++) {
-          const p = list[i] || {};
-          const t = (p.unitTitle || "").trim();
-          const n = (p.personName || "").trim();
-          if (!n) continue;
-
-          options.push(
-            "<option value='" + esc_(n) + "' data-unit-title='" + esc_(t) + "'>" +
-              esc_(n) +
-            "</option>"
-          );
-        }
-
-        const html = options.join("");
-        setPeopleSelectHtml_(html);
-
-        if ($("#inPersonName option[value='吳宇樺']").length) $("#inPersonName").val("吳宇樺").trigger("change");
-        if ($("#outPersonName option[value='吳宇樺']").length) $("#outPersonName").val("吳宇樺").trigger("change");
-
-        showStatus_("success", "名單已更新");
-      })
-      .fail(function () {
-        setPeopleSelectHtml_("<option value=''>載入失敗</option>");
-        showStatus_("danger", "名單載入失敗：請確認部署權限");
-      });
+  // ---------- status / utils ----------
+  function showStatus_(type, msg){
+    $("#statusBar").html(`
+      <div class="alert alert-${esc_(type)} roundedX py-2 px-3 mb-0">
+        <i class="fa-solid ${typeIcon_(type)} me-2"></i>${esc_(msg)}
+      </div>
+    `);
   }
 
-  function setPeopleSelectHtml_(html){
-    $("#inPersonName").html(html);
-    $("#outPersonName").html(html);
+  function typeIcon_(type){
+    if (type === "success") return "fa-circle-check";
+    if (type === "danger") return "fa-triangle-exclamation";
+    if (type === "warning") return "fa-circle-exclamation";
+    return "fa-circle-info";
   }
 
-  function showStatus_(type, msg) {
-    $("#statusBar").html(
-      '<div class="alert alert-' + type + ' py-2 px-3 mb-0 alertRound">' +
-      esc_(msg) +
-      '</div>'
-    );
+  function fmtDate_(d){
+    const y = d.getFullYear();
+    const m = pad2_(d.getMonth()+1);
+    const day = pad2_(d.getDate());
+    return `${y}-${m}-${day}`;
   }
 
-  function showToast_(msg){
-    $("#toastText").text(msg);
-    toast.show();
+  function fmtYearMonth_(d){
+    const y = d.getFullYear();
+    const m = pad2_(d.getMonth()+1);
+    return `${y}-${m}`;
   }
 
-  function setGpsBadge_(bsType, text, info) {
-    const icon = '<i class="fa-solid fa-location-dot me-1"></i>';
-    $("#gpsPassBadge")
-      .removeClass("text-bg-secondary text-bg-success text-bg-danger text-bg-warning text-bg-info")
-      .addClass("text-bg-" + bsType)
-      .html(icon + esc_(text));
-    $("#gpsInfoText").text(info || "--");
-  }
-
-  function fmtDateDisplay_(d){
-    const yyyy = d.getFullYear();
-    const mm = pad2_(d.getMonth() + 1);
-    const dd = pad2_(d.getDate());
-    return `${yyyy}-${mm}-${dd}`;
-  }
-
-  function fmtTimeDisplay_(d){
+  function fmtClock_(d){
     const hh = pad2_(d.getHours());
-    const mi = pad2_(d.getMinutes());
+    const mm = pad2_(d.getMinutes());
     const ss = pad2_(d.getSeconds());
-    return `${hh}:${mi}:${ss}`;
+    return `${hh}:${mm}:${ss}`;
   }
 
-  function fmtDate_(d) {
-    const yyyy = d.getFullYear();
-    const mm = pad2_(d.getMonth() + 1);
-    const dd = pad2_(d.getDate());
-    return `${yyyy}-${mm}-${dd}`;
-  }
+  function pad2_(n){ return (n<10 ? "0" : "") + n; }
 
-  function fmtTime_(d) {
-    const hh = pad2_(d.getHours());
-    const mi = pad2_(d.getMinutes());
-    return `${hh}:${mi}`;
-  }
-
-  function pad2_(n) { return (n < 10 ? "0" : "") + n; }
-
-  function esc_(s) {
+  function esc_(s){
     return String(s || "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#39;");
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#39;");
   }
 
-  function distMeters_(lat1, lng1, lat2, lng2) {
+  function distMeters_(lat1, lng1, lat2, lng2){
     const R = 6371000;
-    const toRad = (x) => x * Math.PI / 180;
-    const dLat = toRad(lat2 - lat1);
-    const dLng = toRad(lng2 - lng1);
+    const toRad = x => x * Math.PI / 180;
+    const dLat = toRad(lat2-lat1);
+    const dLng = toRad(lng2-lng1);
 
     const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      Math.sin(dLat/2)*Math.sin(dLat/2) +
+      Math.cos(toRad(lat1))*Math.cos(toRad(lat2)) *
+      Math.sin(dLng/2)*Math.sin(dLng/2);
 
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
+  }
+
+  // ---------- PWA ----------
+  function registerServiceWorker_(){
+    if (!("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("./sw.js").catch(function(){});
   }
 </script>
 </body>
