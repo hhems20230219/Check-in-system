@@ -49,6 +49,16 @@
       padding:18px 20px;
       min-width: 220px;
     }
+
+    .hoursBox{
+      background:#fff;
+      border:1px solid rgba(0,0,0,.06);
+      border-radius:16px;
+      padding:12px 14px;
+    }
+    .hoursBox .label{ color:#6c757d; font-size:12px; }
+    .hoursBox .value{ font-size:28px; font-weight:900; line-height:1.1; }
+    .hoursBox .unit{ font-size:12px; color:#6c757d; margin-left:6px; font-weight:700; }
   </style>
 </head>
 
@@ -68,13 +78,18 @@
   <!-- 第一區 Navbar -->
   <nav class="navbar navbar-dark bg-dark">
     <div class="container-fluid">
-      <span class="navbar-brand fw-bold">
+      <!-- ✅ 左：icon + 標題粗體靠左 -->
+      <span class="navbar-brand fw-bold mb-0">
         <i class="fa-solid fa-fire-flame-curved me-2"></i>新興救護義消出勤系統
       </span>
 
-      <div class="d-flex align-items-center gap-2">
+      <!-- ✅ 右：單位 / 職稱 / 姓名 + 切換姓名（全部靠右） -->
+      <div class="d-flex align-items-center gap-2 ms-auto">
+        <span class="text-white-50 small d-flex align-items-center">
+          <i class="fa-solid fa-building-flag me-1"></i><span id="navUnit">--</span>
+        </span>
         <span class="text-white-50 small">
-          <i class="fa-solid fa-id-badge me-1"></i><span id="navUnitTitle">--</span>
+          <i class="fa-solid fa-id-badge me-1"></i><span id="navTitle">--</span>
         </span>
         <span class="text-white small fw-semibold">
           <i class="fa-solid fa-user me-1"></i><span id="navPersonName">--</span>
@@ -132,6 +147,35 @@
     <!-- 第六區 出勤紀錄 -->
     <div class="card roundedX">
       <div class="card-body">
+
+        <!-- ✅ 累積協勤時數（左右兩塊） -->
+        <div class="row g-2 mb-3">
+          <div class="col-12 col-md-6">
+            <div class="hoursBox h-100">
+              <div class="label">
+                <i class="fa-solid fa-hourglass-half me-1"></i>總協勤時數（協勤 / 目前選擇者）
+              </div>
+              <div class="d-flex align-items-end">
+                <div class="value" id="totalAssistHoursText">--</div>
+                <div class="unit">小時</div>
+              </div>
+              <div class="small text-muted mt-1" id="totalAssistHint">--</div>
+            </div>
+          </div>
+          <div class="col-12 col-md-6">
+            <div class="hoursBox h-100">
+              <div class="label">
+                <i class="fa-solid fa-calendar-days me-1"></i>本月協勤時數（協勤 / 目前選擇者）
+              </div>
+              <div class="d-flex align-items-end">
+                <div class="value" id="monthAssistHoursText">--</div>
+                <div class="unit">小時</div>
+              </div>
+              <div class="small text-muted mt-1" id="monthAssistHint">--</div>
+            </div>
+          </div>
+        </div>
+
         <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
           <div class="fw-bold">
             <i class="fa-solid fa-clipboard-list me-2"></i>出勤紀錄
@@ -155,10 +199,11 @@
                 <th style="white-space:nowrap;">簽到時間</th>
                 <th style="white-space:nowrap;">簽退日期</th>
                 <th style="white-space:nowrap;">簽退時間</th>
+                <th style="white-space:nowrap;" class="text-end">時數(小時)</th>
               </tr>
             </thead>
             <tbody id="signTbody">
-              <tr><td colspan="5" class="text-center text-muted py-3">載入中...</td></tr>
+              <tr><td colspan="6" class="text-center text-muted py-3">載入中...</td></tr>
             </tbody>
           </table>
         </div>
@@ -168,7 +213,7 @@
 
   </div>
 
-  <!-- 1) 開啟頁面先選人 Modal -->
+  <!-- 1) 開啟頁面先選人 Modal（✅ 顯示單位 + 職稱 + 姓名） -->
   <div class="modal fade" id="pickPersonModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content roundedX">
@@ -178,15 +223,23 @@
           </h5>
         </div>
         <div class="modal-body">
+
+          <div class="mb-3">
+            <label class="form-label">單位</label>
+            <input class="form-control" id="pickUnit" type="text" value="" readonly disabled tabindex="-1" aria-readonly="true">
+          </div>
+
           <div class="mb-3">
             <label class="form-label">職稱</label>
-            <input class="form-control" id="pickUnitTitle" type="text" value="" readonly disabled tabindex="-1" aria-readonly="true">
+            <input class="form-control" id="pickTitle" type="text" value="" readonly disabled tabindex="-1" aria-readonly="true">
           </div>
+
           <div class="mb-2">
             <label class="form-label">姓名</label>
             <select class="form-select" id="pickPersonName"></select>
           </div>
-          <div class="small text-muted">選擇後會儲存在 Local Storage，下次自動帶入。</div>
+
+          <div class="small text-muted">選擇後下次自動帶入。</div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-outline-secondary" id="btnPickCancel" type="button">
@@ -200,7 +253,7 @@
     </div>
   </div>
 
-  <!-- 2) 簽到 Modal -->
+  <!-- 2) 簽到 Modal（✅ 不顯示單位，只顯示職稱/姓名） -->
   <div class="modal fade" id="signInModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content roundedX">
@@ -212,7 +265,6 @@
         </div>
 
         <div class="modal-body">
-          <!-- ✅ 簽到提示列（專用） -->
           <div id="inStatusBar" class="mb-3"></div>
 
           <div class="mb-3">
@@ -236,7 +288,7 @@
           <div class="row g-2 mb-3">
             <div class="col-6">
               <label class="form-label">職稱</label>
-              <input class="form-control" id="inUnitTitle" type="text" value="" readonly disabled tabindex="-1" aria-readonly="true">
+              <input class="form-control" id="inTitle" type="text" value="" readonly disabled tabindex="-1" aria-readonly="true">
             </div>
             <div class="col-6">
               <label class="form-label">姓名</label>
@@ -268,7 +320,7 @@
     </div>
   </div>
 
-  <!-- 3) 簽退 Modal -->
+  <!-- 3) 簽退 Modal（✅ 不顯示單位，只顯示職稱/姓名） -->
   <div class="modal fade" id="signOutModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content roundedX">
@@ -280,7 +332,6 @@
         </div>
 
         <div class="modal-body">
-          <!-- ✅ 簽退提示列（專用） -->
           <div id="outStatusBar" class="mb-3"></div>
 
           <div class="mb-3">
@@ -311,7 +362,7 @@
           <div class="row g-2 mb-3">
             <div class="col-6">
               <label class="form-label">職稱</label>
-              <input class="form-control" id="outUnitTitle" type="text" value="" readonly disabled tabindex="-1" aria-readonly="true">
+              <input class="form-control" id="outTitle" type="text" value="" readonly disabled tabindex="-1" aria-readonly="true">
             </div>
             <div class="col-6">
               <label class="form-label">姓名</label>
@@ -348,8 +399,66 @@
     </div>
   </div>
 
+  <!-- ✅ 4) 送出確認 Modal（簽到/簽退共用；✅ 不顯示單位） -->
+  <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content roundedX">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fa-solid fa-circle-question me-2"></i>確認送出
+          </h5>
+          <button class="btn-close" data-bs-dismiss="modal" aria-label="Close" type="button"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-warning roundedX py-2 px-3">
+            <i class="fa-solid fa-triangle-exclamation me-2"></i>請確認資料無誤後再送出
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <tbody>
+                <tr>
+                  <th style="white-space:nowrap;width:110px;">類型</th>
+                  <td id="cfType">--</td>
+                </tr>
+                <tr>
+                  <th style="white-space:nowrap;">職稱</th>
+                  <td id="cfTitle">--</td>
+                </tr>
+                <tr>
+                  <th style="white-space:nowrap;">姓名</th>
+                  <td id="cfPersonName">--</td>
+                </tr>
+                <tr>
+                  <th style="white-space:nowrap;">日期</th>
+                  <td id="cfDate">--</td>
+                </tr>
+                <tr>
+                  <th style="white-space:nowrap;">時間</th>
+                  <td id="cfTime">--</td>
+                </tr>
+                <tr id="cfContentRow" style="display:none;">
+                  <th style="white-space:nowrap;">內容</th>
+                  <td id="cfContent">--</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">
+            <i class="fa-solid fa-xmark me-1"></i>取消
+          </button>
+          <button class="btn btn-primary" id="btnConfirmSubmit" type="button">
+            <i class="fa-solid fa-paper-plane me-1"></i>確定送出
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 <script>
-  const webAppUrl = "https://script.google.com/macros/s/AKfycbzft0lPlbdTRdLZTgVHOB4A16xGUAFqYpZjbenWuvw-qoiKvNaTAhsTCuKHhZ3N7lWa/exec";
+  const webAppUrl = "https://script.google.com/macros/s/AKfycbxoUGfQVQC_iDy1R--Ve9inpHTxz85daqU1HOU2ZTEIggw-A7JcqqjW4GKu3Py2khZV/exec";
 
   const gpsRules = {
     assist: [
@@ -361,23 +470,33 @@
     ]
   };
 
-  const LS_KEY = "xh_ems_person_v1"; // { unitTitle, personName }
-  let people = [];
-  let selected = { unitTitle: "", personName: "" };
+  // ✅ localStorage：v2（單位/職稱/姓名）+ 相容 v1（unitTitle/personName）
+  const LS_KEY_V2 = "xh_ems_person_v2"; // { unit, title, name }
+  const LS_KEY_V1 = "xh_ems_person_v1"; // 舊版：{ unitTitle, personName }
+
+  let people = []; // [{ unit, title, name }]
+  let selected = { unit: "", title: "", name: "" };
   let lastGps = { ok:false, lat:null, lng:null, accuracy:null };
 
-  let pickModal, inModal, outModal;
+  let pickModal, inModal, outModal, confirmModal;
+
+  // ✅ 確認送出用（暫存一次送出的資料與動作）
+  let pendingConfirm = {
+    kind: "",          // "signIn" | "signOut"
+    summary: null,     // { typeText, title, name, date, time, content? }
+    request: null      // { action, ... } 要送到 GAS 的參數
+  };
 
   $(function(){
     pickModal = new bootstrap.Modal(document.getElementById("pickPersonModal"));
     inModal = new bootstrap.Modal(document.getElementById("signInModal"));
     outModal = new bootstrap.Modal(document.getElementById("signOutModal"));
+    confirmModal = new bootstrap.Modal(document.getElementById("confirmModal"));
 
     registerServiceWorker_();
     startClock_();
     bindEvents_();
 
-    // ✅ 進頁先顯示置中 spinner（讀名單/讀清單時都顯示）
     showLoading_(true);
 
     loadPeople_().then(function(){
@@ -390,13 +509,9 @@
       }
 
       setDefaultMonth_();
-
-      // ✅ 讀清單時也顯示置中 spinner
       return refreshSignAsync_();
     }).always(function(){
       showLoading_(false);
-
-      // 預先定位一次（不阻塞 spinner）
       locate_();
     });
   });
@@ -408,21 +523,22 @@
       openPickModal_();
     });
 
+    // ✅ 選人：改姓名 -> 單位/職稱跟著變
     $("#pickPersonName").on("change", function(){
       const name = $(this).val();
-      setUnitTitleByName_(name, "#pickUnitTitle");
+      setPickInfoByName_(name);
     });
 
-    // ✅ 簽到：改姓名 -> 職稱跟著變
+    // ✅ 簽到：改姓名 -> 職稱跟著變（不帶單位）
     $("#inPersonName").on("change", function(){
       const name = $(this).val();
-      setUnitTitleByName_(name, "#inUnitTitle");
+      setTitleByName_(name, "#inTitle");
     });
 
-    // ✅ 簽退：改姓名 -> 職稱跟著變
+    // ✅ 簽退：改姓名 -> 職稱跟著變（不帶單位）
     $("#outPersonName").on("change", function(){
       const name = $(this).val();
-      setUnitTitleByName_(name, "#outUnitTitle");
+      setTitleByName_(name, "#outTitle");
     });
 
     $("#btnPickCancel").on("click", function(){
@@ -435,8 +551,9 @@
       const p = findPersonByName_(name);
       if (!p) { showStatus_("danger", "請先選擇姓名"); return; }
 
-      selected.unitTitle = p.unitTitle || "";
-      selected.personName = p.personName || "";
+      selected.unit = p.unit || "";
+      selected.title = p.title || "";
+      selected.name = p.name || "";
       saveSelectedToStorage_();
       applySelectedToUi_();
       pickModal.hide();
@@ -473,8 +590,10 @@
       updateOutUiByDuty_();
     });
 
-    $("#btnSubmitSignIn").on("click", submitSignIn_);
-    $("#btnSubmitSignOut").on("click", submitSignOut_);
+    // ✅ 送出先開確認視窗
+    $("#btnSubmitSignIn").on("click", prepareConfirmSignIn_);
+    $("#btnSubmitSignOut").on("click", prepareConfirmSignOut_);
+    $("#btnConfirmSubmit").on("click", doConfirmedSubmit_);
 
     $("#btnRefreshSign").on("click", function(){
       showLoading_(true);
@@ -487,26 +606,28 @@
     });
   }
 
-  // ✅ 置中 spinner 顯示/隱藏
   function showLoading_(show){
     if (show) $("#pageLoading").show();
     else $("#pageLoading").hide();
   }
 
-  // ✅ 工具：依姓名找人
   function findPersonByName_(name){
     const n = String(name || "").trim();
     if (!n) return null;
-    return people.find(x => x && x.personName === n) || null;
+    return people.find(x => x && x.name === n) || null;
   }
 
-  // ✅ 工具：依姓名回填職稱到指定 input
-  function setUnitTitleByName_(name, unitTitleSelector){
+  function setTitleByName_(name, titleSelector){
     const p = findPersonByName_(name);
-    $(unitTitleSelector).val(p ? (p.unitTitle || "") : "");
+    $(titleSelector).val(p ? (p.title || "") : "");
   }
 
-  // ---------- UI: clock ----------
+  function setPickInfoByName_(name){
+    const p = findPersonByName_(name);
+    $("#pickUnit").val(p ? (p.unit || "") : "");
+    $("#pickTitle").val(p ? (p.title || "") : "");
+  }
+
   function startClock_(){
     tick_();
     setInterval(tick_, 1000);
@@ -524,7 +645,13 @@
     return $.get(webAppUrl, { action:"people" })
       .then(function(res){
         if (!res || !res.ok) throw new Error((res && res.message) ? res.message : "名單載入失敗");
-        people = res.data || [];
+
+        people = (res.data || []).map(x => ({
+          unit: String(x.unit || "").trim(),
+          title: String(x.title || "").trim(),
+          name: String(x.name || "").trim()
+        })).filter(x => x.name);
+
         if (!people.length) showStatus_("warning", "people 無資料");
         else showStatus_("success", "名單載入完成");
 
@@ -539,7 +666,7 @@
     const opts = [];
     for (let i=0;i<people.length;i++){
       const p = people[i];
-      opts.push(`<option value="${esc_(p.personName)}">${esc_(p.personName)}</option>`);
+      opts.push(`<option value="${esc_(p.name)}">${esc_(p.name)}</option>`);
     }
     const html = opts.join("") || `<option value="">無資料</option>`;
 
@@ -548,43 +675,67 @@
     $("#outPersonName").html(html);
   }
 
+  // ✅ v2 + v1 相容搬移
   function loadSelectedFromStorage_(){
+    // 先讀 v2
     try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (!raw) return;
-      const obj = JSON.parse(raw);
-      selected.unitTitle = String(obj.unitTitle || "");
-      selected.personName = String(obj.personName || "");
+      const raw2 = localStorage.getItem(LS_KEY_V2);
+      if (raw2) {
+        const obj2 = JSON.parse(raw2);
+        selected.unit = String(obj2.unit || "");
+        selected.title = String(obj2.title || "");
+        selected.name = String(obj2.name || "");
+        return;
+      }
+    } catch { }
+
+    // 再讀 v1（舊版），並自動搬移到 v2
+    try {
+      const raw1 = localStorage.getItem(LS_KEY_V1);
+      if (!raw1) return;
+      const obj1 = JSON.parse(raw1);
+
+      const oldTitle = String(obj1.unitTitle || "");   // 舊版其實是「職稱」
+      const oldName = String(obj1.personName || "");
+
+      selected.unit = "";         // v1 沒有單位
+      selected.title = oldTitle;
+      selected.name = oldName;
+
+      saveSelectedToStorage_();
+      // localStorage.removeItem(LS_KEY_V1);
     } catch { }
   }
 
   function saveSelectedToStorage_(){
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({
-        unitTitle: selected.unitTitle || "",
-        personName: selected.personName || ""
+      localStorage.setItem(LS_KEY_V2, JSON.stringify({
+        unit: selected.unit || "",
+        title: selected.title || "",
+        name: selected.name || ""
       }));
     } catch { }
   }
 
   function isSelectedValid_(){
-    if (!selected.personName) return false;
-    return people.some(p => p.personName === selected.personName);
+    if (!selected.name) return false;
+    return people.some(p => p.name === selected.name);
   }
 
   function applySelectedToUi_(){
-    $("#navUnitTitle").text(selected.unitTitle || "--");
-    $("#navPersonName").text(selected.personName || "--");
+    $("#navUnit").text(selected.unit || "--");
+    $("#navTitle").text(selected.title || "--");
+    $("#navPersonName").text(selected.name || "--");
   }
 
   function openPickModal_(){
     if (isSelectedValid_()){
-      $("#pickPersonName").val(selected.personName);
-      $("#pickUnitTitle").val(selected.unitTitle);
+      $("#pickPersonName").val(selected.name);
+      setPickInfoByName_(selected.name);
     } else {
       const first = people[0];
-      $("#pickPersonName").val(first ? first.personName : "");
-      $("#pickUnitTitle").val(first ? first.unitTitle : "");
+      $("#pickPersonName").val(first ? first.name : "");
+      setPickInfoByName_(first ? first.name : "");
     }
     pickModal.show();
   }
@@ -671,30 +822,56 @@
     $("#signYmText").text(ym);
   }
 
-  // ✅ 改成回傳 jqXHR（可用 .always()）
+  function setAssistHoursUi_(allMinutes, monthMinutes, ym){
+    const allH = minutesToHours1_(allMinutes);
+    const monH = minutesToHours1_(monthMinutes);
+
+    $("#totalAssistHoursText").text(allH.text);
+    $("#monthAssistHoursText").text(monH.text);
+
+    $("#totalAssistHint").text(allH.hint);
+    $("#monthAssistHint").text(`${esc_(String(ym || ""))}｜${monH.hint}`);
+  }
+
+  function minutesToHours1_(m){
+    const n = parseInt(String(m == null ? "" : m), 10);
+    if (isNaN(n) || n <= 0) return { text: "0.0", hint: "0 分鐘" };
+
+    const h = n / 60;
+    const h1 = Math.round(h * 10) / 10;
+    return { text: h1.toFixed(1), hint: `${n} 分鐘` };
+  }
+
   function refreshSignAsync_(){
     const ym = $("#signYmPicker").val() || fmtYearMonth_(new Date());
     $("#signYmText").text(ym);
 
-    $("#signTbody").html(`<tr><td colspan="5" class="text-center text-muted py-3">載入中...</td></tr>`);
+    $("#signTbody").html(`<tr><td colspan="6" class="text-center text-muted py-3">載入中...</td></tr>`);
 
-    return $.get(webAppUrl, { action:"sign", ym: ym })
+    // ✅ 依「目前選擇者」過濾出勤清單，並回傳協勤累積/本月分鐘
+    return $.get(webAppUrl, { action:"sign", ym: ym, personName: (selected.name || "") })
       .done(function(res){
         if (!res || !res.ok) {
           const msg = (res && res.message) ? res.message : "載入失敗";
-          $("#signTbody").html(`<tr><td colspan="5" class="text-center text-danger py-3">${esc_(msg)}</td></tr>`);
+          $("#signTbody").html(`<tr><td colspan="6" class="text-center text-danger py-3">${esc_(msg)}</td></tr>`);
+          setAssistHoursUi_(0, 0, ym);
           return;
         }
 
+        setAssistHoursUi_(res.totalAssistMinutesAll || 0, res.totalAssistMinutesMonth || 0, ym);
+
         const list = res.data || [];
         if (!list.length) {
-          $("#signTbody").html(`<tr><td colspan="5" class="text-center text-muted py-3">無資料</td></tr>`);
+          $("#signTbody").html(`<tr><td colspan="6" class="text-center text-muted py-3">無資料</td></tr>`);
           return;
         }
 
         const rows = [];
         for (let i=0;i<list.length;i++){
           const r = list[i];
+          const mins = parseInt(String(r.minutes == null ? "" : r.minutes), 10);
+          const hourText = (!isNaN(mins) && mins > 0) ? (Math.round((mins/60)*10)/10).toFixed(1) : "";
+
           rows.push(`
             <tr>
               <td>${esc_(r.dutyTypeText || "")}</td>
@@ -702,13 +879,15 @@
               <td>${esc_(toHm_(r.signInTime || ""))}</td>
               <td>${esc_(r.signOutDate || "")}</td>
               <td>${esc_(toHm_(r.signOutTime || ""))}</td>
+              <td class="text-end">${esc_(hourText)}</td>
             </tr>
           `);
         }
         $("#signTbody").html(rows.join(""));
       })
       .fail(function(){
-        $("#signTbody").html(`<tr><td colspan="5" class="text-center text-danger py-3">載入失敗（請確認 GAS 部署/權限）</td></tr>`);
+        $("#signTbody").html(`<tr><td colspan="6" class="text-center text-danger py-3">載入失敗（請確認 GAS 部署/權限）</td></tr>`);
+        setAssistHoursUi_(0, 0, ym);
       });
   }
 
@@ -716,8 +895,8 @@
   function fillSignInModal_(){
     const now = new Date();
 
-    $("#inPersonName").val(selected.personName || "");
-    setUnitTitleByName_($("#inPersonName").val(), "#inUnitTitle");
+    $("#inPersonName").val(selected.name || "");
+    setTitleByName_($("#inPersonName").val(), "#inTitle");
 
     $("#inDate").val(fmtDate_(now));
     $("#inTime").val(fmtClockHm_(now));
@@ -728,8 +907,8 @@
   function fillSignOutModal_(){
     const now = new Date();
 
-    $("#outPersonName").val(selected.personName || "");
-    setUnitTitleByName_($("#outPersonName").val(), "#outUnitTitle");
+    $("#outPersonName").val(selected.name || "");
+    setTitleByName_($("#outPersonName").val(), "#outTitle");
 
     $("#outDate").val(fmtDate_(now));
     $("#outTime").val(fmtClockHm_(now));
@@ -753,61 +932,62 @@
     $("#outContentWrap").show();
   }
 
-  function submitSignIn_(){
+  function dutyTypeText_(dutyType){
+    if (dutyType === "assist") return "協勤";
+    if (dutyType === "training") return "常年訓練";
+    if (dutyType === "work") return "公差勤務";
+    return String(dutyType || "");
+  }
+
+  function prepareConfirmSignIn_(){
     clearSignStatus_("in");
 
     const dutyType = $("#inDutyType").val();
-    const unitTitle = $("#inUnitTitle").val().trim();
-    const personName = $("#inPersonName").val().trim();
+    const title = $("#inTitle").val().trim();
+    const name = $("#inPersonName").val().trim();
     const signInDate = $("#inDate").val();
     const signInTime = toHm_($("#inTime").val());
 
-    if (!personName) { showSignStatus_("in", "danger", "請選姓名"); return; }
+    if (!name) { showSignStatus_("in", "danger", "請選姓名"); return; }
     if (!signInDate || !signInTime) { showSignStatus_("in", "danger", "簽到日期／時間為必填"); return; }
 
     const gps = gpsPass_(dutyType);
     if (!gps.pass && needGps_(dutyType)) { showSignStatus_("in", "danger", "GPS 未通過，無法簽到"); return; }
 
-    showSignStatus_("in", "info", "簽到送出中...");
-    showLoading_(true);
-
-    $.get(webAppUrl, {
+    pendingConfirm.kind = "signIn";
+    pendingConfirm.summary = {
+      typeText: dutyTypeText_(dutyType),
+      title: title,
+      name: name,
+      date: signInDate,
+      time: signInTime,
+      content: ""
+    };
+    pendingConfirm.request = {
       action:"signIn",
       dutyType: dutyType,
-      unitTitle: unitTitle,
-      personName: personName,
+      title: title,
+      personName: name,
       signInDate: signInDate,
       signInTime: signInTime
-    })
-    .done(function(res){
-      if (res && res.ok) {
-        showSignStatus_("in", "success", "簽到完成");
-        inModal.hide();
-        refreshSignAsync_();
-      } else {
-        showSignStatus_("in", "danger", "簽到失敗：" + ((res && res.message) ? res.message : "原因不明"));
-      }
-    })
-    .fail(function(){
-      showSignStatus_("in", "danger", "簽到送出失敗（請確認 GAS 部署／權限）");
-    })
-    .always(function(){
-      showLoading_(false);
-    });
+    };
+
+    fillConfirmModal_(pendingConfirm.summary, false);
+    confirmModal.show();
   }
 
-  function submitSignOut_(){
+  function prepareConfirmSignOut_(){
     clearSignStatus_("out");
 
     const dutyType = $("#outDutyType").val();
-    const unitTitle = $("#outUnitTitle").val().trim();
-    const personName = $("#outPersonName").val().trim();
+    const title = $("#outTitle").val().trim();
+    const name = $("#outPersonName").val().trim();
     const signOutDate = $("#outDate").val();
     const signOutTime = toHm_($("#outTime").val());
     const mode = $("#outMode").val();
     const content = $("#outContent").val().trim();
 
-    if (!personName) { showSignStatus_("out", "danger", "請選姓名"); return; }
+    if (!name) { showSignStatus_("out", "danger", "請選姓名"); return; }
     if (!signOutDate || !signOutTime) { showSignStatus_("out", "danger", "簽退日期／時間為必填"); return; }
 
     const gps = gpsPass_(dutyType);
@@ -816,7 +996,7 @@
     let dutyContent = "";
     if (dutyType === "assist") {
       if (mode === "standby") {
-        dutyContent = "備勤";
+        dutyContent = "協勤";
       } else {
         if (!content) { showSignStatus_("out", "danger", "協勤「出勤」請填工作內容"); return; }
         dutyContent = content;
@@ -826,33 +1006,88 @@
       dutyContent = content;
     }
 
-    showSignStatus_("out", "info", "簽退送出中...");
-    showLoading_(true);
-
-    $.get(webAppUrl, {
+    pendingConfirm.kind = "signOut";
+    pendingConfirm.summary = {
+      typeText: dutyTypeText_(dutyType),
+      title: title,
+      name: name,
+      date: signOutDate,
+      time: signOutTime,
+      content: dutyContent
+    };
+    pendingConfirm.request = {
       action:"signOut",
       dutyType: dutyType,
-      unitTitle: unitTitle,
-      personName: personName,
+      title: title,
+      personName: name,
       signOutDate: signOutDate,
       signOutTime: signOutTime,
       dutyContent: dutyContent
-    })
-    .done(function(res){
-      if (res && res.ok) {
-        showSignStatus_("out", "success", "簽退完成");
-        outModal.hide();
-        refreshSignAsync_();
-      } else {
-        showSignStatus_("out", "danger", "簽退失敗：" + ((res && res.message) ? res.message : "原因不明"));
-      }
-    })
-    .fail(function(){
-      showSignStatus_("out", "danger", "簽退送出失敗（請確認 GAS 部署／權限）");
-    })
-    .always(function(){
-      showLoading_(false);
-    });
+    };
+
+    fillConfirmModal_(pendingConfirm.summary, true);
+    confirmModal.show();
+  }
+
+  function fillConfirmModal_(s, showContent){
+    $("#cfType").text(s.typeText || "--");
+    $("#cfTitle").text(s.title || "--");
+    $("#cfPersonName").text(s.name || "--");
+    $("#cfDate").text(s.date || "--");
+    $("#cfTime").text(s.time || "--");
+
+    if (showContent) {
+      $("#cfContentRow").show();
+      $("#cfContent").text(s.content || "--");
+    } else {
+      $("#cfContentRow").hide();
+      $("#cfContent").text("");
+    }
+  }
+
+  function doConfirmedSubmit_(){
+    if (!pendingConfirm || !pendingConfirm.request || !pendingConfirm.request.action) {
+      confirmModal.hide();
+      return;
+    }
+
+    $("#btnConfirmSubmit").prop("disabled", true);
+    showLoading_(true);
+
+    const req = pendingConfirm.request;
+    const kind = pendingConfirm.kind;
+
+    $.get(webAppUrl, req)
+      .done(function(res){
+        if (res && res.ok) {
+          if (kind === "signIn") {
+            showSignStatus_("in", "success", "簽到完成");
+            inModal.hide();
+          } else {
+            showSignStatus_("out", "success", "簽退完成");
+            outModal.hide();
+          }
+
+          confirmModal.hide();
+          refreshSignAsync_();
+        } else {
+          const msg = (res && res.message) ? res.message : "原因不明";
+          if (kind === "signIn") showSignStatus_("in", "danger", "簽到失敗：" + msg);
+          else showSignStatus_("out", "danger", "簽退失敗：" + msg);
+        }
+      })
+      .fail(function(){
+        if (kind === "signIn") showSignStatus_("in", "danger", "簽到送出失敗（請確認 GAS 部署／權限）");
+        else showSignStatus_("out", "danger", "簽退送出失敗（請確認 GAS 部署／權限）");
+      })
+      .always(function(){
+        showLoading_(false);
+        $("#btnConfirmSubmit").prop("disabled", false);
+
+        pendingConfirm.kind = "";
+        pendingConfirm.summary = null;
+        pendingConfirm.request = null;
+      });
   }
 
   // ---------- status / utils ----------
@@ -864,7 +1099,6 @@
     `);
   }
 
-  // ✅ 簽到/簽退專用提示列
   function clearSignStatus_(which){
     const $wrap = (which === "in") ? $("#inStatusBar") : $("#outStatusBar");
     $wrap.html("");
