@@ -1,0 +1,36 @@
+    body { background:#f6f7f9; }
+
+    .timeBox{
+      background:#000; color:#fff; border-radius:16px;
+      padding:12px 12px; text-align:center;
+    }
+    .timeBox .dateLine{ font-size:20px; font-weight:700; opacity:.92; line-height:1.2; }
+    .timeBox .timeLine{ font-size:50px; font-weight:900; line-height:1.1; margin-top:2px; letter-spacing:1px; }
+
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .roundedX { border-radius:16px; }
+    .badgeRound { border-radius:999px; padding:.5rem .75rem; }
+
+    /* ✅ 置中讀取遮罩 */
+    .loadingOverlay{
+      position:fixed; inset:0; z-index:2000;
+      display:none;
+      background:rgba(255,255,255,.75);
+      backdrop-filter: blur(0.5px);
+    }
+    .loadingOverlay .box{
+      background:#fff; border-radius:16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.12);
+      padding:18px 20px;
+      min-width: 220px;
+    }
+
+    .hoursBox{
+      background:#fff;
+      border:1px solid rgba(0,0,0,.06);
+      border-radius:16px;
+      padding:12px 14px;
+    }
+    .hoursBox .label{ color:#6c757d; font-size:12px; }
+    .hoursBox .value{ font-size:28px; font-weight:900; line-height:1.1; }
+    .hoursBox .unit{ font-size:12px; color:#6c757d; margin-left:6px; font-weight:700; }
