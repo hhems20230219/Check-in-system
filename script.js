@@ -325,22 +325,34 @@ function tick_() {
 
 // -------------------- GPS --------------------
 // ✅ 核心：把 gpsRules（assist/training）渲染到 #gpsTargetText
+// ✅ 只需要改「GPS 目標顯示」這段：renderGpsTargets_()
+// 其他檔案不用動
+
 function renderGpsTargets_(dutyType, opt) {
   const duty = (dutyType === "training") ? "training" : "assist";
   const rules = (duty === "training") ? gpsRules.training : gpsRules.assist;
 
+  // 先找「最近的目標」
+  let nearest = null;   // { t, dist }
+  if (lastGps.ok && lastGps.lat != null && lastGps.lng != null) {
+    for (let i = 0; i < rules.length; i++) {
+      const t = rules[i];
+      const d = Math.round(distMeters_(lastGps.lat, lastGps.lng, t.lat, t.lng));
+      if (!nearest || d < nearest.dist) nearest = { t: t, dist: d };
+    }
+  } else {
+    // 沒 GPS 時，也至少顯示第一個目標（避免空白）
+    if (rules.length) nearest = { t: rules[0], dist: null };
+  }
+
   const lines = [];
   lines.push(`<div class="fw-semibold mb-1">GPS 目標（${esc_(dutyTypeText_(duty))}）</div>`);
 
-  for (let i = 0; i < rules.length; i++) {
-    const t = rules[i];
-
-    let distText = "距離：-- m";
-    if (lastGps.ok && lastGps.lat != null && lastGps.lng != null) {
-      const d = Math.round(distMeters_(lastGps.lat, lastGps.lng, t.lat, t.lng));
-      distText = `距離：約 ${d} m`;
-    }
-
+  if (!nearest || !nearest.t) {
+    lines.push(`<div class="text-muted">尚無可顯示的目標</div>`);
+  } else {
+    const t = nearest.t;
+    const distText = (nearest.dist == null) ? "距離：-- m" : `距離：約 ${nearest.dist} m`;
     lines.push(
       `<div>• ${esc_(t.name)}（lat=${t.lat}, lng=${t.lng}｜半徑 ${t.radius}m｜${esc_(distText)}）</div>`
     );
@@ -350,11 +362,11 @@ function renderGpsTargets_(dutyType, opt) {
   if (lastGps.ok && lastGps.accuracy != null) {
     const acc = parseInt(String(lastGps.accuracy || 0), 10) || 0;
     lines.push(`<div class="mt-1">目前 GPS 精度：約 ${acc} m</div>`);
-  }
 
-  // ✅ 如果是你這次提到的「精度偏低」，補一行提醒（不改 CSS）
-  if (lastGps.ok && lastGps.accuracy != null && lastGps.accuracy >= GPS_ACCURACY_WARN_M) {
-    lines.push(`<div class="mt-1 text-warning">提示：室內常見精度飄移，建議到室外/窗邊再試。</div>`);
+    // ✅ 精度偏低提醒
+    if (acc >= GPS_ACCURACY_WARN_M) {
+      lines.push(`<div class="mt-1 text-warning">提示：室內常見精度飄移，建議到室外/窗邊再試。</div>`);
+    }
   }
 
   $("#gpsTargetText").html(lines.join(""));
