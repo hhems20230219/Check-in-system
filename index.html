@@ -11,7 +11,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="義消出勤">
+  <meta name="apple-mobile-web-app-title" content="新興救護出勤">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
 
   <!-- Bootstrap 5.3 -->
@@ -135,10 +135,11 @@
     <!-- 第五區 按鈕區 -->
     <div class="card roundedX mb-3">
       <div class="card-body">
-        <button class="btn btn-success w-100 mb-2" id="btnOpenSignIn" type="button">
+        <button class="btn btn-lg btn-success w-100 mb-2" id="btnOpenSignIn" type="button">
           <i class="fa-solid fa-right-to-bracket me-2"></i>簽到
         </button>
-        <button class="btn btn-warning w-100" id="btnOpenSignOut" type="button">
+
+        <button class="btn btn-lg btn-warning w-100" id="btnOpenSignOut" type="button">
           <i class="fa-solid fa-right-from-bracket me-2"></i>簽退
         </button>
       </div>
@@ -153,7 +154,7 @@
           <div class="col-12 col-md-6">
             <div class="hoursBox h-100">
               <div class="label">
-                <i class="fa-solid fa-hourglass-half me-1"></i>總協勤時數（協勤 / 目前選擇者）
+                <i class="fa-solid fa-hourglass-half me-1"></i>總協勤時數
               </div>
               <div class="d-flex align-items-end">
                 <div class="value" id="totalAssistHoursText">--</div>
@@ -165,7 +166,7 @@
           <div class="col-12 col-md-6">
             <div class="hoursBox h-100">
               <div class="label">
-                <i class="fa-solid fa-calendar-days me-1"></i>本月協勤時數（協勤 / 目前選擇者）
+                <i class="fa-solid fa-calendar-days me-1"></i>本月協勤時數
               </div>
               <div class="d-flex align-items-end">
                 <div class="value" id="monthAssistHoursText">--</div>
@@ -281,7 +282,7 @@
               <option value="work">公差勤務</option>
             </select>
             <div class="form-text">
-              協勤／常年訓練：需要通過 GPS；公差勤務：不需 GPS。
+              協勤/常年訓練：需要通過 GPS；公差勤務：不需 GPS。
             </div>
           </div>
 
@@ -347,7 +348,7 @@
               <option value="work">公差勤務</option>
             </select>
             <div class="form-text">
-              協勤：需要通過 GPS，並可選「備勤／出勤」；公差勤務：不需 GPS（需填工作內容）。
+              協勤：需要通過 GPS後選擇「出勤/備勤」；公差勤務：不需 GPS。
             </div>
           </div>
 
@@ -383,7 +384,7 @@
 
           <div class="mb-3" id="outContentWrap" style="display:none;">
             <label class="form-label">工作內容</label>
-            <textarea class="form-control" id="outContent" rows="2" placeholder="例如：參加幹部會議 或 0800車禍三民區吉林街142號"></textarea>
+            <textarea class="form-control" id="outContent" rows="2" placeholder="例如：參加幹部會議 或 0800車禍高雄市新興區文化路29號"></textarea>
           </div>
         </div>
 
@@ -769,8 +770,8 @@
         lastGps.accuracy = null;
 
         $("#gpsRawText").text("使用者定位：lat=--, lng=--");
-        setGpsUi_("danger", "定位失敗", (err && err.message) ? err.message : "定位失敗");
-        showStatus_("danger", "定位失敗，請確認定位權限或 GPS 設定");
+        setGpsUi_("danger", "GPS連線失敗", (err && err.message) ? err.message : "GPS連線失敗");
+        showStatus_("danger", "GPS連線失敗，請確認定位權限或 GPS 設定");
       },
       { enableHighAccuracy:true, timeout:12000, maximumAge:0 }
     );
@@ -791,7 +792,7 @@
 
   function gpsPass_(dutyType){
     if (!needGps_(dutyType)) return { pass:true, msg:"不需比對 GPS" };
-    if (!lastGps.ok) return { pass:false, msg:"尚未定位" };
+    if (!lastGps.ok) return { pass:false, msg:"尚未GPS連線" };
 
     const rules = (dutyType === "training") ? gpsRules.training : gpsRules.assist;
 
@@ -801,7 +802,7 @@
       const d = Math.round(distMeters_(lastGps.lat, lastGps.lng, t.lat, t.lng));
       if (d <= (t.radius || 0)) passAny = true;
     }
-    return { pass: passAny, msg: passAny ? "GPS 通過" : "GPS 未通過" };
+    return { pass: passAny, msg: passAny ? "定位於範圍內" : "定位於範圍外" };
   }
 
   function updateGpsBadgeForModal_(which){
