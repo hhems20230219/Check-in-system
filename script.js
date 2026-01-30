@@ -360,7 +360,7 @@ function renderGpsTargets_(dutyType, opt) {
 
     // ✅ 精度偏低提醒
     if (acc >= GPS_ACCURACY_WARN_M) {
-      lines.push(`<div class="mt-1 text-warning">提示：室內常見精度飄移，建議到室外/窗邊再試。</div>`);
+      lines.push(`<div class="mt-1 text-warning">提示：室內常見精度飄移，建議到室外再試。</div>`);
     }
   }
 
@@ -387,7 +387,7 @@ function locate_() {
       $("#gpsRawText").text(`使用者定位：lat=${lastGps.lat}, lng=${lastGps.lng}`);
 
       if (lastGps.accuracy >= GPS_ACCURACY_WARN_M) {
-        setGpsUi_("warning", "定位精度偏低（室內常見）", `精度約 ${lastGps.accuracy} 公尺，請到室外/窗邊再按「重新定位」`);
+        setGpsUi_("warning", "定位精度偏低", `精度約 ${lastGps.accuracy} 公尺，請到室外再按「重新定位」`);
       } else {
         setGpsUi_("success", "定位成功", `精度約 ${lastGps.accuracy} 公尺`);
       }
