@@ -473,7 +473,7 @@ function gpsPassDetailed_(dutyType) {
     return {
       pass: false,
       level: "danger",
-      msg: "定位於範圍外（室內常見）",
+      msg: "定位於範圍外",
       detail: `最近點：${nearName || "-"}｜距離約 ${minD == null ? "-" : minD} m｜精度約 ${acc} m｜請到室外/窗邊再試`
     };
   }
