@@ -1,9 +1,4 @@
 // app.js
-// 重點修正：
-// 1) 「協勤」GPS 只顯示新興分隊座標的原因：你原本只在 locate_() / setGpsUi_() 顯示「全域狀態」，沒有把 gpsRules 依 dutyType 渲染到 #gpsTargetText。
-// 2) 另外：你提供的使用者座標到「新興分隊」距離約 1.5km，半徑 100m 一定不會過；而且 accuracy 大時會造成誤判與顯示混亂。
-// 3) 本版：#gpsTargetText 會同時顯示 assist/training 的所有目標點（含距離、半徑），並在簽到/簽退切 dutyType 時即時切換與重算。
-
 /* global bootstrap, $ */
 
 const webAppUrl = "https://script.google.com/macros/s/AKfycbxoUGfQVQC_iDy1R--Ve9inpHTxz85daqU1HOU2ZTEIggw-A7JcqqjW4GKu3Py2khZV/exec";
