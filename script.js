@@ -644,7 +644,7 @@ function prepareConfirmSignIn_() {
   if (!signInDate || !signInTime) { showSignStatus_("in", "danger", "簽到日期／時間為必填"); return; }
 
   if (isFuturePunch_(signInDate, signInTime)) {
-    showSignStatus_("in", "danger", "選到未來時間，不能打卡");
+    showSignStatus_("in", "danger", "不得選擇未來時間");
     return;
   }
 
