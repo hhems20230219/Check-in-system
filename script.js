@@ -15,8 +15,8 @@ const gpsRules = {
 };
 
 // ✅ 室內定位常見：accuracy 很大（50~200m）
-const GPS_ACCURACY_WARN_M = 60;       // >= 60m：提示「室內訊號不佳」
-const GPS_ACCURACY_BLOCK_M = 200;     // >= 150m：直接視為不可靠，GPS 不通過
+const GPS_ACCURACY_WARN_M = 150;       // >= 150m：提示「室內訊號不佳」
+const GPS_ACCURACY_BLOCK_M = 200;     // >= 200m：直接視為不可靠，GPS不通過
 const FUTURE_TOLERANCE_MS = 30 * 1000;
 
 // ✅ localStorage：v2（單位/職稱/姓名）+ 相容 v1（unitTitle/personName）
