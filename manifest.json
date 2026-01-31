@@ -1,7 +1,7 @@
 {
   "name": "新興救護義消出勤系統",
-  "short_name": "義消出勤",
-  "description": "新興救護義消出勤/常年訓練打卡系統（PWA）",
+  "short_name": "新興救護出勤",
+  "description": "新興救護義消出勤系統",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
