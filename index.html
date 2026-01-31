@@ -39,42 +39,41 @@
   <!-- 第一區 Navbar -->
   <nav class="navbar navbar-dark bg-dark navbar-expand-lg">
     <div class="container-fluid">
-      <!-- ✅ 左：icon + 標題粗體靠左 -->
+
+      <!-- ✅ 左：標題（永遠靠左） -->
       <a class="navbar-brand fw-bold mb-0 d-flex align-items-center" href="#">
         <i class="fa-solid fa-fire-flame-curved me-2"></i>新興救護義消出勤系統
       </a>
 
-      <!-- ✅ Navbar toggler（你要求的按鈕） -->
-      <button class="navbar-toggler" type="button"
-              data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup"
-              aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-      </button>
+      <!-- ✅ 右：單位/職稱/姓名/切換姓名（永遠顯示，永遠靠右） -->
+      <div class="d-flex align-items-center gap-2 ms-auto order-lg-3">
+        <span class="text-white-50 small d-flex align-items-center">
+          <i class="fa-solid fa-building-flag me-1"></i><span id="navUnit">--</span>
+        </span>
+        <span class="text-white-50 small d-flex align-items-center">
+          <i class="fa-solid fa-id-badge me-1"></i><span id="navTitle">--</span>
+        </span>
+        <span class="text-white small fw-semibold d-flex align-items-center">
+          <i class="fa-solid fa-user me-1"></i><span id="navPersonName">--</span>
+        </span>
 
-      <!-- ✅ collapse 區 -->
-      <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
-        <!-- ✅ 左側 nav links（你提供的 Home/Features/Pricing/Disabled） -->
-        <div class="navbar-nav me-auto">
+        <button class="btn btn-sm btn-outline-light" id="btnSwitchPerson" type="button">
+          <i class="fa-solid fa-repeat me-1"></i>切換姓名
+        </button>
+
+        <!-- ✅ toggler：收合後也要在右側，並且永遠顯示 -->
+        <button class="navbar-toggler ms-1 order-lg-4" type="button"
+                data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup"
+                aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+      </div>
+
+      <!-- ✅ 左：Home/Features/Pricing/Disabled（收合目標，只收合這一塊） -->
+      <div class="collapse navbar-collapse order-lg-2" id="navbarNavAltMarkup">
+        <div class="navbar-nav">
           <a class="nav-link active" aria-current="page" href="#">Home</a>
           <a class="nav-link disabled" aria-disabled="true">匯出報表</a>
-        </div>
-
-        <!-- ✅ 右：單位 / 職稱 / 姓名 + 切換姓名（全部靠右）
-             手機時會在 toggler 展開後顯示，不會擠在同一行 -->
-        <div class="d-flex flex-column flex-lg-row align-items-start align-items-lg-center gap-2 ms-lg-auto">
-          <span class="text-white-50 small d-flex align-items-center">
-            <i class="fa-solid fa-building-flag me-1"></i><span id="navUnit">--</span>
-          </span>
-          <span class="text-white-50 small d-flex align-items-center">
-            <i class="fa-solid fa-id-badge me-1"></i><span id="navTitle">--</span>
-          </span>
-          <span class="text-white small fw-semibold d-flex align-items-center">
-            <i class="fa-solid fa-user me-1"></i><span id="navPersonName">--</span>
-          </span>
-
-          <button class="btn btn-sm btn-outline-light" id="btnSwitchPerson" type="button">
-            <i class="fa-solid fa-repeat me-1"></i>切換姓名
-          </button>
         </div>
       </div>
     </div>
