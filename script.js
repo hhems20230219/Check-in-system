@@ -1,7 +1,7 @@
 // app.js
 /* global bootstrap, $ */
 
-const webAppUrl = "https://script.google.com/macros/s/AKfycbxoUGfQVQC_iDy1R--Ve9inpHTxz85daqU1HOU2ZTEIggw-A7JcqqjW4GKu3Py2khZV/exec";
+const webAppUrl = "https://script.google.com/macros/s/AKfycby4th8BRGSy6dcH5wDFiCYUR5H4aC0TmzHxC-Fvn6GPGHV1M3vHJ9CQCvYv_0qOSM7l/exec";
 
 const gpsRules = {
   assist: [
