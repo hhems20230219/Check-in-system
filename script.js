@@ -5,18 +5,18 @@ const webAppUrl = "https://script.google.com/macros/s/AKfycbxoUGfQVQC_iDy1R--Ve9
 
 const gpsRules = {
   assist: [
-    { name: "新興分隊", lat: 22.630760865622978, lng: 120.31122281518338, radius: 100 },
-    { name: "吉林街142號", lat: 22.644379387561017, lng: 120.30652000270213, radius: 100 }
+    { name: "新興分隊", lat: 22.630760865622978, lng: 120.31122281518338, radius: 500 },
+    { name: "吉林街142號", lat: 22.644379387561017, lng: 120.30652000270213, radius: 500 }
   ],
   training: [
-    { name: "新興分隊", lat: 22.630760865622978, lng: 120.31122281518338, radius: 100 },
-    { name: "日月光K11", lat: 22.722363004033074, lng: 120.30469365772642, radius: 100 }
+    { name: "新興分隊", lat: 22.630760865622978, lng: 120.31122281518338, radius: 500 },
+    { name: "日月光K11", lat: 22.722363004033074, lng: 120.30469365772642, radius: 500 }
   ]
 };
 
 // ✅ 室內定位常見：accuracy 很大（50~200m）
 const GPS_ACCURACY_WARN_M = 60;       // >= 60m：提示「室內訊號不佳」
-const GPS_ACCURACY_BLOCK_M = 150;     // >= 150m：直接視為不可靠，GPS 不通過
+const GPS_ACCURACY_BLOCK_M = 200;     // >= 150m：直接視為不可靠，GPS 不通過
 const FUTURE_TOLERANCE_MS = 30 * 1000;
 
 // ✅ localStorage：v2（單位/職稱/姓名）+ 相容 v1（unitTitle/personName）
