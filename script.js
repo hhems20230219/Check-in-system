@@ -548,7 +548,21 @@ function setAssistHoursUi_(allMinutes, monthMinutes, ym) {
 
   $("#totalAssistHint").text(allH.hint);
   $("#monthAssistHint").text(`${esc_(String(ym || ""))}｜${monH.hint}`);
+
+  // ✅ 進度條：每月目標 4 小時
+  const targetMinutes = 4 * 60; // 240
+  const m = parseInt(String(monthMinutes == null ? "" : monthMinutes), 10);
+  const monthMins = (isNaN(m) || m < 0) ? 0 : m;
+
+  const pct = Math.min(100, Math.round((monthMins / targetMinutes) * 100));
+  $("#monthAssistProgressBar")
+    .css("width", pct + "%")
+    .attr("aria-valuenow", String(pct));
+
+  const doneHours = Math.round((monthMins / 60) * 10) / 10; // 1 位小數
+  $("#monthAssistProgressText").text(`目標 4.0 小時｜已完成 ${doneHours.toFixed(1)} 小時（${pct}%）`);
 }
+
 
 function minutesToHours1_(m) {
   const n = parseInt(String(m == null ? "" : m), 10);
