@@ -1,4 +1,3 @@
-// app.js
 /* global bootstrap, $ */
 
 const webAppUrl = "https://script.google.com/macros/s/AKfycby4th8BRGSy6dcH5wDFiCYUR5H4aC0TmzHxC-Fvn6GPGHV1M3vHJ9CQCvYv_0qOSM7l/exec";
@@ -16,7 +15,7 @@ const gpsRules = {
 
 // ✅ 室內定位常見：accuracy 很大（50~200m）
 const GPS_ACCURACY_WARN_M = 150;       // >= 150m：提示「室內訊號不佳」
-const GPS_ACCURACY_BLOCK_M = 200;     // >= 200m：直接視為不可靠，GPS不通過
+const GPS_ACCURACY_BLOCK_M = 200;      // >= 200m：直接視為不可靠，GPS不通過
 const FUTURE_TOLERANCE_MS = 30 * 1000;
 
 // ✅ localStorage：v2（單位/職稱/姓名）+ 相容 v1（unitTitle/personName）
@@ -123,7 +122,6 @@ function bindEvents_() {
     clearSignStatus_("in");
     fillSignInModal_();
 
-    // ✅ 開啟簽到時：把 GPS 目標清單切到簽到 duty
     renderGpsTargets_("assist", { from: "page" });
     updateGpsBadgeForModal_("in");
 
@@ -135,14 +133,12 @@ function bindEvents_() {
     fillSignOutModal_();
     updateOutUiByDuty_();
 
-    // ✅ 開啟簽退時：把 GPS 目標清單切到簽退 duty
     renderGpsTargets_($("#outDutyType").val(), { from: "page" });
     updateGpsBadgeForModal_("out");
 
     outModal.show();
   });
 
-  // ✅ duty 改變：即時切換「GPS 目標列表」+ 重判
   $("#inDutyType").on("change", function () {
     renderGpsTargets_($("#inDutyType").val(), { from: "in" });
     updateGpsBadgeForModal_("in");
@@ -158,7 +154,6 @@ function bindEvents_() {
     updateOutUiByDuty_();
   });
 
-  // ✅ 送出先開確認視窗
   $("#btnSubmitSignIn").on("click", prepareConfirmSignIn_);
   $("#btnSubmitSignOut").on("click", prepareConfirmSignOut_);
   $("#btnConfirmSubmit").on("click", doConfirmedSubmit_);
@@ -177,7 +172,6 @@ function bindEvents_() {
     });
   });
 
-  // ✅ modal 關閉時，把 page 顯示切回 assist（你也可以改成記住最後一次）
   $("#signInModal").on("hidden.bs.modal", function () {
     renderGpsTargets_("assist", { from: "page" });
   });
@@ -247,7 +241,6 @@ function setPickInfoByName_(name) {
   $("#pickTitle").val(p ? (p.title || "") : "");
 }
 
-// ✅ v2 + v1 相容搬移
 function loadSelectedFromStorage_() {
   try {
     const raw2 = localStorage.getItem(LS_KEY_V2);
@@ -318,17 +311,12 @@ function tick_() {
   $("#nowClockText").text(fmtClockHms_(now));
 }
 
-// -------------------- GPS --------------------
-// ✅ 核心：把 gpsRules（assist/training）渲染到 #gpsTargetText
-// ✅ 只需要改「GPS 目標顯示」這段：renderGpsTargets_()
-// 其他檔案不用動
-
-function renderGpsTargets_(dutyType, opt) {
+// -------------------- GPS Targets (你原本的邏輯保留) --------------------
+function renderGpsTargets_(dutyType) {
   const duty = (dutyType === "training") ? "training" : "assist";
   const rules = (duty === "training") ? gpsRules.training : gpsRules.assist;
 
-  // 先找「最近的目標」
-  let nearest = null;   // { t, dist }
+  let nearest = null;
   if (lastGps.ok && lastGps.lat != null && lastGps.lng != null) {
     for (let i = 0; i < rules.length; i++) {
       const t = rules[i];
@@ -336,7 +324,6 @@ function renderGpsTargets_(dutyType, opt) {
       if (!nearest || d < nearest.dist) nearest = { t: t, dist: d };
     }
   } else {
-    // 沒 GPS 時，也至少顯示第一個目標（避免空白）
     if (rules.length) nearest = { t: rules[0], dist: null };
   }
 
@@ -353,12 +340,9 @@ function renderGpsTargets_(dutyType, opt) {
     );
   }
 
-  // ✅ 同步顯示目前 accuracy（如果有）
   if (lastGps.ok && lastGps.accuracy != null) {
     const acc = parseInt(String(lastGps.accuracy || 0), 10) || 0;
     lines.push(`<div class="mt-1">目前 GPS 精度：約 ${acc} m</div>`);
-
-    // ✅ 精度偏低提醒
     if (acc >= GPS_ACCURACY_WARN_M) {
       lines.push(`<div class="mt-1 text-warning">提示：室內常見精度飄移，建議到室外再試。</div>`);
     }
@@ -371,7 +355,7 @@ function locate_() {
   if (!("geolocation" in navigator)) {
     setGpsUi_("secondary", "不支援定位", null);
     showStatus_("danger", "此瀏覽器不支援定位功能");
-    renderGpsTargets_("assist", { from: "page" });
+    renderGpsTargets_("assist");
     return;
   }
 
@@ -392,8 +376,7 @@ function locate_() {
         setGpsUi_("success", "定位成功", `精度約 ${lastGps.accuracy} 公尺`);
       }
 
-      // ✅ 頁面顯示：預設用 assist（你也可以改成記住最後 duty）
-      renderGpsTargets_("assist", { from: "page" });
+      renderGpsTargets_("assist");
 
       updateGpsBadgeForModal_("in");
       updateGpsBadgeForModal_("out");
@@ -408,7 +391,7 @@ function locate_() {
       setGpsUi_("danger", "GPS連線失敗", (err && err.message) ? err.message : "GPS連線失敗");
       showStatus_("danger", "GPS連線失敗，請確認定位權限或 GPS 設定");
 
-      renderGpsTargets_("assist", { from: "page" });
+      renderGpsTargets_("assist");
 
       updateGpsBadgeForModal_("in");
       updateGpsBadgeForModal_("out");
@@ -589,8 +572,7 @@ function fillSignInModal_() {
 
   if (!$("#inDutyType").val()) $("#inDutyType").val("assist");
 
-  // ✅ 依簽到 duty 顯示目標點（含距離）
-  renderGpsTargets_($("#inDutyType").val(), { from: "in" });
+  renderGpsTargets_($("#inDutyType").val());
 }
 
 function fillSignOutModal_() {
@@ -605,7 +587,7 @@ function fillSignOutModal_() {
 
   if (!$("#outDutyType").val()) $("#outDutyType").val("assist");
 
-  renderGpsTargets_($("#outDutyType").val(), { from: "out" });
+  renderGpsTargets_($("#outDutyType").val());
 }
 
 function updateOutUiByDuty_() {
@@ -903,7 +885,15 @@ function isFuturePunch_(dateStr, timeStr) {
   return dt.getTime() > (now.getTime() + FUTURE_TOLERANCE_MS);
 }
 
+// -------------------- PWA: Service Worker --------------------
 function registerServiceWorker_() {
   if (!("serviceWorker" in navigator)) return;
-  navigator.serviceWorker.register("./sw.js").catch(function () { });
+
+  navigator.serviceWorker.register("./sw.js", { scope: "./" })
+    .then(function () {
+      // 不強制提示，避免干擾使用者；更新由 sw.js 的版本號控制
+    })
+    .catch(function () {
+      // 註冊失敗不影響主流程
+    });
 }
