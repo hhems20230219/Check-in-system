@@ -26,6 +26,9 @@ let isDrawing = false;
 let hasSignature = false;
 let loadingCount = 0;
 
+// PWA
+let deferredInstallPrompt = null;
+
 function showLoading(title = '處理中', message = '請稍候...') {
     loadingCount++;
     $('#loadingModalTitle').text(title);
@@ -275,7 +278,6 @@ function calculateSummary() {
     const user = getCurrentUser();
     if (!user) return;
 
-    // 只計算「協勤」
     const assistRecords = records.filter(r =>
         r.name === user.name &&
         r.minutes !== null &&
@@ -299,7 +301,7 @@ function calculateSummary() {
 
     $('#totalHours').text(totalHours.toFixed(1));
     $('#monthHours').text(monthHours.toFixed(1));
-    $('#monthHoursProgressText').text(`${monthHours.toFixed(1)}小時 / 12 小時`);
+    $('#monthHoursProgressText').html(`${monthHours.toFixed(1)}<small class="ms-1">小時</small> / 12 <small class="ms-1">小時</small>`);
 
     const progressPercent = Math.min((monthHours / MONTH_TARGET_HOURS) * 100, 100);
 
@@ -344,7 +346,7 @@ function renderRecords() {
                 <td>${escapeHtml(item.checkInTime || '')}</td>
                 <td>${escapeHtml(item.checkOutDate || '')}</td>
                 <td>${escapeHtml(item.checkOutTime || '')}</td>
-                <td>${item.minutes !== null && item.minutes !== undefined ? formatHoursByMinutes(item.minutes) : '-'}</td>
+                <td>${item.minutes !== null && item.minutes !== undefined ? `${formatHoursByMinutes(item.minutes)}<small class="ms-1 text-muted">小時</small>` : '-'}</td>
             </tr>
         `);
     });
@@ -362,6 +364,7 @@ function renderAll() {
         $('#emptyText').removeClass('d-none');
         $('#totalHours').text('0.0');
         $('#monthHours').text('0.0');
+        $('#monthHoursProgressText').html(`0.0<small class="ms-1">小時</small> / 12 <small class="ms-1">小時</small>`);
         $('#monthHoursProgressBar').css('width', '0%').text('0%').attr('aria-valuenow', '0');
         return;
     }
@@ -766,6 +769,62 @@ async function loadInitData() {
     }
 }
 
+// ===== PWA =====
+function isStandaloneMode() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function setupPwaInstallPrompt() {
+    const $btnInstallApp = $('#btnInstallApp');
+
+    window.addEventListener('beforeinstallprompt', function (event) {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+
+        if (!isStandaloneMode()) {
+            $btnInstallApp.removeClass('d-none');
+        }
+    });
+
+    window.addEventListener('appinstalled', function () {
+        deferredInstallPrompt = null;
+        $btnInstallApp.addClass('d-none');
+    });
+
+    $btnInstallApp.on('click', async function () {
+        if (!deferredInstallPrompt) {
+            alert('目前無法顯示安裝提示，請使用 Chrome 或 Edge 並透過 HTTPS 開啟。');
+            return;
+        }
+
+        deferredInstallPrompt.prompt();
+        const choiceResult = await deferredInstallPrompt.userChoice;
+
+        if (choiceResult.outcome === 'accepted') {
+            $btnInstallApp.addClass('d-none');
+        }
+
+        deferredInstallPrompt = null;
+    });
+
+    if (isStandaloneMode()) {
+        $btnInstallApp.addClass('d-none');
+    }
+}
+
+async function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) {
+        return;
+    }
+
+    try {
+        const registration = await navigator.serviceWorker.register('./sw.js');
+        console.log('Service Worker registered:', registration.scope);
+    } catch (error) {
+        console.error('Service Worker register failed:', error);
+    }
+}
+
 $(async function () {
     generateHalfHourOptions($('#checkInTime'));
     generateHalfHourOptions($('#checkOutTime'));
@@ -777,6 +836,8 @@ $(async function () {
     loadingModalInstance = new bootstrap.Modal(document.getElementById('loadingModal'));
 
     setupSignatureCanvas();
+    setupPwaInstallPrompt();
+    await registerServiceWorker();
 
     updateClock();
     setInterval(updateClock, 1000);
