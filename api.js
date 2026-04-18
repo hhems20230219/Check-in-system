@@ -1,5 +1,5 @@
 window.AttendanceApi = (function () {
-    const API_URL = 'https://script.google.com/macros/s/AKfycbwz-9PgpUm3Er9-pQC3hyANxHijrgupheY7xH-2gaoJi13tq3Pruozi42cKdkK7xmwU/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxYzZT9BXINSOf4eCWr0fRwar1zNZe24YJzrm9P_hQS2vZIcywjH77EdRl-eVp3dqDY/exec';
 
     async function post(action, payload = {}) {
         const response = await fetch(API_URL, {
