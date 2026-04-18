@@ -1,466 +1,424 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>新興救護義消出勤系統</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>新興救護義消出勤系統</title>
 
-  <!-- ✅ PWA -->
-  <link rel="manifest" href="./manifest.json">
-  <meta name="theme-color" content="#000000">
-
-  <!-- ✅ iOS PWA 必要 -->
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="新興救護出勤">
-  <link rel="apple-touch-icon" sizes="180x180" href="./icons/icon-180.png">
-  <link rel="apple-touch-icon" sizes="192x192" href="./icons/icon-192.png">
-  <link rel="apple-touch-icon" sizes="512x512" href="./icons/icon-512.png">
-
-  <!-- Android/Chrome 一般也可留著 -->
-  <meta name="mobile-web-app-capable" content="yes">
-
-  <!-- Bootstrap 5.3 -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Font Awesome -->
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
-
-  <!-- ✅ 你的樣式 -->
-  <link href="./style.css" rel="stylesheet">
-
-  <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
+    <link href="./style.css" rel="stylesheet">
 </head>
-
 <body>
-  <!-- ✅ 讀取 Spinner（置中） -->
-  <div class="loadingOverlay" id="pageLoading" aria-hidden="true">
-    <div class="w-100 h-100 d-flex align-items-center justify-content-center">
-      <div class="box text-center">
-        <div class="spinner-border" role="status" aria-label="loading"></div>
-        <div class="mt-2 fw-semibold">讀取中...</div>
-        <div class="small text-muted">請稍候</div>
-      </div>
-    </div>
-  </div>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
+            <div class="container">
+                <span class="navbar-brand">
+                    <i class="fa-solid fa-house-medical me-2"></i>
+                    新興救護義消出勤系統
+                </span>
 
-  <!-- 第一區 Navbar -->
-  <nav class="navbar navbar-dark bg-dark navbar-expand-lg">
-    <div class="container-fluid">
+            <div class="d-flex flex-wrap align-items-center gap-3 ms-auto">
+                <span class="navbar-info-item">
+                    <i class="fa-solid fa-building-user"></i>
+                    <span id="navDepartment">分隊部</span>
+                </span>
 
-      <!-- ✅ 左：標題（永遠靠左） -->
-      <a class="navbar-brand fw-bold mb-0 d-flex align-items-center" href="#">
-        <i class="fa-solid fa-fire-flame-curved me-2"></i>新興救護義消出勤系統
-      </a>
+                <span class="navbar-info-item">
+                    <i class="fa-solid fa-id-badge"></i>
+                    <span id="navTitle">幹事</span>
+                </span>
 
-      <!-- ✅ 右：單位/職稱/姓名/切換姓名（永遠顯示，永遠靠右） -->
-      <div class="d-flex align-items-center gap-2 ms-auto order-lg-3">
-        <span class="text-white-50 small d-flex align-items-center">
-          <i class="fa-solid fa-building-flag me-1"></i><span id="navUnit">--</span>
-        </span>
-        <span class="text-white-50 small d-flex align-items-center">
-          <i class="fa-solid fa-id-badge me-1"></i><span id="navTitle">--</span>
-        </span>
-        <span class="text-white small fw-semibold d-flex align-items-center">
-          <i class="fa-solid fa-user me-1"></i><span id="navPersonName">--</span>
-        </span>
+                <span class="navbar-info-item">
+                    <i class="fa-solid fa-user"></i>
+                    <span id="navName">吳宇樺</span>
+                </span>
 
-        <button class="btn btn-sm btn-outline-light" id="btnSwitchPerson" type="button">
-          <i class="fa-solid fa-repeat me-1"></i>切換姓名
-        </button>
-
-        <!-- ✅ toggler：收合後也要在右側，並且永遠顯示 -->
-        <button class="navbar-toggler ms-1 order-lg-4" type="button"
-                data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup"
-                aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-      </div>
-
-      <!-- ✅ 左：Home/匯出報表（收合目標，只收合這一塊） -->
-      <div class="collapse navbar-collapse order-lg-2" id="navbarNavAltMarkup">
-        <div class="navbar-nav">
-          <a class="nav-link active" aria-current="page" href="#">Home</a>
-          <a class="nav-link disabled" aria-disabled="true">匯出報表</a>
-        </div>
-      </div>
-    </div>
-  </nav>
-
-  <div class="container py-3">
-
-    <!-- 第二區 時間框 -->
-    <div class="timeBox mb-3">
-      <div class="dateLine" id="nowDateText">----</div>
-      <div class="timeLine" id="nowClockText">--:--:--</div>
-    </div>
-
-    <!-- 第三區 定位 -->
-    <div class="card roundedX mb-3">
-      <div class="card-body">
-        <div class="mb-2">
-          <span class="badge text-bg-secondary badgeRound" id="gpsBadge">
-            <i class="fa-solid fa-location-dot me-1"></i>尚未定位
-          </span>
-        </div>
-
-        <div class="mono mb-1" id="gpsRawText">使用者定位：lat=--, lng=--</div>
-
-        <!-- ✅ 由 JS 動態渲染 -->
-        <div class="small text-muted mb-3" id="gpsTargetText"></div>
-
-        <button class="btn btn-primary w-100" id="btnRelocate" type="button">
-          <i class="fa-solid fa-crosshairs me-1"></i>重新定位
-        </button>
-      </div>
-    </div>
-
-    <!-- 第四區 狀態區 -->
-    <div id="statusBar" class="mb-3"></div>
-
-    <!-- 第五區 按鈕區 -->
-    <div class="card roundedX mb-3">
-      <div class="card-body">
-        <button class="btn btn-lg btn-success w-100 mb-2" id="btnOpenSignIn" type="button">
-          <i class="fa-solid fa-right-to-bracket me-2"></i>簽到
-        </button>
-
-        <button class="btn btn-lg btn-warning w-100" id="btnOpenSignOut" type="button">
-          <i class="fa-solid fa-right-from-bracket me-2"></i>簽退
-        </button>
-      </div>
-    </div>
-
-    <!-- 第六區 出勤紀錄 -->
-    <div class="card roundedX">
-      <div class="card-body">
-
-        <!-- ✅ 累積協勤時數（左右兩塊） -->
-        <div class="row g-2 mb-3">
-          <div class="col-12 col-md-6">
-            <div class="hoursBox h-100">
-              <div class="label">
-                <i class="fa-solid fa-hourglass-half me-1"></i>總協勤時數
-              </div>
-              <div class="d-flex align-items-end">
-                <div class="value" id="totalAssistHoursText">--</div>
-                <div class="unit">小時</div>
-              </div>
-              <div class="small text-muted mt-1" id="totalAssistHint">--</div>
+                <button class="btn btn-outline-light btn-sm" id="btnSwitchUser" type="button">
+                    <i class="fa-solid fa-users"></i>
+                    切換姓名
+                </button>
             </div>
-          </div>
-          <div class="col-12 col-md-6">
-            <div class="hoursBox h-100">
-              <div class="label">
-                <i class="fa-solid fa-calendar-days me-1"></i>本月協勤時數
-              </div>
-          
-              <div class="d-flex align-items-end">
-                <div class="value" id="monthAssistHoursText">--</div>
-                <div class="unit">小時</div>
-              </div>
-          
-              <div class="small text-muted mt-1" id="monthAssistHint">--</div>
-          
-              <!-- ✅ 新增：本月 4 小時進度條 -->
-              <div class="mt-2">
-                <div class="progress" style="height:10px;">
-                  <div id="monthAssistProgressBar"
-                       class="progress-bar"
-                       role="progressbar"
-                       style="width:0%;"
-                       aria-valuenow="0"
-                       aria-valuemin="0"
-                       aria-valuemax="100"></div>
+        </div>
+    </nav>
+
+    <main class="container py-4">
+        <section class="mb-4">
+            <div class="clock-card">
+                <div class="clock-time" id="clockTime">00:00:00</div>
+                <div class="clock-date" id="clockDate">----年--月--日 星期-</div>
+            </div>
+        </section>
+
+        <section class="mb-3">
+            <div class="card status-card">
+                <div class="card-body d-flex flex-column gap-2">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                        <div>
+                            <div class="status-label">
+                                <i class="fa-solid fa-location-dot"></i>
+                                定位狀態
+                            </div>
+                            <div>
+                                <span class="badge text-bg-secondary" id="locationBadge">尚未定位</span>
+                            </div>
+                            <div class="location-message text-muted" id="locationStatusMessage">尚未取得定位</div>
+                        </div>
+                        <div>
+                            <button class="btn btn-outline-primary btn-sm" id="btnRefreshLocation" type="button">
+                                <i class="fa-solid fa-rotate-right"></i>
+                                重新定位
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="small text-muted mt-1" id="monthAssistProgressText">--</div>
-              </div>
             </div>
-          </div>
+        </section>
 
+        <section class="mb-3 d-none" id="eventReminderSection">
+            <div class="card status-card">
+                <div class="card-body">
+                    <div class="status-label">
+                        <i class="fa-solid fa-bell"></i>
+                        事件提醒
+                    </div>
+                    <div class="status-value" id="workStatus"></div>
+                </div>
+            </div>
+        </section>
 
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-          <div class="fw-bold">
-            <i class="fa-solid fa-clipboard-list me-2"></i>出勤紀錄
-            <span class="text-muted fw-normal" id="signYmText">----</span>
-          </div>
+        <section class="mb-4">
+            <div class="card status-card">
+                <div class="card-body">
+                    <div class="d-grid gap-3 col-12 col-md-4 mx-auto">
+                        <button class="btn btn-success btn-lg btn-action" id="btnCheckIn" type="button">
+                            <i class="fa-solid fa-right-to-bracket"></i>
+                            簽到
+                        </button>
+                        <button class="btn btn-danger btn-lg btn-action" id="btnCheckOut" type="button">
+                            <i class="fa-solid fa-right-from-bracket"></i>
+                            簽退
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-          <div class="d-flex align-items-center gap-2">
-            <input type="month" class="form-control form-control-sm" id="signYmPicker" style="max-width:160px;">
-            <button class="btn btn-sm btn-outline-primary" id="btnRefreshSign" type="button">
-              <i class="fa-solid fa-rotate me-1"></i>更新
-            </button>
-          </div>
+        <section class="mb-4">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="card summary-card h-100">
+                        <div class="card-body text-center">
+                            <div class="summary-title">
+                                <i class="fa-regular fa-clock"></i>
+                                總協勤時數
+                            </div>
+                            <div class="summary-value">
+                                <span id="totalHours">0.0</span><small class="text-muted ms-1">小時</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card summary-card h-100">
+                        <div class="card-body">
+                            <div class="text-center mb-3">
+                                <div class="summary-title">
+                                    <i class="fa-regular fa-calendar-days"></i>
+                                    本月協勤時數
+                                </div>
+                                <div class="summary-value">
+                                    <span id="monthHours">0.0</span><small class="text-muted ms-1">小時</small>
+                                </div>
+                                <div class="text-muted" id="monthHoursProgressText">0.0小時 / 12 小時</div>
+                            </div>
+
+                            <div class="progress" role="progressbar" aria-label="本月協勤時數進度">
+                                <div class="progress-bar" id="monthHoursProgressBar" style="width: 0%;">0%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <div class="card record-card">
+                <div class="card-header bg-white py-3">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                        <div class="fw-bold" id="recordTitle">
+                            <i class="fa-solid fa-table-list"></i>
+                            出勤紀錄
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <label class="form-label mb-0 text-muted small" for="filterYearMonth">查詢年月</label>
+                            <input type="month" class="form-control form-control-sm" id="filterYearMonth" style="width: 180px;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <div class="table-responsive" id="recordTableWrap">
+                        <table class="table table-bordered table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>勤務類別</th>
+                                    <th>簽到日期</th>
+                                    <th>簽到時間</th>
+                                    <th>簽退日期</th>
+                                    <th>簽退時間</th>
+                                    <th>時數(小時)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recordTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="empty-text d-none" id="emptyText">此年月尚無出勤紀錄</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 切換使用者 Modal -->
+    <div class="modal fade" id="switchUserModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="switchUserForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fa-solid fa-users"></i>
+                            選擇使用者
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fa-solid fa-building-user"></i>
+                                單位
+                            </label>
+                            <input type="text" class="form-control locked-field" id="switchUnit" readonly>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fa-solid fa-id-badge"></i>
+                                職稱
+                            </label>
+                            <input type="text" class="form-control locked-field" id="switchTitle" readonly>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fa-solid fa-user"></i>
+                                姓名
+                            </label>
+                            <select class="form-select" id="switchName" required></select>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary">套用</button>
+                    </div>
+                </form>
+            </div>
         </div>
-
-        <div class="table-responsive">
-          <table class="table table-sm table-striped align-middle mb-0">
-            <thead class="table-light">
-              <tr>
-                <th style="white-space:nowrap;">勤務類型</th>
-                <th style="white-space:nowrap;">簽到日期</th>
-                <th style="white-space:nowrap;">簽到時間</th>
-                <th style="white-space:nowrap;">簽退日期</th>
-                <th style="white-space:nowrap;">簽退時間</th>
-                <th style="white-space:nowrap;" class="text-end">時數(小時)</th>
-              </tr>
-            </thead>
-            <tbody id="signTbody">
-              <tr><td colspan="6" class="text-center text-muted py-3">載入中...</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-      </div>
     </div>
 
-  </div>
+    <div class="modal fade" id="checkInModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="checkInForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fa-solid fa-right-to-bracket"></i>
+                            簽到
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
 
-  <!-- 1) 選人 Modal -->
-  <div class="modal fade" id="pickPersonModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content roundedX">
-        <div class="modal-header">
-          <h5 class="modal-title">
-            <i class="fa-solid fa-user-check me-2"></i>選擇使用者
-          </h5>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fa-solid fa-list-check"></i>
+                                勤務類別
+                            </label>
+                            <select class="form-select" id="checkInShiftType" required>
+                                <option value="協勤">協勤</option>
+                                <option value="常年訓練">常年訓練</option>
+                                <option value="公差勤務">公差勤務</option>
+                            </select>
+                            <div class="form-note mt-1">協勤、常年訓練需比對 GPS；公差勤務不用比對 GPS。</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fa-solid fa-id-badge"></i>
+                                職稱
+                            </label>
+                            <input type="text" class="form-control locked-field" id="checkInTitle" readonly>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fa-solid fa-user"></i>
+                                姓名
+                            </label>
+                            <select class="form-select" id="checkInName" required></select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fa-regular fa-calendar"></i>
+                                簽到日期
+                            </label>
+                            <input type="date" class="form-control" id="checkInDate" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fa-regular fa-clock"></i>
+                                簽到時間
+                            </label>
+                            <select class="form-select" id="checkInTime" required></select>
+                            <div class="form-note mt-1">以 00 / 30 為單位。</div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary">送出</button>
+                    </div>
+                </form>
+            </div>
         </div>
-        <div class="modal-body">
-
-          <div class="mb-3">
-            <label class="form-label">單位</label>
-            <input class="form-control" id="pickUnit" type="text" value="" readonly disabled tabindex="-1" aria-readonly="true">
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">職稱</label>
-            <input class="form-control" id="pickTitle" type="text" value="" readonly disabled tabindex="-1" aria-readonly="true">
-          </div>
-
-          <div class="mb-2">
-            <label class="form-label">姓名</label>
-            <select class="form-select" id="pickPersonName"></select>
-          </div>
-
-          <div class="small text-muted">選擇後下次自動帶入。</div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-outline-secondary" id="btnPickCancel" type="button">
-            <i class="fa-solid fa-xmark me-1"></i>取消
-          </button>
-          <button class="btn btn-primary" id="btnPickOk" type="button">
-            <i class="fa-solid fa-check me-1"></i>確定
-          </button>
-        </div>
-      </div>
     </div>
-  </div>
 
-  <!-- 2) 簽到 Modal -->
-  <div class="modal fade" id="signInModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content roundedX">
-        <div class="modal-header">
-          <h5 class="modal-title">
-            <i class="fa-solid fa-right-to-bracket me-2"></i>簽到
-          </h5>
-          <button class="btn-close" data-bs-dismiss="modal" aria-label="Close" type="button"></button>
+    <div class="modal fade" id="checkOutModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <form id="checkOutForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fa-solid fa-right-from-bracket"></i>
+                            簽退
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fa-solid fa-list-check"></i>
+                                勤務類別
+                            </label>
+                            <select class="form-select" id="checkOutShiftType" required>
+                                <option value="協勤">協勤</option>
+                                <option value="常年訓練">常年訓練</option>
+                                <option value="公差勤務">公差勤務</option>
+                            </select>
+                            <div class="form-note mt-1">協勤、常年訓練需比對 GPS；公差勤務不用比對 GPS。</div>
+                        </div>
+
+                        <div class="mb-3 d-none" id="checkOutDutyStatusGroup">
+                            <label class="form-label">
+                                <i class="fa-solid fa-circle-info"></i>
+                                狀態
+                            </label>
+                            <select class="form-select" id="checkOutDutyStatus">
+                                <option value="出勤">出勤</option>
+                                <option value="備勤">備勤</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fa-solid fa-id-badge"></i>
+                                職稱
+                            </label>
+                            <input type="text" class="form-control locked-field" id="checkOutTitle" readonly>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fa-solid fa-user"></i>
+                                姓名
+                            </label>
+                            <select class="form-select" id="checkOutName" required></select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fa-regular fa-calendar"></i>
+                                簽到日期
+                            </label>
+                            <input type="date" class="form-control" id="checkOutDate" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fa-regular fa-clock"></i>
+                                簽到時間
+                            </label>
+                            <select class="form-select" id="checkOutTime" required></select>
+                            <div class="form-note mt-1">以 00 / 30 為單位。</div>
+                        </div>
+
+                        <div class="mb-3 d-none" id="checkOutWorkContentGroup">
+                            <label class="form-label">
+                                <i class="fa-regular fa-pen-to-square"></i>
+                                工作內容
+                            </label>
+                            <textarea class="form-control" id="checkOutWorkContent" rows="3" placeholder="請輸入工作內容"></textarea>
+                            <div class="form-note mt-1">協勤、公差勤務必填。</div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label">
+                                <i class="fa-solid fa-signature"></i>
+                                手寫簽名
+                            </label>
+                            <div class="signature-wrap">
+                                <canvas id="signatureCanvas" class="signature-canvas"></canvas>
+                                <div class="signature-toolbar d-flex justify-content-between align-items-center">
+                                    <span class="text-muted small">請於框內簽名</span>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btnClearSignature">
+                                        <i class="fa-solid fa-eraser"></i>
+                                        清除簽名
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-note mt-1">簽退必須完成手寫簽名。</div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                        <button type="submit" class="btn btn-primary">送出</button>
+                    </div>
+                </form>
+            </div>
         </div>
-
-        <div class="modal-body">
-          <div id="inStatusBar" class="mb-3"></div>
-
-          <div class="mb-3">
-            <span class="badge text-bg-secondary badgeRound" id="inGpsBadge">
-              <i class="fa-solid fa-location-dot me-1"></i>GPS 尚未判斷
-            </span>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">勤務類別</label>
-            <select class="form-select" id="inDutyType">
-              <option value="assist">協勤</option>
-              <option value="training">常年訓練</option>
-              <option value="work">公差勤務</option>
-            </select>
-            <div class="form-text">
-              協勤/常年訓練：需要通過 GPS；公差勤務：不需 GPS。
-            </div>
-          </div>
-
-          <div class="row g-2 mb-3">
-            <div class="col-6">
-              <label class="form-label">職稱</label>
-              <input class="form-control" id="inTitle" type="text" value="" readonly disabled tabindex="-1" aria-readonly="true">
-            </div>
-            <div class="col-6">
-              <label class="form-label">姓名</label>
-              <select class="form-select" id="inPersonName"></select>
-            </div>
-          </div>
-
-          <div class="row g-2">
-            <div class="col-6">
-              <label class="form-label">簽到日期</label>
-              <input class="form-control" id="inDate" type="date">
-            </div>
-            <div class="col-6">
-              <label class="form-label">簽到時間</label>
-              <input class="form-control" id="inTime" type="time" step="60">
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">
-            <i class="fa-solid fa-xmark me-1"></i>取消
-          </button>
-          <button class="btn btn-success" id="btnSubmitSignIn" type="button">
-            <i class="fa-solid fa-paper-plane me-1"></i>送出
-          </button>
-        </div>
-      </div>
     </div>
-  </div>
 
-  <!-- 3) 簽退 Modal -->
-  <div class="modal fade" id="signOutModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content roundedX">
-        <div class="modal-header">
-          <h5 class="modal-title">
-            <i class="fa-solid fa-right-from-bracket me-2"></i>簽退
-          </h5>
-          <button class="btn-close" data-bs-dismiss="modal" aria-label="Close" type="button"></button>
+    <div class="modal fade loading-modal" id="loadingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-body text-center py-4">
+                    <div class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></div>
+                    <div class="fw-bold" id="loadingModalTitle">處理中</div>
+                    <div class="text-muted small mt-2" id="loadingModalMessage">請稍候...</div>
+                </div>
+            </div>
         </div>
-
-        <div class="modal-body">
-          <div id="outStatusBar" class="mb-3"></div>
-
-          <div class="mb-3">
-            <span class="badge text-bg-secondary badgeRound" id="outGpsBadge">
-              <i class="fa-solid fa-location-dot me-1"></i>GPS 尚未判斷
-            </span>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">勤務類別</label>
-            <select class="form-select" id="outDutyType">
-              <option value="assist">協勤</option>
-              <option value="work">公差勤務</option>
-            </select>
-            <div class="form-text">
-              協勤：需要通過 GPS後選擇「出勤/備勤」；公差勤務：不需 GPS。
-            </div>
-          </div>
-
-          <div class="mb-3" id="outModeWrap" style="display:none;">
-            <label class="form-label">狀態</label>
-            <select class="form-select" id="outMode">
-              <option value="dispatch">出勤</option>
-              <option value="standby">備勤</option>
-            </select>
-          </div>
-
-          <div class="row g-2 mb-3">
-            <div class="col-6">
-              <label class="form-label">職稱</label>
-              <input class="form-control" id="outTitle" type="text" value="" readonly disabled tabindex="-1" aria-readonly="true">
-            </div>
-            <div class="col-6">
-              <label class="form-label">姓名</label>
-              <select class="form-select" id="outPersonName"></select>
-            </div>
-          </div>
-
-          <div class="row g-2 mb-3">
-            <div class="col-6">
-              <label class="form-label">簽退日期</label>
-              <input class="form-control" id="outDate" type="date">
-            </div>
-            <div class="col-6">
-              <label class="form-label">簽退時間</label>
-              <input class="form-control" id="outTime" type="time" step="60">
-            </div>
-          </div>
-
-          <div class="mb-3" id="outContentWrap" style="display:none;">
-            <label class="form-label">工作內容</label>
-            <textarea class="form-control" id="outContent" rows="2" placeholder="例如：參加幹部會議 或 0800車禍高雄市新興區文化路29號"></textarea>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">
-            <i class="fa-solid fa-xmark me-1"></i>取消
-          </button>
-          <button class="btn btn-warning" id="btnSubmitSignOut" type="button">
-            <i class="fa-solid fa-paper-plane me-1"></i>送出
-          </button>
-        </div>
-      </div>
     </div>
-  </div>
 
-  <!-- 4) 送出確認 Modal -->
-  <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content roundedX">
-        <div class="modal-header">
-          <h5 class="modal-title">
-            <i class="fa-solid fa-circle-question me-2"></i>確認送出
-          </h5>
-          <button class="btn-close" data-bs-dismiss="modal" aria-label="Close" type="button"></button>
-        </div>
-        <div class="modal-body">
-          <div class="alert alert-warning roundedX py-2 px-3">
-            <i class="fa-solid fa-triangle-exclamation me-2"></i>請確認資料無誤後再送出
-          </div>
-
-          <div class="table-responsive">
-            <table class="table table-sm align-middle mb-0">
-              <tbody>
-                <tr>
-                  <th style="white-space:nowrap;width:110px;">類型</th>
-                  <td id="cfType">--</td>
-                </tr>
-                <tr>
-                  <th style="white-space:nowrap;">職稱</th>
-                  <td id="cfTitle">--</td>
-                </tr>
-                <tr>
-                  <th style="white-space:nowrap;">姓名</th>
-                  <td id="cfPersonName">--</td>
-                </tr>
-                <tr>
-                  <th style="white-space:nowrap;">日期</th>
-                  <td id="cfDate">--</td>
-                </tr>
-                <tr>
-                  <th style="white-space:nowrap;">時間</th>
-                  <td id="cfTime">--</td>
-                </tr>
-                <tr id="cfContentRow" style="display:none;">
-                  <th style="white-space:nowrap;">內容</th>
-                  <td id="cfContent">--</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-outline-secondary" data-bs-dismiss="modal" type="button">
-            <i class="fa-solid fa-xmark me-1"></i>取消
-          </button>
-          <button class="btn btn-primary" id="btnConfirmSubmit" type="button">
-            <i class="fa-solid fa-paper-plane me-1"></i>確定送出
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ✅ JS（檔名統一成 script.js） -->
-  <script src="./script.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="./location.js"></script>
+    <script src="./api.js"></script>
+    <script src="./app.js"></script>
 </body>
 </html>
