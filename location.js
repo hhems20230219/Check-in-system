@@ -6,13 +6,12 @@ window.LocationService = (function () {
             name: '新興分隊',
             latitude: 22.63077534288625,
             longitude: 120.31126055555221
+        },
+        {
+            name: '吉林街',
+            latitude: 22.6444240928209,
+            longitude: 120.30656976083264
         }
-    // },
-    //     // {
-    //     //     name: '吉林街',
-    //     //     latitude: 22.6444240928209,
-    //     //     longitude: 120.30656976083264
-    //     // }
     ];
 
     function getErrorMessage(error) {
