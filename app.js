@@ -575,12 +575,8 @@ function applySwitchUser(event) {
 
     currentUserIndex = index;
     saveLastSelectedUser(selectedName);
-
+    renderAll();
     switchUserModalInstance.hide();
-
-    setTimeout(function () {
-        renderAll();
-    }, 150);
 }
 
 function openCheckInModal() {
