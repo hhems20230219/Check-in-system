@@ -15,7 +15,7 @@ let locationInfo = {
     message: '尚未取得定位'
 };
 
-let switchUserModalInstance = null;
+let switchModalInstance = null;
 let checkInModalInstance = null;
 let checkOutModalInstance = null;
 let loadingModalInstance = null;
@@ -558,7 +558,7 @@ function openSwitchUserModal() {
     switchUserModalInstance.show();
 }
 
-async function applySwitchUser(event) {
+function applySwitchUser(event) {
     event.preventDefault();
 
     if (isBusy()) {
@@ -573,13 +573,14 @@ async function applySwitchUser(event) {
         return;
     }
 
-    await withLoading('切換使用者', '正在切換使用者資料，請稍候...', async () => {
-        currentUserIndex = index;
-        saveLastSelectedUser(selectedName);
-        renderAll();
-    });
+    currentUserIndex = index;
+    saveLastSelectedUser(selectedName);
 
     switchUserModalInstance.hide();
+
+    setTimeout(function () {
+        renderAll();
+    }, 150);
 }
 
 function openCheckInModal() {
