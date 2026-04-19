@@ -233,21 +233,28 @@ async function refreshLocation() {
         return;
     }
 
-    $('#locationStatusMessage').removeClass('text-success text-danger').addClass('text-muted').text('定位中...');
-    $('#locationBadge').removeClass('text-bg-success text-bg-danger text-bg-secondary').addClass('text-bg-warning').text('定位中');
+    $('#btnRefreshLocation').prop('disabled', true);
+    $('#locationStatusMessage')
+        .removeClass('text-success text-danger')
+        .addClass('text-muted')
+        .text('定位中...');
+    $('#locationBadge')
+        .removeClass('text-bg-success text-bg-danger text-bg-secondary')
+        .addClass('text-bg-warning')
+        .text('定位中');
 
-    await withLoading('定位中', '正在取得目前位置，請稍候...', async () => {
-        try {
-            const result = await Promise.resolve(window.LocationService.getCurrentLocation());
-            locationInfo = result;
-            renderLocationStatus(result);
-            renderReminderStatus();
-        } catch (error) {
-            locationInfo = { success: false, inRange: false, message: '定位失敗，請開啟 Wi-Fi 後再重新定位' };
-            renderLocationStatus(locationInfo);
-            renderReminderStatus();
-        }
-    });
+    try {
+        const result = await Promise.resolve(window.LocationService.getCurrentLocation());
+        locationInfo = result;
+        renderLocationStatus(result);
+        renderReminderStatus();
+    } catch (error) {
+        locationInfo = { success: false, inRange: false, message: '定位失敗，請開啟 Wi-Fi 後再重新定位' };
+        renderLocationStatus(locationInfo);
+        renderReminderStatus();
+    } finally {
+        $('#btnRefreshLocation').prop('disabled', false);
+    }
 }
 
 function setReminder(message) {
