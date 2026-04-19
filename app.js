@@ -1,5 +1,5 @@
 if (!window.AttendanceApi) {
-    alert('api.js 尚未正確載入');
+    alert('api.js 尚未正確載入，請檢查 index.html 的 script 順序或檔案路徑。');
     throw new Error('AttendanceApi is not defined');
 }
 
@@ -9,6 +9,11 @@ const LAST_USER_STORAGE_KEY = 'attendance_last_user_name';
 let staffList = [];
 let records = [];
 let currentUserIndex = -1;
+let locationInfo = {
+    success: false,
+    inRange: false,
+    message: '尚未取得定位'
+};
 
 let switchUserModalInstance = null;
 let checkInModalInstance = null;
@@ -18,13 +23,16 @@ let loadingModalInstance = null;
 let loadingCount = 0;
 
 /* =========================
-   Loading（修正 spinner）
+   🔧 Loading（只鎖定位）
 ========================= */
 function showLoading(title = '處理中', message = '請稍候...') {
     loadingCount++;
 
     $('#loadingModalTitle').text(title);
     $('#loadingModalMessage').text(message);
+
+    // 🔥 只鎖「重新定位」
+    $('#btnRefreshLocation').prop('disabled', true);
 
     loadingModalInstance.show();
 }
@@ -33,15 +41,18 @@ function hideLoading() {
     loadingCount = Math.max(loadingCount - 1, 0);
 
     if (loadingCount === 0) {
+        $('#btnRefreshLocation').prop('disabled', false);
         loadingModalInstance.hide();
     }
 }
 
-/* 🔥 核心：讓 spinner 會動 */
+/* =========================
+   🔥 spinner 一定會轉
+========================= */
 async function withLoading(title, message, action) {
     showLoading(title, message);
 
-    // 讓畫面先 render（關鍵）
+    // 🔥 關鍵：先讓畫面 render
     await new Promise(requestAnimationFrame);
 
     try {
@@ -54,8 +65,8 @@ async function withLoading(title, message, action) {
 /* =========================
    工具
 ========================= */
-function pad2(n) {
-    return String(n).padStart(2, '0');
+function pad2(num) {
+    return String(num).padStart(2, '0');
 }
 
 function formatDate(date) {
@@ -71,29 +82,29 @@ function formatTime(date) {
 }
 
 function formatDateDisplay(date) {
-    const w = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
-    return `${date.getFullYear()}年${pad2(date.getMonth()+1)}月${pad2(date.getDate())}日 ${w[date.getDay()]}`;
+    const weekMap = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+    return `${date.getFullYear()}年${pad2(date.getMonth() + 1)}月${pad2(date.getDate())}日 ${weekMap[date.getDay()]}`;
 }
 
-function formatHoursByMinutes(m) {
-    return (Number(m || 0) / 60).toFixed(1);
+function formatHoursByMinutes(minutes) {
+    return (Number(minutes || 0) / 60).toFixed(1);
 }
 
 /* =========================
    使用者
 ========================= */
 function getCurrentUser() {
-    return currentUserIndex >= 0 ? staffList[currentUserIndex] : null;
+    return currentUserIndex >= 0 ? (staffList[currentUserIndex] || null) : null;
 }
 
 function findUserIndexByName(name) {
-    return staffList.findIndex(u => u.name === name);
+    return staffList.findIndex(user => user.name === name);
 }
 
-/* 🔥 單位/職稱同步 */
 function syncUserInfoByName(nameSelector, unitSelector, titleSelector) {
     const name = $(nameSelector).val();
     const user = staffList.find(u => u.name === name);
+
     if (!user) return;
 
     $(unitSelector).val(user.unit || '');
@@ -104,12 +115,12 @@ function syncUserInfoByName(nameSelector, unitSelector, titleSelector) {
    UI
 ========================= */
 function renderNavbar() {
-    const u = getCurrentUser();
-    if (!u) return;
+    const user = getCurrentUser();
+    if (!user) return;
 
-    $('#navDepartment').text(u.unit);
-    $('#navTitle').text(u.title);
-    $('#navName').text(u.name);
+    $('#navDepartment').text(user.unit);
+    $('#navTitle').text(user.title);
+    $('#navName').text(user.name);
 }
 
 function updateClock() {
@@ -125,22 +136,26 @@ function calculateSummary() {
     const user = getCurrentUser();
     if (!user) return;
 
-    const assist = records.filter(r =>
+    const assistRecords = records.filter(r =>
         r.name === user.name &&
-        r.shiftType === '協勤' &&
-        r.minutes !== null
+        r.minutes !== null &&
+        r.shiftType === '協勤'
     );
 
-    const totalMin = assist.reduce((s, r) => s + Number(r.minutes || 0), 0);
+    const totalMinutes = assistRecords.reduce((sum, item) => {
+        return sum + Number(item.minutes || 0);
+    }, 0);
 
-    const ym = $('#filterYearMonth').val();
+    const currentYearMonth = $('#filterYearMonth').val();
 
-    const monthMin = assist
-        .filter(r => r.yearMonth === ym)
-        .reduce((s, r) => s + Number(r.minutes || 0), 0);
+    const monthMinutes = assistRecords
+        .filter(r => (r.yearMonth || '') === currentYearMonth)
+        .reduce((sum, item) => {
+            return sum + Number(item.minutes || 0);
+        }, 0);
 
-    $('#totalHours').text((totalMin / 60).toFixed(1));
-    $('#monthHours').text((monthMin / 60).toFixed(1));
+    $('#totalHours').text((totalMinutes / 60).toFixed(1));
+    $('#monthHours').text((monthMinutes / 60).toFixed(1));
 }
 
 /* =========================
@@ -174,22 +189,22 @@ function openSwitchUserModal() {
     switchUserModalInstance.show();
 }
 
-/* 🔥 切換使用者（無 loading） */
-function applySwitchUser(e) {
-    e.preventDefault();
+/* =========================
+   切換使用者（不使用 loading）
+========================= */
+function applySwitchUser(event) {
+    event.preventDefault();
 
-    const name = $('#switchName').val();
-    const idx = findUserIndexByName(name);
+    const selectedName = $('#switchName').val();
+    const index = findUserIndexByName(selectedName);
 
-    if (idx < 0) {
+    if (index < 0) {
         alert('找不到使用者');
         return;
     }
 
-    currentUserIndex = idx;
-
-    // 記住
-    localStorage.setItem(LAST_USER_STORAGE_KEY, name);
+    currentUserIndex = index;
+    localStorage.setItem(LAST_USER_STORAGE_KEY, selectedName);
 
     switchUserModalInstance.hide();
 
@@ -199,66 +214,66 @@ function applySwitchUser(e) {
 /* =========================
    簽到
 ========================= */
-async function submitCheckIn(e) {
-    e.preventDefault();
+async function submitCheckIn(event) {
+    event.preventDefault();
 
     const name = $('#checkInName').val();
     const shiftType = $('#checkInShiftType').val();
-    const date = $('#checkInDate').val();
-    const time = $('#checkInTime').val();
+    const checkInDate = $('#checkInDate').val();
+    const checkInTime = $('#checkInTime').val();
 
     try {
-        const res = await withLoading('簽到中', '請稍候...', async () => {
+        const result = await withLoading('簽到中', '請稍候...', async () => {
             return await AttendanceApi.checkIn({
                 name,
                 shiftType,
-                checkInDate: date,
-                checkInTime: time
+                checkInDate,
+                checkInTime
             });
         });
 
-        records.push(res.record);
+        records.push(result.record);
         renderAll();
 
         checkInModalInstance.hide();
         alert('簽到成功');
 
-    } catch (err) {
-        alert(err.message || '簽到失敗');
+    } catch (error) {
+        alert(error.message || '簽到失敗');
     }
 }
 
 /* =========================
    簽退
 ========================= */
-async function submitCheckOut(e) {
-    e.preventDefault();
+async function submitCheckOut(event) {
+    event.preventDefault();
 
     const name = $('#checkOutName').val();
     const shiftType = $('#checkOutShiftType').val();
-    const date = $('#checkOutDate').val();
-    const time = $('#checkOutTime').val();
+    const checkOutDate = $('#checkOutDate').val();
+    const checkOutTime = $('#checkOutTime').val();
 
     try {
-        const res = await withLoading('簽退中', '請稍候...', async () => {
+        const result = await withLoading('簽退中', '請稍候...', async () => {
             return await AttendanceApi.checkOut({
                 name,
                 shiftType,
-                checkOutDate: date,
-                checkOutTime: time
+                checkOutDate,
+                checkOutTime
             });
         });
 
         const target = records.find(r => r.name === name && !r.checkOutTime);
-        if (target) Object.assign(target, res.record);
+        if (target) Object.assign(target, result.record);
 
         renderAll();
 
         checkOutModalInstance.hide();
         alert('簽退成功');
 
-    } catch (err) {
-        alert(err.message || '簽退失敗');
+    } catch (error) {
+        alert(error.message || '簽退失敗');
     }
 }
 
@@ -267,23 +282,22 @@ async function submitCheckOut(e) {
 ========================= */
 async function loadInitData() {
 
-    const res = await withLoading('資料讀取中', '請稍候...', async () => {
+    const result = await withLoading('資料讀取中', '請稍候...', async () => {
         return await AttendanceApi.getInitData();
     });
 
-    staffList = res.data.staffList || [];
-    records = res.data.records || [];
+    staffList = result.data.staffList || [];
+    records = result.data.records || [];
 
     if (!staffList.length) {
-        alert('沒有使用者資料');
+        alert('人員資料工作表沒有資料');
         return;
     }
 
-    // 🔥 正確記憶使用者
-    const last = localStorage.getItem(LAST_USER_STORAGE_KEY);
-    const idx = findUserIndexByName(last);
+    const lastName = localStorage.getItem(LAST_USER_STORAGE_KEY);
+    const lastIndex = findUserIndexByName(lastName);
 
-    currentUserIndex = idx >= 0 ? idx : 0;
+    currentUserIndex = lastIndex >= 0 ? lastIndex : 0;
 
     renderAll();
 }
@@ -301,6 +315,8 @@ $(async function () {
     updateClock();
     setInterval(updateClock, 1000);
 
+    $('#filterYearMonth').val(formatYearMonth(new Date()));
+
     await loadInitData();
 
     $('#btnSwitchUser').on('click', openSwitchUserModal);
@@ -312,6 +328,4 @@ $(async function () {
 
     $('#checkInForm').on('submit', submitCheckIn);
     $('#checkOutForm').on('submit', submitCheckOut);
-
-    $('#filterYearMonth').val(formatYearMonth(new Date()));
 });
