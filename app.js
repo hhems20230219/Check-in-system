@@ -894,6 +894,12 @@ $(async function () {
     setInterval(updateClock, 1000);
 
     await loadInitData();
+
+    loadingCount = 0;
+    if (loadingModalInstance) {
+        loadingModalInstance.hide();
+    }
+
     await refreshLocation();
 
     $('#btnRefreshLocation').on('click', refreshLocation);
