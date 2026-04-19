@@ -58,11 +58,9 @@ function hideLoading() {
     if (loadingCount === 0) {
         setUiBusyState(false);
 
-        loadingModalInstance.hide();
-
-        // 🔥 強制清掉殘留 backdrop（這行是關鍵）
-        $('.modal-backdrop').remove();
-        $('body').removeClass('modal-open').css('overflow', '');
+        if (document.getElementById('loadingModal').classList.contains('show')) {
+            loadingModalInstance.hide();
+        }
     }
 }
 
