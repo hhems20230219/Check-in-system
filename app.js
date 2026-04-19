@@ -567,7 +567,7 @@ function openSwitchUserModal() {
 function applySwitchUser(event) {
     event.preventDefault();
 
-    const selectedName = Ui.$switchName.val();
+    const selectedName = $('#switchName').val();
     const index = findUserIndexByName(selectedName);
 
     if (index < 0) {
@@ -575,15 +575,14 @@ function applySwitchUser(event) {
         return;
     }
 
-    AppState.currentUserIndex = index;
+    currentUserIndex = index;
     saveLastSelectedUser(selectedName);
 
-    AppState.modal.switchUser.hide();
+    switchUserModalInstance.hide();
 
-    // 等 modal 收起來再渲染，避免 iPhone/Safari 卡住
     setTimeout(function () {
         renderAll();
-    }, 150);
+    }, 100);
 }
 
 function openCheckInModal() {
