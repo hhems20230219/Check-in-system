@@ -561,10 +561,6 @@ function openSwitchUserModal() {
 function applySwitchUser(event) {
     event.preventDefault();
 
-    if (isBusy()) {
-        return;
-    }
-
     const selectedName = $('#switchName').val();
     const index = findUserIndexByName(selectedName);
 
