@@ -9,7 +9,6 @@ const LAST_USER_STORAGE_KEY = 'attendance_last_user_name';
 let staffList = [];
 let records = [];
 let currentUserIndex = -1;
-let locationInfo = { success: false };
 
 let switchUserModalInstance = null;
 let checkInModalInstance = null;
@@ -19,28 +18,9 @@ let loadingModalInstance = null;
 let loadingCount = 0;
 
 /* =========================
-   🔥 強制修復 iOS modal bug
-========================= */
-function forceCloseAllModals() {
-    $('.modal').each(function () {
-        const m = bootstrap.Modal.getInstance(this);
-        if (m) m.hide();
-    });
-
-    $('.modal-backdrop').remove();
-    $('body').removeClass('modal-open').css({
-        overflow: '',
-        paddingRight: ''
-    });
-}
-
-/* =========================
-   🔥 Loading 控制（核心修正）
+   Loading（修正 spinner）
 ========================= */
 function showLoading(title = '處理中', message = '請稍候...') {
-
-    forceCloseAllModals(); // 🔥 避免卡住
-
     loadingCount++;
 
     $('#loadingModalTitle').text(title);
@@ -54,20 +34,14 @@ function hideLoading() {
 
     if (loadingCount === 0) {
         loadingModalInstance.hide();
-
-        // 🔥 再清一次（iOS 必要）
-        setTimeout(forceCloseAllModals, 100);
     }
 }
 
-/* =========================
-   🔥 Spinner 一定會轉
-========================= */
+/* 🔥 核心：讓 spinner 會動 */
 async function withLoading(title, message, action) {
-
     showLoading(title, message);
 
-    // 🔥 關鍵：讓畫面先 render
+    // 讓畫面先 render（關鍵）
     await new Promise(requestAnimationFrame);
 
     try {
@@ -80,8 +54,8 @@ async function withLoading(title, message, action) {
 /* =========================
    工具
 ========================= */
-function pad2(num) {
-    return String(num).padStart(2, '0');
+function pad2(n) {
+    return String(n).padStart(2, '0');
 }
 
 function formatDate(date) {
@@ -97,16 +71,33 @@ function formatTime(date) {
 }
 
 function formatDateDisplay(date) {
-    const weekMap = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
-    return `${date.getFullYear()}年${pad2(date.getMonth()+1)}月${pad2(date.getDate())}日 ${weekMap[date.getDay()]}`;
+    const w = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+    return `${date.getFullYear()}年${pad2(date.getMonth()+1)}月${pad2(date.getDate())}日 ${w[date.getDay()]}`;
 }
 
-function formatHoursByMinutes(minutes) {
-    return (Number(minutes || 0) / 60).toFixed(1);
+function formatHoursByMinutes(m) {
+    return (Number(m || 0) / 60).toFixed(1);
 }
 
+/* =========================
+   使用者
+========================= */
 function getCurrentUser() {
     return currentUserIndex >= 0 ? staffList[currentUserIndex] : null;
+}
+
+function findUserIndexByName(name) {
+    return staffList.findIndex(u => u.name === name);
+}
+
+/* 🔥 單位/職稱同步 */
+function syncUserInfoByName(nameSelector, unitSelector, titleSelector) {
+    const name = $(nameSelector).val();
+    const user = staffList.find(u => u.name === name);
+    if (!user) return;
+
+    $(unitSelector).val(user.unit || '');
+    $(titleSelector).val(user.title || '');
 }
 
 /* =========================
@@ -116,9 +107,9 @@ function renderNavbar() {
     const u = getCurrentUser();
     if (!u) return;
 
-    $('#navDepartment').text(u.unit || '');
-    $('#navTitle').text(u.title || '');
-    $('#navName').text(u.name || '');
+    $('#navDepartment').text(u.unit);
+    $('#navTitle').text(u.title);
+    $('#navName').text(u.name);
 }
 
 function updateClock() {
@@ -127,28 +118,29 @@ function updateClock() {
     $('#clockDate').text(formatDateDisplay(now));
 }
 
+/* =========================
+   統計
+========================= */
 function calculateSummary() {
     const user = getCurrentUser();
     if (!user) return;
 
     const assist = records.filter(r =>
         r.name === user.name &&
-        r.shiftType === '協勤'
+        r.shiftType === '協勤' &&
+        r.minutes !== null
     );
 
-    const totalMin = assist.reduce((s, r) => s + (r.minutes || 0), 0);
+    const totalMin = assist.reduce((s, r) => s + Number(r.minutes || 0), 0);
 
     const ym = $('#filterYearMonth').val();
 
     const monthMin = assist
         .filter(r => r.yearMonth === ym)
-        .reduce((s, r) => s + (r.minutes || 0), 0);
+        .reduce((s, r) => s + Number(r.minutes || 0), 0);
 
-    const totalH = totalMin / 60;
-    const monthH = monthMin / 60;
-
-    $('#totalHours').text(totalH.toFixed(1));
-    $('#monthHours').text(monthH.toFixed(1));
+    $('#totalHours').text((totalMin / 60).toFixed(1));
+    $('#monthHours').text((monthMin / 60).toFixed(1));
 }
 
 /* =========================
@@ -160,11 +152,14 @@ function renderAll() {
 }
 
 /* =========================
-   Modal 行為
+   Modal
 ========================= */
 function openSwitchUserModal() {
 
     if (!staffList.length) return;
+
+    const user = getCurrentUser();
+    const currentName = user ? user.name : staffList[0].name;
 
     $('#switchName').empty();
 
@@ -172,21 +167,28 @@ function openSwitchUserModal() {
         $('#switchName').append(`<option value="${u.name}">${u.name}</option>`);
     });
 
+    $('#switchName').val(currentName);
+
+    syncUserInfoByName('#switchName', '#switchUnit', '#switchTitle');
+
     switchUserModalInstance.show();
 }
 
-/* =========================
-   🔥 切換使用者（不再 loading）
-========================= */
+/* 🔥 切換使用者（無 loading） */
 function applySwitchUser(e) {
     e.preventDefault();
 
     const name = $('#switchName').val();
-    const idx = staffList.findIndex(x => x.name === name);
+    const idx = findUserIndexByName(name);
 
-    if (idx < 0) return;
+    if (idx < 0) {
+        alert('找不到使用者');
+        return;
+    }
 
     currentUserIndex = idx;
+
+    // 記住
     localStorage.setItem(LAST_USER_STORAGE_KEY, name);
 
     switchUserModalInstance.hide();
@@ -216,14 +218,13 @@ async function submitCheckIn(e) {
         });
 
         records.push(res.record);
-
         renderAll();
-        checkInModalInstance.hide();
 
+        checkInModalInstance.hide();
         alert('簽到成功');
 
     } catch (err) {
-        alert(err.message || '失敗');
+        alert(err.message || '簽到失敗');
     }
 }
 
@@ -248,16 +249,16 @@ async function submitCheckOut(e) {
             });
         });
 
-        const r = records.find(x => x.name === name && !x.checkOutTime);
-        if (r) Object.assign(r, res.record);
+        const target = records.find(r => r.name === name && !r.checkOutTime);
+        if (target) Object.assign(target, res.record);
 
         renderAll();
-        checkOutModalInstance.hide();
 
+        checkOutModalInstance.hide();
         alert('簽退成功');
 
     } catch (err) {
-        alert(err.message || '失敗');
+        alert(err.message || '簽退失敗');
     }
 }
 
@@ -273,8 +274,14 @@ async function loadInitData() {
     staffList = res.data.staffList || [];
     records = res.data.records || [];
 
+    if (!staffList.length) {
+        alert('沒有使用者資料');
+        return;
+    }
+
+    // 🔥 正確記憶使用者
     const last = localStorage.getItem(LAST_USER_STORAGE_KEY);
-    const idx = staffList.findIndex(x => x.name === last);
+    const idx = findUserIndexByName(last);
 
     currentUserIndex = idx >= 0 ? idx : 0;
 
@@ -299,6 +306,12 @@ $(async function () {
     $('#btnSwitchUser').on('click', openSwitchUserModal);
     $('#switchUserForm').on('submit', applySwitchUser);
 
+    $('#switchName').on('change', function () {
+        syncUserInfoByName('#switchName', '#switchUnit', '#switchTitle');
+    });
+
     $('#checkInForm').on('submit', submitCheckIn);
     $('#checkOutForm').on('submit', submitCheckOut);
+
+    $('#filterYearMonth').val(formatYearMonth(new Date()));
 });
