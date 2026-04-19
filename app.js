@@ -29,19 +29,38 @@ let loadingCount = 0;
 // PWA
 let deferredInstallPrompt = null;
 
+function isBusy() {
+    return loadingCount > 0;
+}
+
+function setUiBusyState(isDisabled) {
+    $('#btnRefreshLocation').prop('disabled', isDisabled);
+    $('#btnSwitchUser').prop('disabled', isDisabled);
+    $('#btnCheckIn').prop('disabled', isDisabled);
+    $('#btnCheckOut').prop('disabled', isDisabled);
+    $('#btnInstallApp').prop('disabled', isDisabled);
+}
+
 function showLoading(title = '處理中', message = '請稍候...') {
     loadingCount++;
     $('#loadingModalTitle').text(title);
     $('#loadingModalMessage').text(message);
-    $('#btnRefreshLocation').prop('disabled', true);
-    loadingModalInstance.show();
+    setUiBusyState(true);
+
+    if (!document.getElementById('loadingModal').classList.contains('show')) {
+        loadingModalInstance.show();
+    }
 }
 
 function hideLoading() {
     loadingCount = Math.max(loadingCount - 1, 0);
+
     if (loadingCount === 0) {
-        $('#btnRefreshLocation').prop('disabled', false);
-        loadingModalInstance.hide();
+        setUiBusyState(false);
+
+        if (document.getElementById('loadingModal').classList.contains('show')) {
+            loadingModalInstance.hide();
+        }
     }
 }
 
@@ -203,6 +222,10 @@ function renderLocationStatus(data) {
 }
 
 async function refreshLocation() {
+    if (isBusy()) {
+        return;
+    }
+
     if (!window.LocationService || typeof window.LocationService.getCurrentLocation !== 'function') {
         locationInfo = { success: false, inRange: false, message: '找不到定位模組 location.js，請開啟 Wi-Fi 後再試' };
         renderLocationStatus(locationInfo);
@@ -521,6 +544,10 @@ function getLastSelectedUser() {
 }
 
 function openSwitchUserModal() {
+    if (isBusy()) {
+        return;
+    }
+
     if (!staffList.length) return;
 
     const user = getCurrentUser();
@@ -533,6 +560,10 @@ function openSwitchUserModal() {
 
 async function applySwitchUser(event) {
     event.preventDefault();
+
+    if (isBusy()) {
+        return;
+    }
 
     const selectedName = $('#switchName').val();
     const index = findUserIndexByName(selectedName);
@@ -552,6 +583,10 @@ async function applySwitchUser(event) {
 }
 
 function openCheckInModal() {
+    if (isBusy()) {
+        return;
+    }
+
     const user = getCurrentUser();
     if (!user) {
         openSwitchUserModal();
@@ -570,6 +605,10 @@ function openCheckInModal() {
 }
 
 function openCheckOutModal() {
+    if (isBusy()) {
+        return;
+    }
+
     const user = getCurrentUser();
     if (!user) {
         openSwitchUserModal();
@@ -598,6 +637,10 @@ function openCheckOutModal() {
 
 async function submitCheckIn(event) {
     event.preventDefault();
+
+    if (isBusy()) {
+        return;
+    }
 
     const shiftType = $('#checkInShiftType').val();
     const name = $('#checkInName').val();
@@ -646,6 +689,10 @@ async function submitCheckIn(event) {
 
 async function submitCheckOut(event) {
     event.preventDefault();
+
+    if (isBusy()) {
+        return;
+    }
 
     const name = $('#checkOutName').val();
     const openRecord = getLatestOpenRecord(name);
@@ -792,6 +839,10 @@ function setupPwaInstallPrompt() {
     });
 
     $btnInstallApp.on('click', async function () {
+        if (isBusy()) {
+            return;
+        }
+
         if (!deferredInstallPrompt) {
             alert('目前無法顯示安裝提示，請使用 Chrome 或 Edge 並透過 HTTPS 開啟。');
             return;
