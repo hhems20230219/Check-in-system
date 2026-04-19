@@ -222,10 +222,6 @@ function renderLocationStatus(data) {
 }
 
 async function refreshLocation() {
-    if (isBusy()) {
-        return;
-    }
-
     if (!window.LocationService || typeof window.LocationService.getCurrentLocation !== 'function') {
         locationInfo = { success: false, inRange: false, message: '找不到定位模組 location.js，請開啟 Wi-Fi 後再試' };
         renderLocationStatus(locationInfo);
@@ -249,7 +245,11 @@ async function refreshLocation() {
         renderLocationStatus(result);
         renderReminderStatus();
     } catch (error) {
-        locationInfo = { success: false, inRange: false, message: '定位失敗，請開啟 Wi-Fi 後再重新定位' };
+        locationInfo = {
+            success: false,
+            inRange: false,
+            message: '定位失敗，請開啟 Wi-Fi 後再重新定位'
+        };
         renderLocationStatus(locationInfo);
         renderReminderStatus();
     } finally {
