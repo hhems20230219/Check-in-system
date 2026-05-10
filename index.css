@@ -1,0 +1,128 @@
+/* =========================================================
+   01. 全站基本樣式
+========================================================= */
+
+body {
+    background-color: #f5f6f8;
+}
+
+
+/* =========================================================
+   02. 時間區塊
+========================================================= */
+
+.time-box {
+    background-color: #000;
+    color: #fff;
+    border-radius: 16px;
+    padding: 24px 16px;
+    text-align: center;
+}
+
+.time-text {
+    font-size: clamp(3rem, 8vw, 5rem);
+    font-weight: 800;
+    line-height: 1;
+}
+
+.date-text {
+    margin-top: 10px;
+    font-size: 1rem;
+    color: #ddd;
+}
+
+
+/* =========================================================
+   03. 操作按鈕
+========================================================= */
+
+.action-button {
+    height: 72px;
+    font-size: 1.4rem;
+    font-weight: 700;
+}
+
+
+/* =========================================================
+   04. 統計卡片
+========================================================= */
+
+.summary-number {
+    font-size: 2rem;
+    font-weight: 800;
+}
+
+.summary-unit {
+    font-size: .9rem;
+    color: #6c757d;
+}
+
+.summary-success {
+    color: #198754;
+}
+
+.summary-danger {
+    color: #dc3545;
+}
+
+
+/* =========================================================
+   05. 簽名區
+========================================================= */
+
+.signature-box {
+    width: 100%;
+    height: 160px;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    background: #fff;
+    touch-action: none;
+}
+
+
+/* =========================================================
+   06. 查詢區與 DataTables 排版
+========================================================= */
+
+.month-query-box {
+    width: 220px;
+}
+
+.dt-search {
+    text-align: right;
+    margin-bottom: 12px;
+}
+
+.dt-search label {
+    margin-bottom: 0;
+}
+
+.dt-search input {
+    margin-left: 8px;
+    max-width: 220px;
+}
+
+
+/* =========================================================
+   07. DataTables Responsive 表格
+========================================================= */
+
+#recordTable th,
+#recordTable td {
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+#recordTable th {
+    text-align: center;
+    font-weight: 700;
+}
+
+#recordTable td {
+    text-align: center;
+}
+
+#recordTable td:first-child,
+#recordTable td:nth-child(2) {
+    text-align: left;
+}
