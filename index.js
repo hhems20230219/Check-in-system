@@ -1,68 +1,21 @@
-const STORAGE_KEY_CURRENT_USER = "xinxing_current_user";
+const API_URL = "PASTE_YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
+const STORAGE_KEY_CURRENT_USER = "currentAttendanceUser";
 
 let staffList = [];
-let attendanceRecords = [];
 let currentUser = null;
-
-let userModal;
-let signInModal;
-let signOutModal;
+let recordTable = null;
+let isDrawing = false;
 
 $(document).ready(function () {
-    userModal = new bootstrap.Modal(document.getElementById("userModal"));
-    signInModal = new bootstrap.Modal(document.getElementById("signInModal"));
-    signOutModal = new bootstrap.Modal(document.getElementById("signOutModal"));
-
-    bindEvents();
     initClock();
+    initDefaultDateTime();
+    initEvents();
     initSignatureCanvas();
-    setNowToForms();
+    initDataTable();
 
-    loadInitialData();
     refreshLocation();
+    loadInitialData();
 });
-
-function bindEvents() {
-    $("#btnSwitchUser").on("click", function () {
-        userModal.show();
-    });
-
-    $("#btnSaveUser").on("click", saveCurrentUser);
-
-    $("#staffSelect").on("change", function () {
-        const selectedId = $(this).val();
-        const staff = staffList.find(x => x.id === selectedId);
-
-        $("#selectedUnit").val(staff ? staff.unit : "");
-        $("#selectedTitle").val(staff ? staff.title : "");
-    });
-
-    $("#btnRefreshLocation").on("click", refreshLocation);
-    $("#btnReload").on("click", loadAttendanceRecords);
-
-    $("#btnOpenSignIn").on("click", function () {
-        if (!ensureUserSelected()) return;
-
-        setNowToForms();
-        signInModal.show();
-    });
-
-    $("#btnOpenSignOut").on("click", function () {
-        if (!ensureUserSelected()) return;
-
-        setNowToForms();
-        clearSignature();
-        signOutModal.show();
-    });
-
-    $("#signInWorkType").on("change", updateSignInDutyTypeDisplay);
-    $("#signOutWorkType").on("change", updateSignOutDisplay);
-
-    $("#signInForm").on("submit", submitSignIn);
-    $("#signOutForm").on("submit", submitSignOut);
-
-    $("#btnClearSignature").on("click", clearSignature);
-}
 
 function initClock() {
     updateClock();
@@ -71,478 +24,370 @@ function initClock() {
 
 function updateClock() {
     const now = new Date();
-
-    $("#clockTime").text(formatTime(now));
-    $("#clockDate").text(formatDate(now));
+    $("#currentTime").text(formatTime(now));
+    $("#currentDate").text(formatDate(now));
 }
 
-function setNowToForms() {
+function initDefaultDateTime() {
     const now = new Date();
+    const today = formatDate(now);
+    const time = formatTime(now).substring(0, 5);
 
-    $("#signInDate").val(formatDate(now));
-    $("#signInTime").val(formatTimeForInput(now));
-
-    $("#signOutDate").val(formatDate(now));
-    $("#signOutTime").val(formatTimeForInput(now));
-
-    updateSignInDutyTypeDisplay();
-    updateSignOutDisplay();
+    $("#signInDate").val(today);
+    $("#signInTime").val(time);
+    $("#signOutDate").val(today);
+    $("#signOutTime").val(time);
+    $("#queryMonth").val(today.substring(0, 7));
 }
 
-function updateSignInDutyTypeDisplay() {
-    const workType = $("#signInWorkType").val();
+function initEvents() {
+    $("#btnRelocate").on("click", refreshLocation);
+    $("#btnSaveUser").on("click", saveCurrentUser);
 
-    if (workType === "常年訓練") {
-        $("#signInDutyTypeArea").removeClass("d-none");
-        $("#signInDutyType").html(`
-            <option value="簽到">簽到</option>
-            <option value="請假">請假</option>
-        `);
-    } else {
-        $("#signInDutyTypeArea").addClass("d-none");
-        $("#signInDutyType").html(`<option value=""></option>`);
-    }
+    $("#btnOpenSignIn").on("click", openSignInModal);
+    $("#btnOpenSignOut").on("click", openSignOutModal);
+
+    $("#signInServiceType").on("change", updateSignInFields);
+    $("#signOutServiceType").on("change", updateSignOutFields);
+
+    $("#signInForm").on("submit", submitSignIn);
+    $("#signOutForm").on("submit", submitSignOut);
+
+    $("#queryMonth").on("change", loadRecordsAndSummary);
+    $("#btnClearSignature").on("click", clearSignature);
 }
 
-function updateSignOutDisplay() {
-    const workType = $("#signOutWorkType").val();
-
-    if (workType === "協勤") {
-        $("#signOutDutyTypeArea").removeClass("d-none");
-    } else {
-        $("#signOutDutyTypeArea").addClass("d-none");
-        $("#signOutDutyType").val("");
-    }
-
-    if (workType === "協勤" || workType === "公差勤務") {
-        $("#workContentArea").removeClass("d-none");
-    } else {
-        $("#workContentArea").addClass("d-none");
-        $("#workContent").val("");
-    }
+function initDataTable() {
+    recordTable = $("#recordTable").DataTable({
+        responsive: true,
+        pageLength: 10,
+        order: [[2, "desc"], [3, "desc"]],
+        language: {
+            search: "搜尋：",
+            lengthMenu: "每頁 _MENU_ 筆",
+            info: "顯示第 _START_ 到 _END_ 筆，共 _TOTAL_ 筆",
+            paginate: {
+                first: "第一頁",
+                last: "最後一頁",
+                next: "下一頁",
+                previous: "上一頁"
+            },
+            zeroRecords: "查無資料",
+            infoEmpty: "目前沒有資料"
+        }
+    });
 }
 
 async function loadInitialData() {
-    await loadStaff();
-    restoreCurrentUser();
-    await loadAttendanceRecords();
-
-    if (!currentUser) {
-        showStatus("請先切換使用者。", "warning");
-        userModal.show();
-    }
-}
-
-async function loadStaff() {
     try {
-        const result = await apiGet("readStaff");
+        showAlert("info", "正在讀取人員資料");
 
-        staffList = result.data || [];
-        renderStaffOptions();
+        const response = await apiGet({ action: "readStaff" });
+        staffList = response.data || [];
 
-        console.log("人員資料讀取完成", staffList);
+        renderStaffSelect();
+        restoreCurrentUser();
+
+        if (!currentUser) {
+            new bootstrap.Modal("#userModal", { backdrop: "static", keyboard: false }).show();
+        }
+
+        await loadRecordsAndSummary();
+        hideAlert();
+
+        console.log("初始化資料完成");
     } catch (error) {
-        console.log("人員資料讀取失敗", error);
-        showStatus("人員資料讀取失敗，請確認 Apps Script URL 與部署權限。", "danger");
+        showAlert("danger", error.message);
+        console.log("初始化資料失敗");
     }
 }
 
-async function loadAttendanceRecords() {
-    try {
-        const result = await apiGet("readAttendance");
+function renderStaffSelect() {
+    const select = $("#staffSelect");
+    select.empty();
 
-        attendanceRecords = result.data || [];
-        renderRecords();
-        renderSummary();
-
-        console.log("出勤紀錄讀取完成", attendanceRecords);
-    } catch (error) {
-        console.log("出勤紀錄讀取失敗", error);
-        showStatus("出勤紀錄讀取失敗。", "danger");
-    }
-}
-
-function renderStaffOptions() {
-    const $select = $("#staffSelect");
-    $select.empty();
-
-    if (staffList.length === 0) {
-        $select.append(`<option value="">沒有可選擇的人員資料</option>`);
-        return;
-    }
-
-    staffList.forEach(function (staff) {
-        $select.append(`<option value="${escapeHtml(staff.id)}">${escapeHtml(staff.name)}</option>`);
+    staffList.forEach(staff => {
+        select.append(`
+            <option value="${staff.id}">
+                ${staff.unit} / ${staff.title} / ${staff.name}
+            </option>
+        `);
     });
-
-    $select.trigger("change");
-}
-
-function saveCurrentUser() {
-    const selectedId = $("#staffSelect").val();
-    const staff = staffList.find(x => x.id === selectedId);
-
-    if (!staff) {
-        showStatus("請選擇有效的人員。", "warning");
-        return;
-    }
-
-    currentUser = staff;
-    localStorage.setItem(STORAGE_KEY_CURRENT_USER, JSON.stringify(currentUser));
-
-    renderCurrentUser();
-    renderSummary();
-    userModal.hide();
-
-    showStatus("使用者已切換。", "success");
 }
 
 function restoreCurrentUser() {
-    const raw = localStorage.getItem(STORAGE_KEY_CURRENT_USER);
+    const saved = localStorage.getItem(STORAGE_KEY_CURRENT_USER);
 
-    if (!raw) {
-        currentUser = null;
-        renderCurrentUser();
+    if (!saved) {
+        updateNavbarUser(null);
         return;
     }
 
-    const savedUser = JSON.parse(raw);
-    const matchedUser = staffList.find(x => x.id === savedUser.id);
-
-    currentUser = matchedUser || null;
-    renderCurrentUser();
+    currentUser = JSON.parse(saved);
+    updateNavbarUser(currentUser);
 }
 
-function renderCurrentUser() {
-    $("#navUnit").text(currentUser ? currentUser.unit : "-");
-    $("#navTitle").text(currentUser ? currentUser.title : "-");
-    $("#navName").text(currentUser ? currentUser.name : "-");
-}
+function saveCurrentUser() {
+    const staffId = $("#staffSelect").val();
+    currentUser = staffList.find(x => x.id === staffId);
 
-function ensureUserSelected() {
     if (!currentUser) {
-        showStatus("請先切換使用者。", "warning");
-        userModal.show();
-        return false;
+        showAlert("warning", "請先選擇使用者");
+        return;
     }
 
-    return true;
+    localStorage.setItem(STORAGE_KEY_CURRENT_USER, JSON.stringify(currentUser));
+    updateNavbarUser(currentUser);
+
+    bootstrap.Modal.getInstance(document.getElementById("userModal")).hide();
+    loadRecordsAndSummary();
+
+    console.log("已切換目前使用者");
 }
 
-async function refreshLocation() {
-    $("#locationText").text("定位中...");
+function updateNavbarUser(user) {
+    $("#navUnit").text(user ? user.unit : "-");
+    $("#navTitle").text(user ? user.title : "-");
+    $("#navName").text(user ? user.name : "-");
+}
 
-    const result = await requestCurrentLocation();
-    $("#locationText").text(result.message);
+function openSignInModal() {
+    if (!ensureCurrentUser()) return;
 
-    if (result.isAllowed) {
-        showStatus("定位成功，可進行需要定位的簽到或簽退。", "success");
-    } else {
-        showStatus(result.message, "warning");
-    }
+    initDefaultDateTime();
+    updateSignInFields();
+
+    new bootstrap.Modal("#signInModal").show();
+}
+
+function openSignOutModal() {
+    if (!ensureCurrentUser()) return;
+
+    initDefaultDateTime();
+    updateSignOutFields();
+    clearSignature();
+
+    new bootstrap.Modal("#signOutModal").show();
+}
+
+function updateSignInFields() {
+    const serviceType = $("#signInServiceType").val();
+
+    $("#signInDutyTypeBlock").toggleClass("d-none", serviceType === "常年訓練");
+    $("#trainingStatusBlock").toggleClass("d-none", serviceType !== "常年訓練");
+}
+
+function updateSignOutFields() {
+    const serviceType = $("#signOutServiceType").val();
+
+    $("#signOutDutyTypeBlock").toggleClass("d-none", serviceType !== "協勤");
+    $("#workContentBlock").toggleClass("d-none", serviceType === "常年訓練");
 }
 
 async function submitSignIn(event) {
     event.preventDefault();
 
-    if (!ensureUserSelected()) return;
+    const serviceType = $("#signInServiceType").val();
 
-    const workType = $("#signInWorkType").val();
-
-    if (isLocationRequired(workType) && !currentLocationState.isAllowed) {
-        showStatus("協勤與常年訓練需要在允許定位範圍內才能簽到。", "danger");
+    if (!canOperateByLocation(serviceType)) {
+        showAlert("warning", "此協勤種類需要定位成功且在允許範圍內才能簽到");
         return;
     }
 
-    if (workType === "常年訓練" && hasTrainingRecordInCurrentMonth()) {
-        showStatus("本月已經有常年訓練簽到或請假紀錄，不能重複建立。", "warning");
-        return;
-    }
-
-    if (hasOpenRecord(workType)) {
-        showStatus("已有尚未簽退的紀錄，請先簽退。", "warning");
-        return;
-    }
+    const dutyType = serviceType === "常年訓練"
+        ? $("#trainingStatus").val()
+        : $("#signInDutyType").val();
 
     const payload = {
-        action: "createAttendance",
-        data: {
-            id: createId(),
-            createdAt: new Date().toISOString(),
-            unit: currentUser.unit,
-            title: currentUser.title,
-            name: currentUser.name,
-            workType: workType,
-            dutyType: workType === "常年訓練" ? $("#signInDutyType").val() : "",
-            signInDate: $("#signInDate").val(),
-            signInTime: $("#signInTime").val(),
-            signOutDate: "",
-            signOutTime: "",
-            workContent: "",
-            signature: ""
-        }
+        action: "create",
+        staffId: currentUser.id,
+        unit: currentUser.unit,
+        title: currentUser.title,
+        name: currentUser.name,
+        serviceType: serviceType,
+        dutyType: dutyType,
+        signInDate: $("#signInDate").val(),
+        signInTime: $("#signInTime").val()
     };
 
     try {
-        await apiPost(payload);
-        signInModal.hide();
-        showStatus("簽到完成。", "success");
-        await loadAttendanceRecords();
+        const response = await apiPost(payload);
+        showAlert("success", response.message || "簽到完成");
+        bootstrap.Modal.getInstance(document.getElementById("signInModal")).hide();
+        await loadRecordsAndSummary();
+
+        console.log("簽到資料已送出");
     } catch (error) {
-        console.log("簽到失敗", error);
-        showStatus("簽到失敗。", "danger");
+        showAlert("danger", error.message);
+        console.log("簽到失敗");
     }
 }
 
 async function submitSignOut(event) {
     event.preventDefault();
 
-    if (!ensureUserSelected()) return;
+    const serviceType = $("#signOutServiceType").val();
 
-    const workType = $("#signOutWorkType").val();
-
-    if (workType === "常年訓練") {
-        showStatus("常年訓練不需要簽退。", "warning");
+    if (!canOperateByLocation(serviceType)) {
+        showAlert("warning", "此協勤種類需要定位成功且在允許範圍內才能簽退");
         return;
     }
 
-    if (isLocationRequired(workType) && !currentLocationState.isAllowed) {
-        showStatus("協勤需要在允許定位範圍內才能簽退。", "danger");
-        return;
-    }
-
-    const openRecord = findLatestOpenRecord(workType);
-
-    if (!openRecord) {
-        showStatus("找不到可簽退的未完成紀錄。", "warning");
-        return;
-    }
-
+    const workContentRequired = serviceType === "協勤" || serviceType === "公差勤務";
     const workContent = $("#workContent").val().trim();
 
-    if ((workType === "協勤" || workType === "公差勤務") && workContent === "") {
-        showStatus("協勤與公差勤務簽退需要填寫工作內容。", "warning");
+    if (workContentRequired && !workContent) {
+        showAlert("warning", "請填寫工作內容");
         return;
     }
 
     const payload = {
-        action: "updateAttendance",
-        data: {
-            id: openRecord.id,
-            dutyType: workType === "協勤" ? $("#signOutDutyType").val() : openRecord.dutyType,
-            signOutDate: $("#signOutDate").val(),
-            signOutTime: $("#signOutTime").val(),
-            workContent: workContent,
-            signature: getSignatureDataUrl()
-        }
+        action: "update",
+        staffId: currentUser.id,
+        unit: currentUser.unit,
+        title: currentUser.title,
+        name: currentUser.name,
+        serviceType: serviceType,
+        dutyType: $("#signOutDutyType").val(),
+        signOutDate: $("#signOutDate").val(),
+        signOutTime: $("#signOutTime").val(),
+        workContent: workContent,
+        signature: getSignatureBase64()
     };
 
     try {
-        await apiPost(payload);
-        signOutModal.hide();
-        showStatus("簽退完成。", "success");
-        await loadAttendanceRecords();
+        const response = await apiPost(payload);
+        showAlert("success", response.message || "簽退完成");
+        bootstrap.Modal.getInstance(document.getElementById("signOutModal")).hide();
+        await loadRecordsAndSummary();
+
+        console.log("簽退資料已送出");
     } catch (error) {
-        console.log("簽退失敗", error);
-        showStatus("簽退失敗。", "danger");
+        showAlert("danger", error.message);
+        console.log("簽退失敗");
     }
 }
 
-function renderRecords() {
-    const $body = $("#recordTableBody");
-    $body.empty();
+async function loadRecordsAndSummary() {
+    if (!currentUser) return;
 
-    const userRecords = getCurrentUserRecords();
+    const month = $("#queryMonth").val();
 
-    if (userRecords.length === 0) {
-        $body.append(`<tr><td colspan="7" class="text-center text-muted">尚無資料</td></tr>`);
-        return;
-    }
-
-    userRecords.forEach(function (record) {
-        $body.append(`
-            <tr>
-                <td>${escapeHtml(record.workType)}</td>
-                <td>${escapeHtml(record.dutyType || "-")}</td>
-                <td>${escapeHtml(record.signInDate || "-")}</td>
-                <td>${escapeHtml(record.signInTime || "-")}</td>
-                <td>${escapeHtml(record.signOutDate || "-")}</td>
-                <td>${escapeHtml(record.signOutTime || "-")}</td>
-                <td>${calculateRecordHours(record)}</td>
-            </tr>
-        `);
-    });
-}
-
-function renderSummary() {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonthText = `${currentYear}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-
-    const userRecords = getCurrentUserRecords();
-
-    let monthlyHours = 0;
-    let totalHours = 0;
-    let trainingCount = 0;
-
-    userRecords.forEach(function (record) {
-        const hours = calculateRecordHoursNumber(record);
-
-        if (record.workType === "協勤") {
-            totalHours += hours;
-
-            if ((record.signInDate || "").startsWith(currentMonthText)) {
-                monthlyHours += hours;
-            }
-        }
-
-        if (
-            record.workType === "常年訓練" &&
-            (record.signInDate || "").startsWith(String(currentYear)) &&
-            record.dutyType === "簽到"
-        ) {
-            trainingCount++;
-        }
+    const response = await apiGet({
+        action: "readDashboard",
+        staffId: currentUser.id,
+        month: month
     });
 
-    $("#monthlyHours").text(monthlyHours.toFixed(1));
-    $("#totalHours").text(totalHours.toFixed(1));
-    $("#trainingYear").text(currentYear);
-    $("#trainingCount").text(trainingCount);
-
-    $("#monthlyProgress").css("width", `${Math.min(monthlyHours / 4 * 100, 100)}%`);
-    $("#totalProgress").css("width", `${Math.min(totalHours / 100 * 100, 100)}%`);
-    $("#trainingProgress").css("width", `${Math.min(trainingCount / 12 * 100, 100)}%`);
+    renderSummary(response.summary);
+    renderRecords(response.records || []);
 }
 
-function getCurrentUserRecords() {
-    if (!currentUser) return [];
+function renderSummary(summary) {
+    const monthlyTarget = summary.monthlyTargetHours || 4;
+    const totalTarget = summary.totalTargetHours || 100;
+    const trainingTarget = summary.trainingTargetCount || 12;
 
-    return attendanceRecords
-        .filter(x => x.name === currentUser.name && x.unit === currentUser.unit)
-        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    $("#monthlyHours").text(summary.monthlyHours || 0);
+    $("#totalHours").text(summary.totalHours || 0);
+    $("#trainingYear").text(summary.trainingYear || new Date().getFullYear());
+    $("#trainingCount").text(summary.trainingCount || 0);
+
+    setProgress("#monthlyProgress", summary.monthlyHours || 0, monthlyTarget);
+    setProgress("#totalProgress", summary.totalHours || 0, totalTarget);
+    setProgress("#trainingProgress", summary.trainingCount || 0, trainingTarget);
 }
 
-function hasTrainingRecordInCurrentMonth() {
-    const now = new Date();
-    const monthText = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+function setProgress(selector, value, target) {
+    const percent = target > 0 ? Math.min(100, Math.round(value / target * 100)) : 0;
+    $(selector).css("width", `${percent}%`).text(`${percent}%`);
+}
 
-    return getCurrentUserRecords().some(function (record) {
-        return record.workType === "常年訓練" && (record.signInDate || "").startsWith(monthText);
+function renderRecords(records) {
+    recordTable.clear();
+
+    records.forEach(item => {
+        recordTable.row.add([
+            item.serviceType,
+            item.dutyType,
+            item.signInDate,
+            item.signInTime,
+            item.signOutDate,
+            item.signOutTime,
+            item.hours
+        ]);
     });
+
+    recordTable.draw();
 }
 
-function hasOpenRecord(workType) {
-    return findLatestOpenRecord(workType) !== null;
-}
-
-function findLatestOpenRecord(workType) {
-    const records = getCurrentUserRecords();
-
-    return records.find(function (record) {
-        return record.workType === workType &&
-            record.signInDate &&
-            !record.signOutDate &&
-            workType !== "常年訓練";
-    }) || null;
-}
-
-function calculateRecordHours(record) {
-    const hours = calculateRecordHoursNumber(record);
-
-    if (hours <= 0) return "-";
-
-    return hours.toFixed(1);
-}
-
-function calculateRecordHoursNumber(record) {
-    if (!record.signInDate || !record.signInTime || !record.signOutDate || !record.signOutTime) {
-        return 0;
-    }
-
-    const start = new Date(`${record.signInDate}T${record.signInTime}`);
-    const end = new Date(`${record.signOutDate}T${record.signOutTime}`);
-
-    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) {
-        return 0;
-    }
-
-    return (end - start) / 1000 / 60 / 60;
-}
-
-async function apiGet(action) {
-    const url = `${GAS_API_URL}?action=${encodeURIComponent(action)}`;
-
+async function apiGet(params) {
+    const url = `${API_URL}?${new URLSearchParams(params).toString()}`;
     const response = await fetch(url);
-    return await response.json();
+    const result = await response.json();
+
+    if (!result.success) {
+        throw new Error(result.message || "API 查詢失敗");
+    }
+
+    return result;
 }
 
 async function apiPost(payload) {
-    const response = await fetch(GAS_API_URL, {
+    const response = await fetch(API_URL, {
         method: "POST",
         body: JSON.stringify(payload)
     });
 
-    return await response.json();
+    const result = await response.json();
+
+    if (!result.success) {
+        throw new Error(result.message || "API 寫入失敗");
+    }
+
+    return result;
 }
 
-function showStatus(message, type) {
-    $("#statusBox")
-        .removeClass("d-none success warning danger")
-        .addClass(type);
+function showAlert(type, message) {
+    $("#systemAlert")
+        .removeClass("d-none alert-success alert-danger alert-warning alert-info")
+        .addClass(`alert-${type}`)
+        .text(message);
+}
 
-    $("#statusMessage").text(message);
+function hideAlert() {
+    $("#systemAlert").addClass("d-none").text("");
+}
+
+function ensureCurrentUser() {
+    if (!currentUser) {
+        showAlert("warning", "請先切換使用者");
+        new bootstrap.Modal("#userModal", { backdrop: "static", keyboard: false }).show();
+        return false;
+    }
+
+    return true;
 }
 
 function formatDate(date) {
-    return [
-        date.getFullYear(),
-        String(date.getMonth() + 1).padStart(2, "0"),
-        String(date.getDate()).padStart(2, "0")
-    ].join("-");
+    return date.toISOString().substring(0, 10);
 }
 
 function formatTime(date) {
-    return [
-        String(date.getHours()).padStart(2, "0"),
-        String(date.getMinutes()).padStart(2, "0"),
-        String(date.getSeconds()).padStart(2, "0")
-    ].join(":");
-}
-
-function formatTimeForInput(date) {
-    const minutes = date.getMinutes() < 30 ? "00" : "30";
-
-    return `${String(date.getHours()).padStart(2, "0")}:${minutes}`;
-}
-
-function createId() {
-    return `ATT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-}
-
-function escapeHtml(value) {
-    return String(value || "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+    return date.toTimeString().substring(0, 8);
 }
 
 function initSignatureCanvas() {
     const canvas = document.getElementById("signatureCanvas");
-    const ctx = canvas.getContext("2d");
-
-    let isDrawing = false;
+    const context = canvas.getContext("2d");
 
     function getPoint(event) {
         const rect = canvas.getBoundingClientRect();
-        const clientX = event.touches ? event.touches[0].clientX : event.clientX;
-        const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+        const source = event.touches ? event.touches[0] : event;
 
         return {
-            x: (clientX - rect.left) * (canvas.width / rect.width),
-            y: (clientY - rect.top) * (canvas.height / rect.height)
+            x: source.clientX - rect.left,
+            y: source.clientY - rect.top
         };
     }
 
@@ -551,24 +396,20 @@ function initSignatureCanvas() {
         isDrawing = true;
 
         const point = getPoint(event);
-        ctx.beginPath();
-        ctx.moveTo(point.x, point.y);
+        context.beginPath();
+        context.moveTo(point.x, point.y);
     }
 
     function move(event) {
         if (!isDrawing) return;
 
         event.preventDefault();
-
         const point = getPoint(event);
-        ctx.lineWidth = 2;
-        ctx.lineCap = "round";
-        ctx.lineTo(point.x, point.y);
-        ctx.stroke();
+        context.lineTo(point.x, point.y);
+        context.stroke();
     }
 
-    function end(event) {
-        event.preventDefault();
+    function end() {
         isDrawing = false;
     }
 
@@ -576,7 +417,6 @@ function initSignatureCanvas() {
     canvas.addEventListener("mousemove", move);
     canvas.addEventListener("mouseup", end);
     canvas.addEventListener("mouseleave", end);
-
     canvas.addEventListener("touchstart", start);
     canvas.addEventListener("touchmove", move);
     canvas.addEventListener("touchend", end);
@@ -584,12 +424,10 @@ function initSignatureCanvas() {
 
 function clearSignature() {
     const canvas = document.getElementById("signatureCanvas");
-    const ctx = canvas.getContext("2d");
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const context = canvas.getContext("2d");
+    context.clearRect(0, 0, canvas.width, canvas.height);
 }
 
-function getSignatureDataUrl() {
-    const canvas = document.getElementById("signatureCanvas");
-    return canvas.toDataURL("image/png");
+function getSignatureBase64() {
+    return document.getElementById("signatureCanvas").toDataURL("image/png");
 }
