@@ -1,61 +1,16 @@
 body {
-    background-color: #f8f9fa;
+    background: #f8f9fa;
 }
 
-.section-box {
-    background-color: #ffffff;
+.card {
     border: 1px solid #dee2e6;
-    border-radius: 1rem;
-    padding: 1rem;
-}
-
-.clock-time {
-    font-size: 3rem;
-    font-weight: 800;
-    line-height: 1.1;
-}
-
-.clock-date {
-    font-size: 1rem;
-    opacity: 0.85;
-}
-
-.summary-card {
-    border: 1px solid #dee2e6;
-    border-radius: 0.75rem;
-    padding: 1rem;
-    height: 100%;
-}
-
-.summary-value {
-    font-size: 1.75rem;
-    font-weight: 700;
-    margin: 0.5rem 0;
 }
 
 #signatureCanvas {
-    width: 100%;
-    height: 180px;
-    border: 1px solid #ced4da;
-    border-radius: 0.5rem;
-    background-color: #ffffff;
+    background: #fff;
     touch-action: none;
 }
 
-#statusBox.success {
-    border-color: #198754;
-    background-color: #eaf7ef;
-    color: #198754;
-}
-
-#statusBox.warning {
-    border-color: #ffc107;
-    background-color: #fff8e1;
-    color: #856404;
-}
-
-#statusBox.danger {
-    border-color: #dc3545;
-    background-color: #fdecec;
-    color: #dc3545;
+.progress {
+    height: 20px;
 }
