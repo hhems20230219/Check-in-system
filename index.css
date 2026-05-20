@@ -1,128 +1,61 @@
-/* =========================================================
-   01. 全站基本樣式
-========================================================= */
-
 body {
-    background-color: #f5f6f8;
+    background-color: #f8f9fa;
 }
 
-
-/* =========================================================
-   02. 時間區塊
-========================================================= */
-
-.time-box {
-    background-color: #000;
-    color: #fff;
-    border-radius: 16px;
-    padding: 24px 16px;
-    text-align: center;
+.section-box {
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 1rem;
+    padding: 1rem;
 }
 
-.time-text {
-    font-size: clamp(3rem, 8vw, 5rem);
+.clock-time {
+    font-size: 3rem;
     font-weight: 800;
-    line-height: 1;
+    line-height: 1.1;
 }
 
-.date-text {
-    margin-top: 10px;
+.clock-date {
     font-size: 1rem;
-    color: #ddd;
+    opacity: 0.85;
 }
 
+.summary-card {
+    border: 1px solid #dee2e6;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    height: 100%;
+}
 
-/* =========================================================
-   03. 操作按鈕
-========================================================= */
-
-.action-button {
-    height: 72px;
-    font-size: 1.4rem;
+.summary-value {
+    font-size: 1.75rem;
     font-weight: 700;
+    margin: 0.5rem 0;
 }
 
-
-/* =========================================================
-   04. 統計卡片
-========================================================= */
-
-.summary-number {
-    font-size: 2rem;
-    font-weight: 800;
-}
-
-.summary-unit {
-    font-size: .9rem;
-    color: #6c757d;
-}
-
-.summary-success {
-    color: #198754;
-}
-
-.summary-danger {
-    color: #dc3545;
-}
-
-
-/* =========================================================
-   05. 簽名區
-========================================================= */
-
-.signature-box {
+#signatureCanvas {
     width: 100%;
-    height: 160px;
+    height: 180px;
     border: 1px solid #ced4da;
-    border-radius: 8px;
-    background: #fff;
+    border-radius: 0.5rem;
+    background-color: #ffffff;
     touch-action: none;
 }
 
-
-/* =========================================================
-   06. 查詢區與 DataTables 排版
-========================================================= */
-
-.month-query-box {
-    width: 220px;
+#statusBox.success {
+    border-color: #198754;
+    background-color: #eaf7ef;
+    color: #198754;
 }
 
-.dt-search {
-    text-align: right;
-    margin-bottom: 12px;
+#statusBox.warning {
+    border-color: #ffc107;
+    background-color: #fff8e1;
+    color: #856404;
 }
 
-.dt-search label {
-    margin-bottom: 0;
-}
-
-.dt-search input {
-    margin-left: 8px;
-    max-width: 220px;
-}
-
-
-/* =========================================================
-   07. DataTables Responsive 表格
-========================================================= */
-
-#recordTable th,
-#recordTable td {
-    white-space: nowrap;
-    vertical-align: middle;
-}
-
-#recordTable th {
-    text-align: center;
-    font-weight: 700;
-}
-
-#recordTable td {
-    text-align: center;
-}
-
-#recordTable td:first-child,
-#recordTable td:nth-child(2) {
-    text-align: left;
+#statusBox.danger {
+    border-color: #dc3545;
+    background-color: #fdecec;
+    color: #dc3545;
 }
