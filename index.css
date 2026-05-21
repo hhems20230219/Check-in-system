@@ -8,6 +8,18 @@ body {
     border: 1px solid #dee2e6;
 }
 
+/* Navbar 救護車 icon */
+.brand-medical-icon {
+    color: #dc3545;
+}
+
+/* 必填星號 */
+.required-mark {
+    color: #dc3545;
+    font-weight: 700;
+    margin-left: 2px;
+}
+
 /* readonly 鎖定欄位：保留 readonly，但視覺上灰色鎖定 */
 .locked-field,
 .form-control[readonly] {
