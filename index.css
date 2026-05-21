@@ -1,42 +1,51 @@
-/* 全站基本設定 */
+/* ==============================
+   全域基礎樣式
+   ============================== */
 body {
     background-color: #f8f9fa;
 }
 
-/* Bootstrap 區塊容器統一樣式 */
-.section-card {
-    border-radius: 0.75rem;
-}
-
-/* 時間區 */
-.time-text {
+/* ==============================
+   時間區樣式
+   ============================== */
+.clock-time {
     font-size: 3rem;
     font-weight: 700;
-    letter-spacing: 0.08rem;
+    letter-spacing: 2px;
 }
 
-.date-text {
+.clock-date {
     font-size: 1rem;
 }
 
-/* 月份查詢 */
-.month-picker {
-    max-width: 220px;
+/* ==============================
+   查詢欄位
+   ============================== */
+.month-filter {
+    max-width: 180px;
 }
 
-/* Canvas 簽名區 */
+/* ==============================
+   簽名 Canvas
+   ============================== */
 .signature-canvas {
     width: 100%;
     height: 180px;
-    border: 1px solid #ced4da;
-    border-radius: 0.5rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.75rem;
     background-color: #fff;
     touch-action: none;
 }
 
-/* 手機版時間字體微調 */
+/* ==============================
+   響應式微調
+   ============================== */
 @media (max-width: 576px) {
-    .time-text {
-        font-size: 2.25rem;
+    .clock-time {
+        font-size: 2.2rem;
+    }
+
+    .navbar .gap-3 {
+        gap: 0.5rem !important;
     }
 }
