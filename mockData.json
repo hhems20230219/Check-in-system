@@ -6,7 +6,7 @@
       "title": "隊員",
       "name": "王小明",
       "personalId": "A123456789",
-      "enabled": false
+      "enabled": true
     },
     {
       "id": "P002",
