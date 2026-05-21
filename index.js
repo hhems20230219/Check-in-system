@@ -1,433 +1,733 @@
-const API_URL = "PASTE_YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
-const STORAGE_KEY_CURRENT_USER = "currentAttendanceUser";
+/* 系統集中設定 */
+const appConfig = {
+    useSampleData: true,
+    apiUrl: "請填入你的 Google Apps Script Web App URL",
 
-let staffList = [];
+    storageKeyCurrentUser: "xinxing_attendance_current_user",
+
+    rules: {
+        monthlyTargetHours: 4,
+        totalTargetHours: 100,
+        yearlyTrainingTarget: 12
+    },
+
+    workTypes: {
+        duty: "協勤",
+        training: "常年訓練",
+        business: "公差勤務"
+    },
+
+    dutyTypes: {
+        "協勤": ["待命協勤", "出勤"],
+        "常年訓練": [],
+        "公差勤務": ["公差勤務"]
+    }
+};
+
+/* 範例資料 */
+const sampleData = {
+    staffList: [
+        { id: "P001", unit: "新興分隊", title: "隊員", name: "王小明", identityNo: "A123456789", enabled: "TRUE" },
+        { id: "P002", unit: "新興分隊", title: "小隊長", name: "陳小華", identityNo: "B123456789", enabled: "TRUE" }
+    ],
+    records: [
+        {
+            id: "R001",
+            createdAt: "2026-05-01 08:00:00",
+            unit: "新興分隊",
+            title: "隊員",
+            name: "王小明",
+            workType: "協勤",
+            dutyType: "出勤",
+            checkInDate: "2026-05-01",
+            checkInTime: "08:00",
+            checkOutDate: "2026-05-01",
+            checkOutTime: "12:00",
+            workContent: "救護協勤",
+            signature: "",
+            hours: 4
+        }
+    ]
+};
+
 let currentUser = null;
+let staffList = [];
 let recordTable = null;
-let isDrawing = false;
+let signaturePad = {
+    canvas: null,
+    context: null,
+    isDrawing: false
+};
 
+/* 初始化 */
 $(document).ready(function () {
-    initClock();
-    initDefaultDateTime();
-    initEvents();
-    initSignatureCanvas();
-    initDataTable();
+    console.log("系統初始化開始");
 
-    refreshLocation();
+    initializeClock();
+    initializeDefaultMonth();
+    initializeModals();
+    initializeEvents();
+    initializeSignatureCanvas();
+    initializeTimeOptions();
+
     loadInitialData();
+
+    locationManager.locate();
+
+    console.log("系統初始化完成");
 });
 
-function initClock() {
+/* 初始化時鐘 */
+function initializeClock() {
     updateClock();
     setInterval(updateClock, 1000);
 }
 
+/* 每秒更新時間 */
 function updateClock() {
     const now = new Date();
+
     $("#currentTime").text(formatTime(now));
     $("#currentDate").text(formatDate(now));
 }
 
-function initDefaultDateTime() {
+/* 初始化月份 */
+function initializeDefaultMonth() {
     const now = new Date();
-    const today = formatDate(now);
-    const time = formatTime(now).substring(0, 5);
-
-    $("#signInDate").val(today);
-    $("#signInTime").val(time);
-    $("#signOutDate").val(today);
-    $("#signOutTime").val(time);
-    $("#queryMonth").val(today.substring(0, 7));
+    $("#queryMonth").val(`${now.getFullYear()}-${pad2(now.getMonth() + 1)}`);
 }
 
-function initEvents() {
-    $("#btnRelocate").on("click", refreshLocation);
-    $("#btnSaveUser").on("click", saveCurrentUser);
+/* 初始化 Modal */
+function initializeModals() {
+    window.userModal = new bootstrap.Modal(document.getElementById("userModal"));
+    window.checkInModal = new bootstrap.Modal(document.getElementById("checkInModal"));
+    window.checkOutModal = new bootstrap.Modal(document.getElementById("checkOutModal"));
+}
 
-    $("#btnOpenSignIn").on("click", openSignInModal);
-    $("#btnOpenSignOut").on("click", openSignOutModal);
+/* 綁定事件 */
+function initializeEvents() {
+    $("#btnLocate").on("click", handleLocate);
+    $("#btnOpenUserModal").on("click", openUserModal);
+    $("#btnSaveUser").on("click", saveSelectedUser);
 
-    $("#signInServiceType").on("change", updateSignInFields);
-    $("#signOutServiceType").on("change", updateSignOutFields);
+    $("#btnOpenCheckInModal").on("click", openCheckInModal);
+    $("#btnOpenCheckOutModal").on("click", openCheckOutModal);
 
-    $("#signInForm").on("submit", submitSignIn);
-    $("#signOutForm").on("submit", submitSignOut);
+    $("#checkInWorkType").on("change", updateCheckInFields);
+    $("#checkOutWorkType").on("change", updateCheckOutFields);
 
-    $("#queryMonth").on("change", loadRecordsAndSummary);
+    $("#checkInForm").on("submit", submitCheckIn);
+    $("#checkOutForm").on("submit", submitCheckOut);
+
+    $("#queryMonth").on("change", reloadRecords);
+
+    $("#userSelect").on("change", updateUserReadonlyFields);
     $("#btnClearSignature").on("click", clearSignature);
 }
 
-function initDataTable() {
+/* 載入初始資料 */
+async function loadInitialData() {
+    try {
+        staffList = await readStaffList();
+        fillUserSelect();
+
+        currentUser = loadCurrentUser();
+
+        if (currentUser) {
+            updateNavbarUser();
+            await reloadRecords();
+        } else {
+            showAlert("請先切換使用者。", "warning");
+            window.userModal.show();
+        }
+    } catch (error) {
+        console.log("載入初始資料失敗", error);
+        showAlert("載入資料失敗，請確認 API 或範例資料設定。", "danger");
+    }
+}
+
+/* 讀取人員資料 */
+async function readStaffList() {
+    if (appConfig.useSampleData) {
+        console.log("目前使用範例人員資料");
+        return sampleData.staffList.filter(x => String(x.enabled).toUpperCase() === "TRUE");
+    }
+
+    const result = await apiGet({
+        action: "readStaff"
+    });
+
+    return result.data || [];
+}
+
+/* 讀取出勤紀錄 */
+async function readRecords() {
+    if (appConfig.useSampleData) {
+        console.log("目前使用範例出勤紀錄");
+        return sampleData.records.filter(x => x.name === currentUser.name);
+    }
+
+    const result = await apiGet({
+        action: "readRecords",
+        name: currentUser.name,
+        month: $("#queryMonth").val()
+    });
+
+    return result.data || [];
+}
+
+/* 重新載入紀錄 */
+async function reloadRecords() {
+    if (!currentUser) {
+        return;
+    }
+
+    const records = await readRecords();
+    const month = $("#queryMonth").val();
+    const filteredRecords = filterRecordsByMonth(records, month);
+
+    renderRecordTable(filteredRecords);
+    renderSummary(filteredRecords, records);
+
+    console.log("出勤紀錄已重新載入");
+}
+
+/* 篩選月份紀錄 */
+function filterRecordsByMonth(records, month) {
+    if (!month) {
+        return records;
+    }
+
+    return records.filter(item => String(item.checkInDate || "").startsWith(month));
+}
+
+/* 渲染 DataTable */
+function renderRecordTable(records) {
+    if (recordTable) {
+        recordTable.clear().rows.add(records).draw();
+        return;
+    }
+
     recordTable = $("#recordTable").DataTable({
+        data: records,
         responsive: true,
+        columns: [
+            { data: "workType", defaultContent: "" },
+            { data: "dutyType", defaultContent: "" },
+            { data: "checkInDate", defaultContent: "" },
+            { data: "checkInTime", defaultContent: "" },
+            { data: "checkOutDate", defaultContent: "" },
+            { data: "checkOutTime", defaultContent: "" },
+            { data: "hours", defaultContent: "-" }
+        ],
         pageLength: 10,
         order: [[2, "desc"], [3, "desc"]],
         language: {
             search: "搜尋：",
-            lengthMenu: "每頁 _MENU_ 筆",
-            info: "顯示第 _START_ 到 _END_ 筆，共 _TOTAL_ 筆",
+            lengthMenu: "每頁顯示 _MENU_ 筆",
+            info: "顯示第 _START_ 至 _END_ 筆，共 _TOTAL_ 筆",
             paginate: {
-                first: "第一頁",
-                last: "最後一頁",
-                next: "下一頁",
-                previous: "上一頁"
+                previous: "上一頁",
+                next: "下一頁"
             },
-            zeroRecords: "查無資料",
-            infoEmpty: "目前沒有資料"
+            zeroRecords: "查無資料"
         }
     });
 }
 
-async function loadInitialData() {
-    try {
-        showAlert("info", "正在讀取人員資料");
+/* 渲染 Summary */
+function renderSummary(monthRecords, allRecords) {
+    const year = new Date().getFullYear();
 
-        const response = await apiGet({ action: "readStaff" });
-        staffList = response.data || [];
+    const monthlyHours = sumHours(
+        monthRecords.filter(x => x.workType === appConfig.workTypes.duty)
+    );
 
-        renderStaffSelect();
-        restoreCurrentUser();
+    const totalHours = sumHours(
+        allRecords.filter(x => x.workType === appConfig.workTypes.duty)
+    );
 
-        if (!currentUser) {
-            new bootstrap.Modal("#userModal", { backdrop: "static", keyboard: false }).show();
-        }
+    const trainingCount = allRecords.filter(x =>
+        x.workType === appConfig.workTypes.training &&
+        String(x.checkInDate || "").startsWith(String(year)) &&
+        x.dutyType === "簽到"
+    ).length;
 
-        await loadRecordsAndSummary();
-        hideAlert();
+    $("#monthlyHours").text(monthlyHours);
+    $("#totalHours").text(totalHours);
+    $("#trainingYear").text(year);
+    $("#trainingCount").text(trainingCount);
 
-        console.log("初始化資料完成");
-    } catch (error) {
-        showAlert("danger", error.message);
-        console.log("初始化資料失敗");
-    }
+    updateProgress("#monthlyProgress", monthlyHours, appConfig.rules.monthlyTargetHours);
+    updateProgress("#totalProgress", totalHours, appConfig.rules.totalTargetHours);
+    updateProgress("#trainingProgress", trainingCount, appConfig.rules.yearlyTrainingTarget);
 }
 
-function renderStaffSelect() {
-    const select = $("#staffSelect");
+/* 加總時數 */
+function sumHours(records) {
+    return records.reduce((total, item) => total + Number(item.hours || 0), 0);
+}
+
+/* 更新進度條 */
+function updateProgress(selector, value, target) {
+    const percent = target > 0 ? Math.min(100, Math.round((value / target) * 100)) : 0;
+
+    $(selector)
+        .css("width", `${percent}%`)
+        .text(`${percent}%`);
+}
+
+/* 開啟使用者 Modal */
+function openUserModal() {
+    window.userModal.show();
+}
+
+/* 填入人員下拉 */
+function fillUserSelect() {
+    const select = $("#userSelect");
     select.empty();
 
-    staffList.forEach(staff => {
-        select.append(`
-            <option value="${staff.id}">
-                ${staff.unit} / ${staff.title} / ${staff.name}
-            </option>
-        `);
+    staffList.forEach(item => {
+        select.append(`<option value="${item.id}">${item.name}</option>`);
     });
+
+    updateUserReadonlyFields();
 }
 
-function restoreCurrentUser() {
-    const saved = localStorage.getItem(STORAGE_KEY_CURRENT_USER);
+/* 更新使用者 readonly 欄位 */
+function updateUserReadonlyFields() {
+    const selectedId = $("#userSelect").val();
+    const user = staffList.find(x => x.id === selectedId);
 
-    if (!saved) {
-        updateNavbarUser(null);
+    $("#userUnit").val(user ? user.unit : "");
+    $("#userTitle").val(user ? user.title : "");
+}
+
+/* 儲存目前使用者 */
+async function saveSelectedUser() {
+    const selectedId = $("#userSelect").val();
+    const user = staffList.find(x => x.id === selectedId);
+
+    if (!user) {
+        showAlert("請選擇使用者。", "warning");
         return;
     }
 
-    currentUser = JSON.parse(saved);
-    updateNavbarUser(currentUser);
+    currentUser = user;
+    localStorage.setItem(appConfig.storageKeyCurrentUser, JSON.stringify(user));
+
+    updateNavbarUser();
+    window.userModal.hide();
+
+    await reloadRecords();
+
+    showAlert("使用者已切換完成。", "success");
 }
 
-function saveCurrentUser() {
-    const staffId = $("#staffSelect").val();
-    currentUser = staffList.find(x => x.id === staffId);
+/* 載入目前使用者 */
+function loadCurrentUser() {
+    const raw = localStorage.getItem(appConfig.storageKeyCurrentUser);
 
-    if (!currentUser) {
-        showAlert("warning", "請先選擇使用者");
+    if (!raw) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(raw);
+    } catch {
+        return null;
+    }
+}
+
+/* 更新 Navbar 使用者資訊 */
+function updateNavbarUser() {
+    $("#navUnit").text(currentUser?.unit || "-");
+    $("#navTitle").text(currentUser?.title || "-");
+    $("#navName").text(currentUser?.name || "-");
+}
+
+/* 執行定位 */
+async function handleLocate() {
+    const result = await locationManager.locate();
+
+    showAlert(result.message, result.success ? "success" : "danger");
+}
+
+/* 開啟簽到 Modal */
+function openCheckInModal() {
+    if (!ensureCurrentUser()) {
         return;
     }
 
-    localStorage.setItem(STORAGE_KEY_CURRENT_USER, JSON.stringify(currentUser));
-    updateNavbarUser(currentUser);
+    setDefaultDateTime("#checkInDate", "#checkInTime");
+    updateCheckInFields();
 
-    bootstrap.Modal.getInstance(document.getElementById("userModal")).hide();
-    loadRecordsAndSummary();
-
-    console.log("已切換目前使用者");
+    window.checkInModal.show();
 }
 
-function updateNavbarUser(user) {
-    $("#navUnit").text(user ? user.unit : "-");
-    $("#navTitle").text(user ? user.title : "-");
-    $("#navName").text(user ? user.name : "-");
-}
+/* 開啟簽退 Modal */
+function openCheckOutModal() {
+    if (!ensureCurrentUser()) {
+        return;
+    }
 
-function openSignInModal() {
-    if (!ensureCurrentUser()) return;
-
-    initDefaultDateTime();
-    updateSignInFields();
-
-    new bootstrap.Modal("#signInModal").show();
-}
-
-function openSignOutModal() {
-    if (!ensureCurrentUser()) return;
-
-    initDefaultDateTime();
-    updateSignOutFields();
+    setDefaultDateTime("#checkOutDate", "#checkOutTime");
+    updateCheckOutFields();
     clearSignature();
 
-    new bootstrap.Modal("#signOutModal").show();
+    window.checkOutModal.show();
 }
 
-function updateSignInFields() {
-    const serviceType = $("#signInServiceType").val();
-
-    $("#signInDutyTypeBlock").toggleClass("d-none", serviceType === "常年訓練");
-    $("#trainingStatusBlock").toggleClass("d-none", serviceType !== "常年訓練");
-}
-
-function updateSignOutFields() {
-    const serviceType = $("#signOutServiceType").val();
-
-    $("#signOutDutyTypeBlock").toggleClass("d-none", serviceType !== "協勤");
-    $("#workContentBlock").toggleClass("d-none", serviceType === "常年訓練");
-}
-
-async function submitSignIn(event) {
-    event.preventDefault();
-
-    const serviceType = $("#signInServiceType").val();
-
-    if (!canOperateByLocation(serviceType)) {
-        showAlert("warning", "此協勤種類需要定位成功且在允許範圍內才能簽到");
-        return;
-    }
-
-    const dutyType = serviceType === "常年訓練"
-        ? $("#trainingStatus").val()
-        : $("#signInDutyType").val();
-
-    const payload = {
-        action: "create",
-        staffId: currentUser.id,
-        unit: currentUser.unit,
-        title: currentUser.title,
-        name: currentUser.name,
-        serviceType: serviceType,
-        dutyType: dutyType,
-        signInDate: $("#signInDate").val(),
-        signInTime: $("#signInTime").val()
-    };
-
-    try {
-        const response = await apiPost(payload);
-        showAlert("success", response.message || "簽到完成");
-        bootstrap.Modal.getInstance(document.getElementById("signInModal")).hide();
-        await loadRecordsAndSummary();
-
-        console.log("簽到資料已送出");
-    } catch (error) {
-        showAlert("danger", error.message);
-        console.log("簽到失敗");
-    }
-}
-
-async function submitSignOut(event) {
-    event.preventDefault();
-
-    const serviceType = $("#signOutServiceType").val();
-
-    if (!canOperateByLocation(serviceType)) {
-        showAlert("warning", "此協勤種類需要定位成功且在允許範圍內才能簽退");
-        return;
-    }
-
-    const workContentRequired = serviceType === "協勤" || serviceType === "公差勤務";
-    const workContent = $("#workContent").val().trim();
-
-    if (workContentRequired && !workContent) {
-        showAlert("warning", "請填寫工作內容");
-        return;
-    }
-
-    const payload = {
-        action: "update",
-        staffId: currentUser.id,
-        unit: currentUser.unit,
-        title: currentUser.title,
-        name: currentUser.name,
-        serviceType: serviceType,
-        dutyType: $("#signOutDutyType").val(),
-        signOutDate: $("#signOutDate").val(),
-        signOutTime: $("#signOutTime").val(),
-        workContent: workContent,
-        signature: getSignatureBase64()
-    };
-
-    try {
-        const response = await apiPost(payload);
-        showAlert("success", response.message || "簽退完成");
-        bootstrap.Modal.getInstance(document.getElementById("signOutModal")).hide();
-        await loadRecordsAndSummary();
-
-        console.log("簽退資料已送出");
-    } catch (error) {
-        showAlert("danger", error.message);
-        console.log("簽退失敗");
-    }
-}
-
-async function loadRecordsAndSummary() {
-    if (!currentUser) return;
-
-    const month = $("#queryMonth").val();
-
-    const response = await apiGet({
-        action: "readDashboard",
-        staffId: currentUser.id,
-        month: month
-    });
-
-    renderSummary(response.summary);
-    renderRecords(response.records || []);
-}
-
-function renderSummary(summary) {
-    const monthlyTarget = summary.monthlyTargetHours || 4;
-    const totalTarget = summary.totalTargetHours || 100;
-    const trainingTarget = summary.trainingTargetCount || 12;
-
-    $("#monthlyHours").text(summary.monthlyHours || 0);
-    $("#totalHours").text(summary.totalHours || 0);
-    $("#trainingYear").text(summary.trainingYear || new Date().getFullYear());
-    $("#trainingCount").text(summary.trainingCount || 0);
-
-    setProgress("#monthlyProgress", summary.monthlyHours || 0, monthlyTarget);
-    setProgress("#totalProgress", summary.totalHours || 0, totalTarget);
-    setProgress("#trainingProgress", summary.trainingCount || 0, trainingTarget);
-}
-
-function setProgress(selector, value, target) {
-    const percent = target > 0 ? Math.min(100, Math.round(value / target * 100)) : 0;
-    $(selector).css("width", `${percent}%`).text(`${percent}%`);
-}
-
-function renderRecords(records) {
-    recordTable.clear();
-
-    records.forEach(item => {
-        recordTable.row.add([
-            item.serviceType,
-            item.dutyType,
-            item.signInDate,
-            item.signInTime,
-            item.signOutDate,
-            item.signOutTime,
-            item.hours
-        ]);
-    });
-
-    recordTable.draw();
-}
-
-async function apiGet(params) {
-    const url = `${API_URL}?${new URLSearchParams(params).toString()}`;
-    const response = await fetch(url);
-    const result = await response.json();
-
-    if (!result.success) {
-        throw new Error(result.message || "API 查詢失敗");
-    }
-
-    return result;
-}
-
-async function apiPost(payload) {
-    const response = await fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify(payload)
-    });
-
-    const result = await response.json();
-
-    if (!result.success) {
-        throw new Error(result.message || "API 寫入失敗");
-    }
-
-    return result;
-}
-
-function showAlert(type, message) {
-    $("#systemAlert")
-        .removeClass("d-none alert-success alert-danger alert-warning alert-info")
-        .addClass(`alert-${type}`)
-        .text(message);
-}
-
-function hideAlert() {
-    $("#systemAlert").addClass("d-none").text("");
-}
-
+/* 檢查目前使用者 */
 function ensureCurrentUser() {
     if (!currentUser) {
-        showAlert("warning", "請先切換使用者");
-        new bootstrap.Modal("#userModal", { backdrop: "static", keyboard: false }).show();
+        showAlert("請先切換使用者。", "warning");
+        window.userModal.show();
         return false;
     }
 
     return true;
 }
 
-function formatDate(date) {
-    return date.toISOString().substring(0, 10);
+/* 更新簽到欄位 */
+function updateCheckInFields() {
+    const workType = $("#checkInWorkType").val();
+
+    fillDutyType("#checkInDutyType", workType);
+
+    if (workType === appConfig.workTypes.training) {
+        $("#checkInDutyTypeGroup").addClass("d-none");
+        $("#trainingActionGroup").removeClass("d-none");
+    } else {
+        $("#checkInDutyTypeGroup").removeClass("d-none");
+        $("#trainingActionGroup").addClass("d-none");
+    }
 }
 
-function formatTime(date) {
-    return date.toTimeString().substring(0, 8);
+/* 更新簽退欄位 */
+function updateCheckOutFields() {
+    const workType = $("#checkOutWorkType").val();
+
+    fillDutyType("#checkOutDutyType", workType);
+
+    if (workType === appConfig.workTypes.training) {
+        $("#checkOutDutyTypeGroup").addClass("d-none");
+        $("#workContentGroup").addClass("d-none");
+    } else {
+        $("#checkOutDutyTypeGroup").removeClass("d-none");
+        $("#workContentGroup").removeClass("d-none");
+    }
 }
 
-function initSignatureCanvas() {
-    const canvas = document.getElementById("signatureCanvas");
-    const context = canvas.getContext("2d");
+/* 填入服勤類別 */
+function fillDutyType(selector, workType) {
+    const select = $(selector);
+    select.empty();
 
-    function getPoint(event) {
-        const rect = canvas.getBoundingClientRect();
-        const source = event.touches ? event.touches[0] : event;
+    const items = appConfig.dutyTypes[workType] || [];
 
-        return {
-            x: source.clientX - rect.left,
-            y: source.clientY - rect.top
-        };
-    }
-
-    function start(event) {
-        event.preventDefault();
-        isDrawing = true;
-
-        const point = getPoint(event);
-        context.beginPath();
-        context.moveTo(point.x, point.y);
-    }
-
-    function move(event) {
-        if (!isDrawing) return;
-
-        event.preventDefault();
-        const point = getPoint(event);
-        context.lineTo(point.x, point.y);
-        context.stroke();
-    }
-
-    function end() {
-        isDrawing = false;
-    }
-
-    canvas.addEventListener("mousedown", start);
-    canvas.addEventListener("mousemove", move);
-    canvas.addEventListener("mouseup", end);
-    canvas.addEventListener("mouseleave", end);
-    canvas.addEventListener("touchstart", start);
-    canvas.addEventListener("touchmove", move);
-    canvas.addEventListener("touchend", end);
+    items.forEach(item => {
+        select.append(`<option value="${item}">${item}</option>`);
+    });
 }
 
+/* 送出簽到 */
+async function submitCheckIn(event) {
+    event.preventDefault();
+
+    const workType = $("#checkInWorkType").val();
+
+    if (!await validateLocationForWorkType(workType)) {
+        return;
+    }
+
+    const dutyType = workType === appConfig.workTypes.training
+        ? $("#trainingAction").val()
+        : $("#checkInDutyType").val();
+
+    const payload = {
+        action: "create",
+        unit: currentUser.unit,
+        title: currentUser.title,
+        name: currentUser.name,
+        workType,
+        dutyType,
+        checkInDate: $("#checkInDate").val(),
+        checkInTime: $("#checkInTime").val()
+    };
+
+    try {
+        if (appConfig.useSampleData) {
+            payload.id = createId();
+            payload.createdAt = formatDateTime(new Date());
+            payload.hours = "";
+            sampleData.records.push(payload);
+            console.log("範例模式：已新增簽到資料");
+        } else {
+            await apiPost(payload);
+        }
+
+        window.checkInModal.hide();
+        showAlert("簽到完成。", "success");
+        await reloadRecords();
+    } catch (error) {
+        console.log("簽到失敗", error);
+        showAlert("簽到失敗，請稍後再試。", "danger");
+    }
+}
+
+/* 送出簽退 */
+async function submitCheckOut(event) {
+    event.preventDefault();
+
+    const workType = $("#checkOutWorkType").val();
+
+    if (!await validateLocationForWorkType(workType)) {
+        return;
+    }
+
+    const workContent = $("#workContent").val().trim();
+
+    if (workType !== appConfig.workTypes.training && !workContent) {
+        showAlert("請填寫工作內容。", "warning");
+        return;
+    }
+
+    const payload = {
+        action: "update",
+        name: currentUser.name,
+        workType,
+        dutyType: workType === appConfig.workTypes.training ? "" : $("#checkOutDutyType").val(),
+        checkOutDate: $("#checkOutDate").val(),
+        checkOutTime: $("#checkOutTime").val(),
+        workContent,
+        signature: exportSignatureBase64()
+    };
+
+    try {
+        if (appConfig.useSampleData) {
+            updateSampleCheckOut(payload);
+            console.log("範例模式：已更新簽退資料");
+        } else {
+            await apiPost(payload);
+        }
+
+        window.checkOutModal.hide();
+        showAlert("簽退完成。", "success");
+        await reloadRecords();
+    } catch (error) {
+        console.log("簽退失敗", error);
+        showAlert("簽退失敗，請稍後再試。", "danger");
+    }
+}
+
+/* 驗證定位 */
+async function validateLocationForWorkType(workType) {
+    if (!locationManager.isLocationRequired(workType)) {
+        return true;
+    }
+
+    if (!locationManager.enableLocationCheck) {
+        return true;
+    }
+
+    if (locationManager.isLocationValid) {
+        return true;
+    }
+
+    const result = await locationManager.locate();
+
+    if (!result.success) {
+        showAlert("此協勤種類需要定位成功後才能操作。", "danger");
+        return false;
+    }
+
+    return true;
+}
+
+/* 範例模式簽退 */
+function updateSampleCheckOut(payload) {
+    const record = [...sampleData.records]
+        .reverse()
+        .find(x =>
+            x.name === payload.name &&
+            x.workType === payload.workType &&
+            !x.checkOutDate
+        );
+
+    if (!record) {
+        throw new Error("找不到尚未簽退的紀錄");
+    }
+
+    record.dutyType = payload.dutyType || record.dutyType;
+    record.checkOutDate = payload.checkOutDate;
+    record.checkOutTime = payload.checkOutTime;
+    record.workContent = payload.workContent;
+    record.signature = payload.signature;
+    record.hours = calculateHours(record.checkInDate, record.checkInTime, record.checkOutDate, record.checkOutTime);
+}
+
+/* 初始化時間選項 */
+function initializeTimeOptions() {
+    fillTimeOptions("#checkInTime");
+    fillTimeOptions("#checkOutTime");
+}
+
+/* 建立 00/30 分時間選項 */
+function fillTimeOptions(selector) {
+    const select = $(selector);
+    select.empty();
+
+    for (let hour = 0; hour < 24; hour++) {
+        ["00", "30"].forEach(minute => {
+            const value = `${pad2(hour)}:${minute}`;
+            select.append(`<option value="${value}">${value}</option>`);
+        });
+    }
+}
+
+/* 設定預設日期時間 */
+function setDefaultDateTime(dateSelector, timeSelector) {
+    const now = new Date();
+    $(dateSelector).val(formatDate(now));
+
+    const minute = now.getMinutes() < 30 ? "00" : "30";
+    $(timeSelector).val(`${pad2(now.getHours())}:${minute}`);
+}
+
+/* 初始化簽名 Canvas */
+function initializeSignatureCanvas() {
+    signaturePad.canvas = document.getElementById("signatureCanvas");
+    signaturePad.context = signaturePad.canvas.getContext("2d");
+
+    resizeSignatureCanvas();
+
+    window.addEventListener("resize", resizeSignatureCanvas);
+
+    signaturePad.canvas.addEventListener("pointerdown", startDraw);
+    signaturePad.canvas.addEventListener("pointermove", draw);
+    signaturePad.canvas.addEventListener("pointerup", stopDraw);
+    signaturePad.canvas.addEventListener("pointerleave", stopDraw);
+}
+
+/* 調整 Canvas 尺寸 */
+function resizeSignatureCanvas() {
+    const canvas = signaturePad.canvas;
+    const rect = canvas.getBoundingClientRect();
+
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+
+    signaturePad.context.lineWidth = 2;
+    signaturePad.context.lineCap = "round";
+}
+
+/* 開始簽名 */
+function startDraw(event) {
+    signaturePad.isDrawing = true;
+    const point = getCanvasPoint(event);
+
+    signaturePad.context.beginPath();
+    signaturePad.context.moveTo(point.x, point.y);
+}
+
+/* 繪製簽名 */
+function draw(event) {
+    if (!signaturePad.isDrawing) {
+        return;
+    }
+
+    const point = getCanvasPoint(event);
+
+    signaturePad.context.lineTo(point.x, point.y);
+    signaturePad.context.stroke();
+}
+
+/* 停止簽名 */
+function stopDraw() {
+    signaturePad.isDrawing = false;
+}
+
+/* 取得 Canvas 座標 */
+function getCanvasPoint(event) {
+    const rect = signaturePad.canvas.getBoundingClientRect();
+
+    return {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
+    };
+}
+
+/* 清除簽名 */
 function clearSignature() {
-    const canvas = document.getElementById("signatureCanvas");
-    const context = canvas.getContext("2d");
-    context.clearRect(0, 0, canvas.width, canvas.height);
+    signaturePad.context.clearRect(0, 0, signaturePad.canvas.width, signaturePad.canvas.height);
 }
 
-function getSignatureBase64() {
-    return document.getElementById("signatureCanvas").toDataURL("image/png");
+/* 匯出簽名 Base64 */
+function exportSignatureBase64() {
+    return signaturePad.canvas.toDataURL("image/png");
+}
+
+/* API GET */
+async function apiGet(params) {
+    const url = new URL(appConfig.apiUrl);
+
+    Object.keys(params).forEach(key => {
+        url.searchParams.append(key, params[key]);
+    });
+
+    const response = await fetch(url.toString());
+    return await response.json();
+}
+
+/* API POST */
+async function apiPost(payload) {
+    const response = await fetch(appConfig.apiUrl, {
+        method: "POST",
+        body: JSON.stringify(payload)
+    });
+
+    return await response.json();
+}
+
+/* 顯示 Alert */
+function showAlert(message, type) {
+    $("#alertArea")
+        .removeClass("d-none alert-success alert-danger alert-warning alert-info")
+        .addClass(`alert-${type}`)
+        .text(message);
+}
+
+/* 計算時數 */
+function calculateHours(startDate, startTime, endDate, endTime) {
+    const start = new Date(`${startDate}T${startTime}:00`);
+    const end = new Date(`${endDate}T${endTime}:00`);
+    const hours = (end - start) / 1000 / 60 / 60;
+
+    return hours > 0 ? Number(hours.toFixed(1)) : 0;
+}
+
+/* 日期格式 */
+function formatDate(date) {
+    return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+/* 時間格式 */
+function formatTime(date) {
+    return `${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
+}
+
+/* 日期時間格式 */
+function formatDateTime(date) {
+    return `${formatDate(date)} ${formatTime(date)}`;
+}
+
+/* 補零 */
+function pad2(value) {
+    return String(value).padStart(2, "0");
+}
+
+/* 建立 ID */
+function createId() {
+    return `R${Date.now()}`;
 }
