@@ -74,25 +74,28 @@ const attendanceLocation = (function () {
 
     /* 取得定位失敗提醒文字 */
     function getLocationFailMessage(error) {
-        const helpText = "可嘗試開啟 WiFi 或藍牙，並確認瀏覽器定位權限已允許。";
-
         if (!error) {
-            return "定位失敗，" + helpText;
+            return "定位失敗：目前無法取得定位資訊，請稍後重新定位。";
         }
 
         if (error.code === error.PERMISSION_DENIED) {
-            return "定位失敗：瀏覽器定位權限被拒絕，請允許此網站使用定位。";
+            return "定位失敗：瀏覽器定位權限被拒絕，請先允許此網站使用定位。";
         }
 
         if (error.code === error.POSITION_UNAVAILABLE) {
-            return "定位失敗：目前無法取得位置，" + helpText;
+            return "定位失敗：目前無法取得位置，請先確認裝置定位功能已開啟，並移到較空曠處後重新定位。";
         }
 
         if (error.code === error.TIMEOUT) {
-            return "定位逾時：目前定位時間過久，" + helpText;
+            return "定位逾時：目前定位時間過久，請移到較空曠處後重新定位。";
         }
 
-        return "定位失敗，" + helpText;
+        return "定位失敗：目前無法完成定位，請稍後重新定位。";
+    }
+
+    /* 取得距離太遠提醒文字 */
+    function getOutOfRangeMessage(nearest) {
+        return `定位失敗：最近地點為 ${nearest.name}，距離約 ${Math.round(nearest.distanceMeters)} 公尺，超出允許範圍 ${config.allowedRadiusMeters} 公尺。若實際已在指定地點附近，可嘗試開啟 WiFi 或藍牙以提高定位精準度後重新定位。`;
     }
 
     /* 執行定位 */
@@ -116,7 +119,7 @@ const attendanceLocation = (function () {
                 isValid: false,
                 nearestLocationName: "",
                 distanceMeters: null,
-                message: "此瀏覽器不支援 GPS 定位，請改用支援定位功能的瀏覽器"
+                message: "此瀏覽器不支援 GPS 定位，請改用支援定位功能的瀏覽器。"
             };
 
             onDone(currentState);
@@ -136,8 +139,8 @@ const attendanceLocation = (function () {
                     nearestLocationName: nearest.name,
                     distanceMeters: nearest.distanceMeters,
                     message: isValid
-                        ? `定位成功：靠近 ${nearest.name}，距離約 ${Math.round(nearest.distanceMeters)} 公尺`
-                        : `定位失敗：最近地點為 ${nearest.name}，距離約 ${Math.round(nearest.distanceMeters)} 公尺，超出允許範圍 ${config.allowedRadiusMeters} 公尺`
+                        ? `定位成功：靠近 ${nearest.name}，距離約 ${Math.round(nearest.distanceMeters)} 公尺。`
+                        : getOutOfRangeMessage(nearest)
                 };
 
                 onDone(currentState);
