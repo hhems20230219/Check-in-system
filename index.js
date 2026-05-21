@@ -137,7 +137,6 @@ $(document).ready(function () {
     initModals();
     initEvents();
     initSignatureCanvas();
-    initMonthFilter();
     initDataTable();
 
     loadInitialData();
@@ -207,6 +206,10 @@ function initEvents() {
     $("#checkInType").on("change", updateCheckInFields);
     $("#checkOutType, #serviceType").on("change", updateCheckOutFields);
 
+    $("#userSelect").on("change", function () {
+        syncStaffToUserFields($(this).val());
+    });
+
     $("#checkInName").on("change", function () {
         syncStaffToCheckInFields($(this).val());
     });
@@ -220,10 +223,6 @@ function initEvents() {
 
     $("#monthFilter").on("change", renderAttendanceTable);
 
-    $("#userSelect").on("change", function () {
-        syncStaffToUserFields($(this).val());
-    });
-
     $("#btnClearSignature").on("click", function () {
         signaturePad.clear();
     });
@@ -231,12 +230,6 @@ function initEvents() {
     $(window).on("resize", function () {
         resizeSignatureCanvas();
     });
-}
-
-/* 初始化月份查詢 */
-function initMonthFilter() {
-    const now = new Date();
-    $("#monthFilter").val(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
 }
 
 /* 初始化 DataTables */
@@ -288,6 +281,7 @@ function loadInitialData() {
 function afterDataLoaded() {
     bindStaffOptions();
     restoreCurrentUser();
+    populateMonthFilter();
     renderAttendanceTable();
     renderSummary();
 
@@ -298,9 +292,7 @@ function afterDataLoaded() {
 
 /* 綁定人員下拉 */
 function bindStaffOptions() {
-    const enabledStaff = staffList.filter(function (item) {
-        return item.enabled === true || item.enabled === "TRUE" || item.enabled === "是";
-    });
+    const enabledStaff = getEnabledStaffList();
 
     const options = enabledStaff.map(function (item) {
         return `<option value="${item.id}">${item.name}</option>`;
@@ -311,10 +303,47 @@ function bindStaffOptions() {
     $("#checkOutName").html(options.join(""));
 
     if (enabledStaff.length > 0) {
+        $("#userSelect").val(enabledStaff[0].id);
+        $("#checkInName").val(enabledStaff[0].id);
+        $("#checkOutName").val(enabledStaff[0].id);
+
         syncStaffToUserFields(enabledStaff[0].id);
         syncStaffToCheckInFields(enabledStaff[0].id);
         syncStaffToCheckOutFields(enabledStaff[0].id);
     }
+}
+
+/* 取得啟用人員 */
+function getEnabledStaffList() {
+    return staffList.filter(function (item) {
+        return item.enabled === true || item.enabled === "TRUE" || item.enabled === "是";
+    });
+}
+
+/* 建立月份篩選，支援 All */
+function populateMonthFilter() {
+    const months = [];
+
+    attendanceList.forEach(function (item) {
+        if (item.checkInDate && item.checkInDate.length >= 7) {
+            const month = item.checkInDate.substring(0, 7);
+
+            if (!months.includes(month)) {
+                months.push(month);
+            }
+        }
+    });
+
+    months.sort().reverse();
+
+    let options = `<option value="">All</option>`;
+
+    months.forEach(function (month) {
+        options += `<option value="${month}">${month}</option>`;
+    });
+
+    $("#monthFilter").html(options);
+    $("#monthFilter").val("");
 }
 
 /* 切換使用者 Modal 欄位同步 */
@@ -331,7 +360,6 @@ function syncStaffToCheckInFields(staffId) {
     const staff = findStaffById(staffId);
     if (!staff) return;
 
-    $("#checkInUnit").val(staff.unit);
     $("#checkInTitle").val(staff.title);
 }
 
@@ -340,12 +368,16 @@ function syncStaffToCheckOutFields(staffId) {
     const staff = findStaffById(staffId);
     if (!staff) return;
 
-    $("#checkOutUnit").val(staff.unit);
     $("#checkOutTitle").val(staff.title);
 }
 
 /* 開啟使用者切換 */
 function openUserModal() {
+    if (currentUser) {
+        $("#userSelect").val(currentUser.id);
+        syncStaffToUserFields(currentUser.id);
+    }
+
     window.userModal.show();
 }
 
@@ -360,7 +392,10 @@ function saveCurrentUser() {
 
     currentUser = staff;
     localStorage.setItem(appConfig.storageKeyCurrentUser, JSON.stringify(currentUser));
+
     updateUserUi();
+    syncCurrentUserToAttendanceModals();
+
     window.userModal.hide();
 
     showAlert("success", "已切換使用者：" + currentUser.name);
@@ -379,8 +414,27 @@ function restoreCurrentUser() {
     const savedUser = JSON.parse(saved);
     const staff = findStaffById(savedUser.id);
 
-    currentUser = staff || null;
+    if (!staff) {
+        localStorage.removeItem(appConfig.storageKeyCurrentUser);
+        currentUser = null;
+        updateUserUi();
+        return;
+    }
+
+    currentUser = staff;
     updateUserUi();
+    syncCurrentUserToAttendanceModals();
+}
+
+/* 同步目前使用者到簽到 / 簽退 Modal */
+function syncCurrentUserToAttendanceModals() {
+    if (!currentUser) return;
+
+    $("#checkInName").val(currentUser.id);
+    $("#checkOutName").val(currentUser.id);
+
+    syncStaffToCheckInFields(currentUser.id);
+    syncStaffToCheckOutFields(currentUser.id);
 }
 
 /* 更新 Navbar 使用者資訊 */
@@ -484,6 +538,7 @@ function submitCheckIn() {
 
     if (appConfig.useMockData) {
         attendanceList.push(record);
+        populateMonthFilter();
         renderAttendanceTable();
         renderSummary();
         window.checkInModal.hide();
@@ -494,6 +549,7 @@ function submitCheckIn() {
     postJson("create", record)
         .then(function () {
             attendanceList.push(record);
+            populateMonthFilter();
             renderAttendanceTable();
             renderSummary();
             window.checkInModal.hide();
