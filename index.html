@@ -9,9 +9,9 @@
     <link href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
     <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
-
     <link href="./index.css" rel="stylesheet">
 </head>
+
 <body>
     <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom">
         <div class="container">
@@ -23,9 +23,7 @@
                 <span><i class="fa-solid fa-building me-1"></i><span id="navUnit">-</span></span>
                 <span><i class="fa-solid fa-id-badge me-1"></i><span id="navTitle">-</span></span>
                 <span><i class="fa-solid fa-user me-1"></i><span id="navName">-</span></span>
-                <button id="btnOpenUserModal" class="btn btn-outline-primary btn-sm fw-bold">
-                    <i class="fa-solid fa-right-left me-1"></i>切換
-                </button>
+                <button id="btnOpenUserModal" class="btn btn-outline-primary btn-sm fw-bold">切換</button>
             </div>
         </div>
     </nav>
@@ -39,67 +37,57 @@
         </section>
 
         <section class="card rounded-4 mb-3">
-            <div class="card-body">
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
-                    <div>
-                        <h5 class="card-title mb-1">
-                            <i class="fa-solid fa-location-dot me-2"></i>定位狀態
-                        </h5>
-                        <div id="locationStatus" class="text-muted">尚未定位</div>
-                    </div>
-                    <button id="btnRefreshLocation" class="btn btn-outline-success fw-bold">
-                        <i class="fa-solid fa-location-crosshairs me-1"></i>重新定位
-                    </button>
+            <div class="card-body d-flex flex-column flex-md-row justify-content-between gap-2">
+                <div>
+                    <h5 class="fw-bold mb-1"><i class="fa-solid fa-location-dot me-2"></i>定位狀態</h5>
+                    <div id="locationStatus" class="text-muted">尚未定位</div>
                 </div>
+                <button id="btnRefreshLocation" class="btn btn-outline-success fw-bold">重新定位</button>
             </div>
         </section>
 
-        <section id="alertArea" class="alert d-none" role="alert"></section>
+        <section id="alertArea" class="alert d-none"></section>
 
         <section class="card rounded-4 mb-3">
             <div class="card-body d-grid gap-2">
-                <button id="btnOpenCheckInModal" class="btn btn-primary btn-lg fw-bold">
-                    <i class="fa-solid fa-right-to-bracket me-2"></i>簽到
-                </button>
-                <button id="btnOpenCheckOutModal" class="btn btn-warning btn-lg fw-bold">
-                    <i class="fa-solid fa-right-from-bracket me-2"></i>簽退
-                </button>
+                <button id="btnOpenCheckInModal" class="btn btn-primary btn-lg fw-bold">簽到</button>
+                <button id="btnOpenCheckOutModal" class="btn btn-warning btn-lg fw-bold">簽退</button>
             </div>
         </section>
 
-        <!-- Summary：一行由左至右 -->
         <section class="row g-3 mb-3">
-            <div class="col-12 col-md-4">
+            <div class="col-md-4">
                 <div class="card rounded-4 h-100">
-                    <div class="card-body text-center">
-                        <h6 class="fw-bold mb-2">總協勤時數</h6>
-                        <div class="summary-number"><span id="summaryTotalHours">0</span> 小時</div>
+                    <div class="card-body">
+                        <h6 class="fw-bold">總協勤時數</h6>
+                        <div class="fs-3 fw-bold"><span id="summaryTotalHours">0</span> 小時</div>
                     </div>
                 </div>
             </div>
 
-            <div class="col-12 col-md-4">
+            <div class="col-md-4">
                 <div class="card rounded-4 h-100">
                     <div class="card-body">
-                        <h6 class="fw-bold text-center mb-2">本月協勤時數</h6>
-                        <div class="summary-number text-center"><span id="summaryMonthHours">0</span> 小時</div>
+                        <h6 class="fw-bold">本月協勤時數</h6>
+                        <div class="fs-3 fw-bold"><span id="summaryMonthHours">0</span> 小時</div>
+                        <div class="small text-muted mt-1" id="monthRuleText">每月 4 小時</div>
                         <div class="progress mt-2">
                             <div id="monthProgress" class="progress-bar" style="width:0%">0%</div>
                         </div>
-                        <div id="monthRuleText" class="small text-muted text-center mt-2">每月 4 小時</div>
                     </div>
                 </div>
             </div>
 
-            <div class="col-12 col-md-4">
+            <div class="col-md-4">
                 <div class="card rounded-4 h-100">
                     <div class="card-body">
-                        <h6 class="fw-bold text-center mb-2"><span id="summaryTrainingYear"></span> 常年訓練</h6>
+                        <h6 class="fw-bold"><span id="summaryTrainingYear"></span> 常年訓練次數</h6>
+                        <div class="fs-3 fw-bold"><span id="summaryTrainingCount">0</span> 次</div>
                         <div class="progress mt-2">
                             <div id="trainingProgress" class="progress-bar bg-info" style="width:0%">0%</div>
                         </div>
-                        <div class="small text-muted text-center mt-2">
-                            <span id="summaryTrainingCount">0</span>/12 次
+                        <div class="small text-muted mt-1">
+                            <span id="trainingCountText">0/12次</span>
                         </div>
                     </div>
                 </div>
@@ -108,10 +96,8 @@
 
         <section class="card rounded-4">
             <div class="card-body">
-                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2 mb-3">
-                    <h5 class="card-title mb-0">
-                        <i class="fa-solid fa-table me-2"></i>出勤紀錄
-                    </h5>
+                <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
+                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-table me-2"></i>出勤紀錄</h5>
                     <input id="monthFilter" type="month" class="form-control w-auto">
                 </div>
 
@@ -133,7 +119,7 @@
         </section>
     </main>
 
-    <!-- 切換使用者 Modal -->
+    <!-- 切換使用者 -->
     <div class="modal fade" id="userModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content rounded-4">
@@ -153,6 +139,7 @@
                     </div>
 
                     <label class="form-label">姓名</label>
+                    <input id="userNameReadonly" class="form-control mb-2" readonly>
                     <select id="userSelect" class="form-select"></select>
                 </div>
                 <div class="modal-footer">
@@ -162,7 +149,7 @@
         </div>
     </div>
 
-    <!-- 簽到 Modal -->
+    <!-- 簽到 -->
     <div class="modal fade" id="checkInModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content rounded-4">
@@ -196,7 +183,8 @@
                         </div>
                         <div class="col-6">
                             <label class="form-label">姓名</label>
-                            <input id="checkInName" class="form-control" readonly>
+                            <input id="checkInNameReadonly" class="form-control mb-2" readonly>
+                            <select id="checkInName" class="form-select"></select>
                         </div>
                     </div>
 
@@ -219,7 +207,7 @@
         </div>
     </div>
 
-    <!-- 簽退 Modal -->
+    <!-- 簽退 -->
     <div class="modal fade" id="checkOutModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content rounded-4">
@@ -252,7 +240,8 @@
                         </div>
                         <div class="col-6">
                             <label class="form-label">姓名</label>
-                            <input id="checkOutName" class="form-control" readonly>
+                            <input id="checkOutNameReadonly" class="form-control mb-2" readonly>
+                            <select id="checkOutName" class="form-select"></select>
                         </div>
                     </div>
 
@@ -273,7 +262,7 @@
                     </div>
 
                     <label class="form-label">簽名</label>
-                    <canvas id="signatureCanvas" class="border rounded-3 w-100" height="180"></canvas>
+                    <canvas id="signatureCanvas" class="border rounded-3"></canvas>
                     <button id="btnClearSignature" type="button" class="btn btn-outline-secondary btn-sm mt-2">
                         清除簽名
                     </button>
