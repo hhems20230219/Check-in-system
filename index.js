@@ -7,7 +7,9 @@ const appConfig = {
     rules: {
         monthlyDutyTargetHours: 4,
         threeMonthDutyTargetHours: 12,
-        yearlyTrainingTargetCount: 12
+        yearlyTrainingTargetCount: 12,
+        progressWarningPercent: 50,
+        progressSuccessPercent: 100
     }
 };
 
@@ -137,6 +139,7 @@ $(document).ready(function () {
     initModals();
     initEvents();
     initSignatureCanvas();
+    initRecordFilters();
     initDataTable();
 
     loadInitialData();
@@ -174,7 +177,7 @@ function initTimeOptions() {
     $("#checkOutTime").html(options.join(""));
 }
 
-/* 初始化 Modal 物件 */
+/* 初始化 Modal */
 function initModals() {
     window.userModal = new bootstrap.Modal(document.getElementById("userModal"), {
         backdrop: "static",
@@ -221,7 +224,10 @@ function initEvents() {
     $("#btnSubmitCheckIn").on("click", submitCheckIn);
     $("#btnSubmitCheckOut").on("click", submitCheckOut);
 
-    $("#monthFilter").on("change", renderAttendanceTable);
+    $("#recordFilterMode, #monthFilter, #startDateFilter, #endDateFilter").on("change", function () {
+        updateRecordFilterUi();
+        renderAttendanceTable();
+    });
 
     $("#btnClearSignature").on("click", function () {
         signaturePad.clear();
@@ -230,6 +236,28 @@ function initEvents() {
     $(window).on("resize", function () {
         resizeSignatureCanvas();
     });
+}
+
+/* 初始化出勤紀錄篩選 */
+function initRecordFilters() {
+    const now = new Date();
+    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+    $("#recordFilterMode").val("month");
+    $("#monthFilter").val(thisMonth);
+    $("#startDateFilter").val(`${thisMonth}-01`);
+    $("#endDateFilter").val(formatDate(now));
+
+    updateRecordFilterUi();
+}
+
+/* 更新出勤紀錄篩選 UI */
+function updateRecordFilterUi() {
+    const mode = $("#recordFilterMode").val();
+
+    $("#monthFilter").toggleClass("d-none", mode !== "month");
+    $("#startDateFilter").toggleClass("d-none", mode !== "range");
+    $("#endDateFilter").toggleClass("d-none", mode !== "range");
 }
 
 /* 初始化 DataTables */
@@ -281,7 +309,11 @@ function loadInitialData() {
 function afterDataLoaded() {
     bindStaffOptions();
     restoreCurrentUser();
-    populateMonthFilter();
+
+    if (currentUser) {
+        setModalStaffValue(currentUser.id);
+    }
+
     renderAttendanceTable();
     renderSummary();
 
@@ -296,20 +328,14 @@ function bindStaffOptions() {
 
     const options = enabledStaff.map(function (item) {
         return `<option value="${item.id}">${item.name}</option>`;
-    });
+    }).join("");
 
-    $("#userSelect").html(options.join(""));
-    $("#checkInName").html(options.join(""));
-    $("#checkOutName").html(options.join(""));
+    $("#userSelect").html(options);
+    $("#checkInName").html(options);
+    $("#checkOutName").html(options);
 
     if (enabledStaff.length > 0) {
-        $("#userSelect").val(enabledStaff[0].id);
-        $("#checkInName").val(enabledStaff[0].id);
-        $("#checkOutName").val(enabledStaff[0].id);
-
-        syncStaffToUserFields(enabledStaff[0].id);
-        syncStaffToCheckInFields(enabledStaff[0].id);
-        syncStaffToCheckOutFields(enabledStaff[0].id);
+        setModalStaffValue(enabledStaff[0].id);
     }
 }
 
@@ -320,33 +346,20 @@ function getEnabledStaffList() {
     });
 }
 
-/* 建立月份篩選，支援 All */
-function populateMonthFilter() {
-    const months = [];
+/* 同步三個 Modal 的人員選擇 */
+function setModalStaffValue(staffId) {
+    if (!staffId) return;
 
-    attendanceList.forEach(function (item) {
-        if (item.checkInDate && item.checkInDate.length >= 7) {
-            const month = item.checkInDate.substring(0, 7);
+    $("#userSelect").val(staffId);
+    $("#checkInName").val(staffId);
+    $("#checkOutName").val(staffId);
 
-            if (!months.includes(month)) {
-                months.push(month);
-            }
-        }
-    });
-
-    months.sort().reverse();
-
-    let options = `<option value="">All</option>`;
-
-    months.forEach(function (month) {
-        options += `<option value="${month}">${month}</option>`;
-    });
-
-    $("#monthFilter").html(options);
-    $("#monthFilter").val("");
+    syncStaffToUserFields(staffId);
+    syncStaffToCheckInFields(staffId);
+    syncStaffToCheckOutFields(staffId);
 }
 
-/* 切換使用者 Modal 欄位同步 */
+/* 切換使用者欄位同步 */
 function syncStaffToUserFields(staffId) {
     const staff = findStaffById(staffId);
     if (!staff) return;
@@ -355,7 +368,7 @@ function syncStaffToUserFields(staffId) {
     $("#userTitle").val(staff.title);
 }
 
-/* 簽到 Modal 欄位同步 */
+/* 簽到欄位同步：只同步職稱，不顯示單位 */
 function syncStaffToCheckInFields(staffId) {
     const staff = findStaffById(staffId);
     if (!staff) return;
@@ -363,7 +376,7 @@ function syncStaffToCheckInFields(staffId) {
     $("#checkInTitle").val(staff.title);
 }
 
-/* 簽退 Modal 欄位同步 */
+/* 簽退欄位同步：只同步職稱，不顯示單位 */
 function syncStaffToCheckOutFields(staffId) {
     const staff = findStaffById(staffId);
     if (!staff) return;
@@ -394,10 +407,9 @@ function saveCurrentUser() {
     localStorage.setItem(appConfig.storageKeyCurrentUser, JSON.stringify(currentUser));
 
     updateUserUi();
-    syncCurrentUserToAttendanceModals();
+    setModalStaffValue(currentUser.id);
 
     window.userModal.hide();
-
     showAlert("success", "已切換使用者：" + currentUser.name);
 }
 
@@ -414,27 +426,8 @@ function restoreCurrentUser() {
     const savedUser = JSON.parse(saved);
     const staff = findStaffById(savedUser.id);
 
-    if (!staff) {
-        localStorage.removeItem(appConfig.storageKeyCurrentUser);
-        currentUser = null;
-        updateUserUi();
-        return;
-    }
-
-    currentUser = staff;
+    currentUser = staff || null;
     updateUserUi();
-    syncCurrentUserToAttendanceModals();
-}
-
-/* 同步目前使用者到簽到 / 簽退 Modal */
-function syncCurrentUserToAttendanceModals() {
-    if (!currentUser) return;
-
-    $("#checkInName").val(currentUser.id);
-    $("#checkOutName").val(currentUser.id);
-
-    syncStaffToCheckInFields(currentUser.id);
-    syncStaffToCheckOutFields(currentUser.id);
 }
 
 /* 更新 Navbar 使用者資訊 */
@@ -538,7 +531,6 @@ function submitCheckIn() {
 
     if (appConfig.useMockData) {
         attendanceList.push(record);
-        populateMonthFilter();
         renderAttendanceTable();
         renderSummary();
         window.checkInModal.hide();
@@ -549,7 +541,6 @@ function submitCheckIn() {
     postJson("create", record)
         .then(function () {
             attendanceList.push(record);
-            populateMonthFilter();
             renderAttendanceTable();
             renderSummary();
             window.checkInModal.hide();
@@ -649,14 +640,9 @@ function updateLocationUi(state) {
     showAlert(state.isValid ? "success" : "warning", state.message);
 }
 
-/* 渲染表格 */
+/* 渲染出勤表格 */
 function renderAttendanceTable() {
-    const month = $("#monthFilter").val();
-
-    const filtered = attendanceList.filter(function (item) {
-        if (!month) return true;
-        return item.checkInDate && item.checkInDate.startsWith(month);
-    });
+    const filtered = getFilteredAttendanceRecords();
 
     attendanceTable.clear();
 
@@ -673,6 +659,34 @@ function renderAttendanceTable() {
     });
 
     attendanceTable.draw();
+}
+
+/* 依照全部 / 月份 / 日期區間篩選出勤紀錄 */
+function getFilteredAttendanceRecords() {
+    const mode = $("#recordFilterMode").val();
+    const month = $("#monthFilter").val();
+    const startDate = $("#startDateFilter").val();
+    const endDate = $("#endDateFilter").val();
+
+    return attendanceList.filter(function (item) {
+        if (!item.checkInDate) return false;
+
+        if (mode === "all") {
+            return true;
+        }
+
+        if (mode === "month") {
+            return month ? item.checkInDate.startsWith(month) : true;
+        }
+
+        if (mode === "range") {
+            if (startDate && item.checkInDate < startDate) return false;
+            if (endDate && item.checkInDate > endDate) return false;
+            return true;
+        }
+
+        return true;
+    });
 }
 
 /* 渲染 Summary */
@@ -722,16 +736,30 @@ function renderSummary() {
     updateProgress("#trainingProgress", trainingCount, appConfig.rules.yearlyTrainingTargetCount);
 }
 
-/* 更新 Progress */
+/* 更新 Progress，依完成率套用紅 / 黃 / 綠 */
 function updateProgress(selector, value, target) {
     const percent = target <= 0 ? 0 : Math.min(100, Math.round((value / target) * 100));
-    $(selector).css("width", percent + "%").text(percent + "%");
+    const progressBar = $(selector);
+
+    progressBar
+        .removeClass("bg-danger bg-warning bg-success")
+        .css("width", percent + "%")
+        .text(percent + "%");
+
+    if (percent >= appConfig.rules.progressSuccessPercent) {
+        progressBar.addClass("bg-success");
+    } else if (percent >= appConfig.rules.progressWarningPercent) {
+        progressBar.addClass("bg-warning");
+    } else {
+        progressBar.addClass("bg-danger");
+    }
 }
 
 /* 初始化簽名板 */
 function initSignatureCanvas() {
     const canvas = document.getElementById("signatureCanvas");
     const context = canvas.getContext("2d");
+
     let isDrawing = false;
     let hasDrawn = false;
 
@@ -759,6 +787,7 @@ function initSignatureCanvas() {
         if (!isDrawing) return;
 
         event.preventDefault();
+
         const point = getPoint(event);
         context.lineTo(point.x, point.y);
         context.stroke();
@@ -816,6 +845,7 @@ function resizeSignatureCanvas() {
 /* API GET */
 function fetchJson(action, data) {
     const params = new URLSearchParams(Object.assign({ action: action }, data));
+
     return fetch(`${appConfig.googleScriptUrl}?${params.toString()}`)
         .then(handleApiResponse);
 }
@@ -925,6 +955,7 @@ function formatTime(date) {
 function getNearestHalfHourTime() {
     const now = new Date();
     const minute = now.getMinutes() < 30 ? "00" : "30";
+
     return `${String(now.getHours()).padStart(2, "0")}:${minute}`;
 }
 
