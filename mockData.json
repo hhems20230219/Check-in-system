@@ -1,0 +1,132 @@
+{
+    "staff": [
+        {
+            "id": "P001",
+            "unit": "新興分隊",
+            "title": "隊員",
+            "name": "王小明",
+            "personalId": "A123456789",
+            "enabled": true
+        },
+        {
+            "id": "P002",
+            "unit": "新興分隊",
+            "title": "小隊長",
+            "name": "陳小華",
+            "personalId": "B123456789",
+            "enabled": true
+        },
+        {
+            "id": "P003",
+            "unit": "新興分隊",
+            "title": "副小隊長",
+            "name": "林志強",
+            "personalId": "C123456789",
+            "enabled": true
+        }
+    ],
+    "attendance": [
+        {
+            "id": "R001",
+            "createdAt": "2026-03-02T08:00:00",
+            "unit": "新興分隊",
+            "title": "隊員",
+            "name": "王小明",
+            "staffId": "P001",
+            "dutyType": "協勤",
+            "serviceType": "待命協勤",
+            "checkInDate": "2026-03-02",
+            "checkInTime": "08:00",
+            "checkOutDate": "2026-03-02",
+            "checkOutTime": "12:00",
+            "workContent": "",
+            "signature": "",
+            "hours": 4
+        },
+        {
+            "id": "R002",
+            "createdAt": "2026-04-12T18:30:00",
+            "unit": "新興分隊",
+            "title": "隊員",
+            "name": "王小明",
+            "staffId": "P001",
+            "dutyType": "協勤",
+            "serviceType": "出勤",
+            "checkInDate": "2026-04-12",
+            "checkInTime": "18:30",
+            "checkOutDate": "2026-04-12",
+            "checkOutTime": "22:30",
+            "workContent": "協助救護勤務",
+            "signature": "",
+            "hours": 4
+        },
+        {
+            "id": "R003",
+            "createdAt": "2026-05-05T09:00:00",
+            "unit": "新興分隊",
+            "title": "隊員",
+            "name": "王小明",
+            "staffId": "P001",
+            "dutyType": "公差勤務",
+            "serviceType": "",
+            "checkInDate": "2026-05-05",
+            "checkInTime": "09:00",
+            "checkOutDate": "2026-05-05",
+            "checkOutTime": "11:00",
+            "workContent": "協助行政資料整理",
+            "signature": "",
+            "hours": 2
+        },
+        {
+            "id": "R004",
+            "createdAt": "2026-05-10T19:00:00",
+            "unit": "新興分隊",
+            "title": "隊員",
+            "name": "王小明",
+            "staffId": "P001",
+            "dutyType": "常年訓練",
+            "serviceType": "簽到",
+            "checkInDate": "2026-05-10",
+            "checkInTime": "19:00",
+            "checkOutDate": "",
+            "checkOutTime": "",
+            "workContent": "",
+            "signature": "",
+            "hours": ""
+        },
+        {
+            "id": "R005",
+            "createdAt": "2026-05-15T08:00:00",
+            "unit": "新興分隊",
+            "title": "小隊長",
+            "name": "陳小華",
+            "staffId": "P002",
+            "dutyType": "協勤",
+            "serviceType": "出勤",
+            "checkInDate": "2026-05-15",
+            "checkInTime": "08:00",
+            "checkOutDate": "2026-05-15",
+            "checkOutTime": "10:30",
+            "workContent": "協助救護勤務",
+            "signature": "",
+            "hours": 2.5
+        },
+        {
+            "id": "R006",
+            "createdAt": "2026-05-18T19:00:00",
+            "unit": "新興分隊",
+            "title": "副小隊長",
+            "name": "林志強",
+            "staffId": "P003",
+            "dutyType": "常年訓練",
+            "serviceType": "請假",
+            "checkInDate": "2026-05-18",
+            "checkInTime": "19:00",
+            "checkOutDate": "",
+            "checkOutTime": "",
+            "workContent": "",
+            "signature": "",
+            "hours": ""
+        }
+    ]
+}
