@@ -45,6 +45,7 @@ const attendanceLocation = (function () {
             Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
 
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
         return earthRadius * c;
     }
 
@@ -71,6 +72,29 @@ const attendanceLocation = (function () {
         return nearest;
     }
 
+    /* 取得定位失敗提醒文字 */
+    function getLocationFailMessage(error) {
+        const helpText = "可嘗試開啟 WiFi 或藍牙，並確認瀏覽器定位權限已允許。";
+
+        if (!error) {
+            return "定位失敗，" + helpText;
+        }
+
+        if (error.code === error.PERMISSION_DENIED) {
+            return "定位失敗：瀏覽器定位權限被拒絕，請允許此網站使用定位。";
+        }
+
+        if (error.code === error.POSITION_UNAVAILABLE) {
+            return "定位失敗：目前無法取得位置，" + helpText;
+        }
+
+        if (error.code === error.TIMEOUT) {
+            return "定位逾時：目前定位時間過久，" + helpText;
+        }
+
+        return "定位失敗，" + helpText;
+    }
+
     /* 執行定位 */
     function refreshLocation(onDone) {
         if (!config.enableLocationCheck) {
@@ -92,7 +116,7 @@ const attendanceLocation = (function () {
                 isValid: false,
                 nearestLocationName: "",
                 distanceMeters: null,
-                message: "此瀏覽器不支援 GPS 定位"
+                message: "此瀏覽器不支援 GPS 定位，請改用支援定位功能的瀏覽器"
             };
 
             onDone(currentState);
@@ -113,18 +137,18 @@ const attendanceLocation = (function () {
                     distanceMeters: nearest.distanceMeters,
                     message: isValid
                         ? `定位成功：靠近 ${nearest.name}，距離約 ${Math.round(nearest.distanceMeters)} 公尺`
-                        : `定位失敗：最近地點為 ${nearest.name}，距離約 ${Math.round(nearest.distanceMeters)} 公尺`
+                        : `定位失敗：最近地點為 ${nearest.name}，距離約 ${Math.round(nearest.distanceMeters)} 公尺，超出允許範圍 ${config.allowedRadiusMeters} 公尺`
                 };
 
                 onDone(currentState);
             },
-            function () {
+            function (error) {
                 currentState = {
                     isLocated: false,
                     isValid: false,
                     nearestLocationName: "",
                     distanceMeters: null,
-                    message: "定位失敗，請確認 GPS 權限是否開啟"
+                    message: getLocationFailMessage(error)
                 };
 
                 onDone(currentState);
