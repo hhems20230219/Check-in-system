@@ -2,6 +2,7 @@
 
 const appConfig = {
     useMockData: true,
+    mockDataUrl: "./mockData.json",
     googleScriptUrl: "請填入你的 Google Apps Script Web App URL",
     storageKeyCurrentUser: "xinxing_attendance_current_user",
     rules: {
@@ -18,118 +19,6 @@ let attendanceList = [];
 let currentUser = null;
 let attendanceTable = null;
 let signaturePad = null;
-
-const mockData = {
-    staff: [
-        { id: "P001", unit: "新興分隊", title: "隊員", name: "王小明", personalId: "A123456789", enabled: true },
-        { id: "P002", unit: "新興分隊", title: "小隊長", name: "陳小華", personalId: "B123456789", enabled: true },
-        { id: "P003", unit: "新興分隊", title: "副小隊長", name: "林志強", personalId: "C123456789", enabled: true }
-    ],
-    attendance: [
-        {
-            id: "R001",
-            createdAt: "2026-03-02T08:00:00",
-            unit: "新興分隊",
-            title: "隊員",
-            name: "王小明",
-            staffId: "P001",
-            dutyType: "協勤",
-            serviceType: "待命協勤",
-            checkInDate: "2026-03-02",
-            checkInTime: "08:00",
-            checkOutDate: "2026-03-02",
-            checkOutTime: "12:00",
-            workContent: "",
-            signature: "",
-            hours: 4
-        },
-        {
-            id: "R002",
-            createdAt: "2026-04-12T18:30:00",
-            unit: "新興分隊",
-            title: "隊員",
-            name: "王小明",
-            staffId: "P001",
-            dutyType: "協勤",
-            serviceType: "出勤",
-            checkInDate: "2026-04-12",
-            checkInTime: "18:30",
-            checkOutDate: "2026-04-12",
-            checkOutTime: "22:30",
-            workContent: "協助救護勤務",
-            signature: "",
-            hours: 4
-        },
-        {
-            id: "R003",
-            createdAt: "2026-05-05T09:00:00",
-            unit: "新興分隊",
-            title: "隊員",
-            name: "王小明",
-            staffId: "P001",
-            dutyType: "公差勤務",
-            serviceType: "",
-            checkInDate: "2026-05-05",
-            checkInTime: "09:00",
-            checkOutDate: "2026-05-05",
-            checkOutTime: "11:00",
-            workContent: "協助行政資料整理",
-            signature: "",
-            hours: 2
-        },
-        {
-            id: "R004",
-            createdAt: "2026-05-10T19:00:00",
-            unit: "新興分隊",
-            title: "隊員",
-            name: "王小明",
-            staffId: "P001",
-            dutyType: "常年訓練",
-            serviceType: "簽到",
-            checkInDate: "2026-05-10",
-            checkInTime: "19:00",
-            checkOutDate: "",
-            checkOutTime: "",
-            workContent: "",
-            signature: "",
-            hours: ""
-        },
-        {
-            id: "R005",
-            createdAt: "2026-05-15T08:00:00",
-            unit: "新興分隊",
-            title: "小隊長",
-            name: "陳小華",
-            staffId: "P002",
-            dutyType: "協勤",
-            serviceType: "出勤",
-            checkInDate: "2026-05-15",
-            checkInTime: "08:00",
-            checkOutDate: "2026-05-15",
-            checkOutTime: "10:30",
-            workContent: "協助救護勤務",
-            signature: "",
-            hours: 2.5
-        },
-        {
-            id: "R006",
-            createdAt: "2026-05-18T19:00:00",
-            unit: "新興分隊",
-            title: "副小隊長",
-            name: "林志強",
-            staffId: "P003",
-            dutyType: "常年訓練",
-            serviceType: "請假",
-            checkInDate: "2026-05-18",
-            checkInTime: "19:00",
-            checkOutDate: "",
-            checkOutTime: "",
-            workContent: "",
-            signature: "",
-            hours: ""
-        }
-    ]
-};
 
 $(document).ready(function () {
     console.log("系統初始化開始");
@@ -285,10 +174,26 @@ function initDataTable() {
 /* 載入初始資料 */
 function loadInitialData() {
     if (appConfig.useMockData) {
-        console.log("目前使用範例資料模式");
-        staffList = mockData.staff;
-        attendanceList = mockData.attendance;
-        afterDataLoaded();
+        console.log("目前使用 mockData.json 範例資料模式");
+
+        fetch(appConfig.mockDataUrl)
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error("讀取 mockData.json 失敗");
+                }
+
+                return response.json();
+            })
+            .then(function (mockData) {
+                staffList = mockData.staff || [];
+                attendanceList = mockData.attendance || [];
+                afterDataLoaded();
+            })
+            .catch(function (error) {
+                showAlert("danger", "讀取範例資料失敗：" + error.message);
+                console.log("讀取範例資料失敗", error);
+            });
+
         return;
     }
 
@@ -368,7 +273,7 @@ function syncStaffToUserFields(staffId) {
     $("#userTitle").val(staff.title);
 }
 
-/* 簽到欄位同步：只同步職稱，不顯示單位 */
+/* 簽到欄位同步 */
 function syncStaffToCheckInFields(staffId) {
     const staff = findStaffById(staffId);
     if (!staff) return;
@@ -376,7 +281,7 @@ function syncStaffToCheckInFields(staffId) {
     $("#checkInTitle").val(staff.title);
 }
 
-/* 簽退欄位同步：只同步職稱，不顯示單位 */
+/* 簽退欄位同步 */
 function syncStaffToCheckOutFields(staffId) {
     const staff = findStaffById(staffId);
     if (!staff) return;
@@ -408,6 +313,9 @@ function saveCurrentUser() {
 
     updateUserUi();
     setModalStaffValue(currentUser.id);
+
+    renderAttendanceTable();
+    renderSummary();
 
     window.userModal.hide();
     showAlert("success", "已切換使用者：" + currentUser.name);
@@ -531,8 +439,12 @@ function submitCheckIn() {
 
     if (appConfig.useMockData) {
         attendanceList.push(record);
-        renderAttendanceTable();
-        renderSummary();
+
+        if (currentUser && currentUser.id === staff.id) {
+            renderAttendanceTable();
+            renderSummary();
+        }
+
         window.checkInModal.hide();
         showAlert("success", "簽到成功");
         return;
@@ -541,8 +453,12 @@ function submitCheckIn() {
     postJson("create", record)
         .then(function () {
             attendanceList.push(record);
-            renderAttendanceTable();
-            renderSummary();
+
+            if (currentUser && currentUser.id === staff.id) {
+                renderAttendanceTable();
+                renderSummary();
+            }
+
             window.checkInModal.hide();
             showAlert("success", "簽到成功");
         })
@@ -601,8 +517,11 @@ function submitCheckOut() {
     );
 
     if (appConfig.useMockData) {
-        renderAttendanceTable();
-        renderSummary();
+        if (currentUser && currentUser.id === staff.id) {
+            renderAttendanceTable();
+            renderSummary();
+        }
+
         window.checkOutModal.hide();
         showAlert("success", "簽退成功");
         return;
@@ -610,8 +529,11 @@ function submitCheckOut() {
 
     postJson("update", openRecord)
         .then(function () {
-            renderAttendanceTable();
-            renderSummary();
+            if (currentUser && currentUser.id === staff.id) {
+                renderAttendanceTable();
+                renderSummary();
+            }
+
             window.checkOutModal.hide();
             showAlert("success", "簽退成功");
         })
@@ -661,8 +583,12 @@ function renderAttendanceTable() {
     attendanceTable.draw();
 }
 
-/* 依照全部 / 月份 / 日期區間篩選出勤紀錄 */
+/* 依照目前使用者 + 全部 / 月份 / 日期區間篩選出勤紀錄 */
 function getFilteredAttendanceRecords() {
+    if (!currentUser) {
+        return [];
+    }
+
     const mode = $("#recordFilterMode").val();
     const month = $("#monthFilter").val();
     const startDate = $("#startDateFilter").val();
@@ -670,6 +596,7 @@ function getFilteredAttendanceRecords() {
 
     return attendanceList.filter(function (item) {
         if (!item.checkInDate) return false;
+        if (item.staffId !== currentUser.id) return false;
 
         if (mode === "all") {
             return true;
@@ -689,13 +616,22 @@ function getFilteredAttendanceRecords() {
     });
 }
 
-/* 渲染 Summary */
+/* 渲染 Summary：只統計目前使用者 */
 function renderSummary() {
+    if (!currentUser) {
+        resetSummary();
+        return;
+    }
+
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const currentYear = String(now.getFullYear());
 
-    const dutyRecords = attendanceList.filter(function (item) {
+    const userRecords = attendanceList.filter(function (item) {
+        return item.staffId === currentUser.id;
+    });
+
+    const dutyRecords = userRecords.filter(function (item) {
         return item.dutyType === "協勤" && item.hours;
     });
 
@@ -715,7 +651,7 @@ function renderSummary() {
         ? appConfig.rules.monthlyDutyTargetHours
         : appConfig.rules.threeMonthDutyTargetHours;
 
-    const trainingCount = attendanceList.filter(function (item) {
+    const trainingCount = userRecords.filter(function (item) {
         return item.dutyType === "常年訓練" &&
             item.serviceType === "簽到" &&
             item.checkInDate &&
@@ -734,6 +670,22 @@ function renderSummary() {
 
     updateProgress("#monthProgress", displayHours, displayTarget);
     updateProgress("#trainingProgress", trainingCount, appConfig.rules.yearlyTrainingTargetCount);
+}
+
+/* 清空 Summary */
+function resetSummary() {
+    const now = new Date();
+
+    $("#summaryTotalHours").text(0);
+    $("#summaryMonthTitle").text("本月協勤時數");
+    $("#summaryMonthHours").text(0);
+    $("#summaryMonthNote").text("請先切換使用者");
+    $("#summaryTrainingYear").text(now.getFullYear() + "年");
+    $("#summaryTrainingCount").text(0);
+    $("#summaryTrainingCountText").text(`0/${appConfig.rules.yearlyTrainingTargetCount}次`);
+
+    updateProgress("#monthProgress", 0, appConfig.rules.monthlyDutyTargetHours);
+    updateProgress("#trainingProgress", 0, appConfig.rules.yearlyTrainingTargetCount);
 }
 
 /* 更新 Progress，依完成率套用紅 / 黃 / 綠 */
