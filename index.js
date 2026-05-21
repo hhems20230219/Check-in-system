@@ -1,124 +1,165 @@
-/* ==============================
-   前端主程式
-   負責：UI、API、DataTables、Modal、表單流程
-   ============================== */
+/* index.js：負責 UI、API、表單、DataTables、簽名、Summary */
 
 const appConfig = {
-    useSampleData: true,
-    apiUrl: "請填入你的 Google Apps Script Web App URL",
-    monthlyTargetHours: 4,
-    trainingYearlyTarget: 12,
-    storageCurrentUserKey: "xinxing_attendance_current_user"
+    useMockData: true,
+    googleScriptUrl: "請填入你的 Google Apps Script Web App URL",
+    storageKeyCurrentUser: "xinxing_attendance_current_user",
+    rules: {
+        monthlyDutyTargetHours: 4,
+        totalDutyTargetHours: 100,
+        yearlyTrainingTargetCount: 12
+    }
 };
 
 let staffList = [];
-let recordList = [];
+let attendanceList = [];
 let currentUser = null;
-let recordTable = null;
-let signInModal = null;
-let signOutModal = null;
-let userModal = null;
-let isSignatureDrawing = false;
+let attendanceTable = null;
+let signaturePad = null;
 
-/* ==============================
-   範例資料
-   ============================== */
-const sampleStaffList = [
-    { id: "S001", unit: "新興分隊", title: "隊員", name: "王小明", identityNo: "A123456789", enabled: "TRUE" },
-    { id: "S002", unit: "新興分隊", title: "小隊長", name: "陳小華", identityNo: "B123456789", enabled: "TRUE" }
-];
+const mockData = {
+    staff: [
+        { id: "P001", unit: "新興分隊", title: "隊員", name: "王小明", personalId: "A123456789", enabled: true },
+        { id: "P002", unit: "新興分隊", title: "小隊長", name: "陳小華", personalId: "B123456789", enabled: true }
+    ],
+    attendance: []
+};
 
-let sampleRecordList = [
-    {
-        id: "R001",
-        createdAt: "2026-05-01 08:00:00",
-        unit: "新興分隊",
-        title: "隊員",
-        name: "王小明",
-        dutyType: "協勤",
-        serviceType: "出勤",
-        signInDate: "2026-05-01",
-        signInTime: "08:00",
-        signOutDate: "2026-05-01",
-        signOutTime: "12:00",
-        workContent: "救護協勤",
-        signature: ""
-    }
-];
-
-/* ==============================
-   初始化
-   ============================== */
 $(document).ready(function () {
     console.log("系統初始化開始");
 
-    signInModal = new bootstrap.Modal(document.getElementById("signInModal"));
-    signOutModal = new bootstrap.Modal(document.getElementById("signOutModal"));
-    userModal = new bootstrap.Modal(document.getElementById("userModal"));
-
     initClock();
     initTimeOptions();
-    initDataTable();
+    initModals();
+    initEvents();
     initSignatureCanvas();
-    bindEvents();
+    initMonthFilter();
+    initDataTable();
 
     loadInitialData();
-    locateAndRender();
+
+    attendanceLocation.refreshLocation(updateLocationUi);
 
     console.log("系統初始化完成");
 });
 
-/* ==============================
-   綁定事件
-   ============================== */
-function bindEvents() {
-    $("#btnLocate").on("click", locateAndRender);
-    $("#btnSaveUser").on("click", saveCurrentUser);
-    $("#userSelect").on("change", renderUserPreview);
-
-    $("#btnOpenSignIn").on("click", openSignInModal);
-    $("#btnOpenSignOut").on("click", openSignOutModal);
-
-    $("#signInDutyType").on("change", renderSignInFields);
-    $("#signOutDutyType").on("change", renderSignOutFields);
-
-    $("#signInForm").on("submit", submitSignIn);
-    $("#signOutForm").on("submit", submitSignOut);
-
-    $("#btnClearSignature").on("click", clearSignature);
-    $("#monthFilter").on("change", renderRecords);
-}
-
-/* ==============================
-   時鐘
-   ============================== */
+/* 每秒更新時間 */
 function initClock() {
     updateClock();
     setInterval(updateClock, 1000);
 }
 
+/* 更新時間區 */
 function updateClock() {
     const now = new Date();
-    $("#clockTime").text(formatTime(now));
-    $("#clockDate").text(formatDate(now));
+
+    $("#currentTime").text(formatTime(now));
+    $("#currentDate").text(formatDate(now));
 }
 
-/* ==============================
-   載入初始資料
-   ============================== */
+/* 初始化 00/30 分鐘選項 */
+function initTimeOptions() {
+    const options = [];
+
+    for (let hour = 0; hour < 24; hour++) {
+        ["00", "30"].forEach(function (minute) {
+            const value = `${String(hour).padStart(2, "0")}:${minute}`;
+            options.push(`<option value="${value}">${value}</option>`);
+        });
+    }
+
+    $("#checkInTime").html(options.join(""));
+    $("#checkOutTime").html(options.join(""));
+}
+
+/* 初始化 Modal 物件 */
+function initModals() {
+    window.userModal = new bootstrap.Modal(document.getElementById("userModal"), {
+        backdrop: "static",
+        keyboard: false
+    });
+
+    window.checkInModal = new bootstrap.Modal(document.getElementById("checkInModal"));
+    window.checkOutModal = new bootstrap.Modal(document.getElementById("checkOutModal"));
+}
+
+/* 綁定事件 */
+function initEvents() {
+    $("#btnOpenUserModal").on("click", openUserModal);
+    $("#btnSaveUser").on("click", saveCurrentUser);
+
+    $("#btnRefreshLocation").on("click", function () {
+        attendanceLocation.refreshLocation(updateLocationUi);
+    });
+
+    $("#btnOpenCheckInModal").on("click", openCheckInModal);
+    $("#btnOpenCheckOutModal").on("click", openCheckOutModal);
+
+    $("#checkInType").on("change", updateCheckInFields);
+    $("#checkOutType, #serviceType").on("change", updateCheckOutFields);
+
+    $("#btnSubmitCheckIn").on("click", submitCheckIn);
+    $("#btnSubmitCheckOut").on("click", submitCheckOut);
+
+    $("#monthFilter").on("change", renderAttendanceTable);
+
+    $("#userSelect").on("change", function () {
+        const staff = findStaffById($(this).val());
+        if (!staff) return;
+
+        $("#userUnit").val(staff.unit);
+        $("#userTitle").val(staff.title);
+    });
+
+    $("#btnClearSignature").on("click", function () {
+        signaturePad.clear();
+    });
+}
+
+/* 初始化月份查詢 */
+function initMonthFilter() {
+    const now = new Date();
+    $("#monthFilter").val(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
+}
+
+/* 初始化 DataTables */
+function initDataTable() {
+    attendanceTable = $("#attendanceTable").DataTable({
+        responsive: true,
+        pageLength: 10,
+        order: [[2, "desc"], [3, "desc"]],
+        language: {
+            search: "搜尋：",
+            lengthMenu: "每頁顯示 _MENU_ 筆",
+            info: "顯示第 _START_ 到 _END_ 筆，共 _TOTAL_ 筆",
+            paginate: {
+                first: "第一頁",
+                last: "最後一頁",
+                next: "下一頁",
+                previous: "上一頁"
+            },
+            zeroRecords: "查無資料",
+            emptyTable: "目前沒有出勤紀錄"
+        }
+    });
+}
+
+/* 載入初始資料 */
 function loadInitialData() {
-    if (appConfig.useSampleData) {
+    if (appConfig.useMockData) {
         console.log("目前使用範例資料模式");
-        staffList = sampleStaffList.filter(x => x.enabled === "TRUE");
-        recordList = sampleRecordList;
+        staffList = mockData.staff;
+        attendanceList = mockData.attendance;
         afterDataLoaded();
         return;
     }
 
-    apiGet("readAll", {})
-        .then(function (response) {
-            staffList = response.staffList || [];
-            recordList = response.recordList || [];
+    console.log("開始從 Google Sheet 讀取資料");
+
+    fetchJson("readAll", {})
+        .then(function (result) {
+            staffList = result.staff || [];
+            attendanceList = result.attendance || [];
             afterDataLoaded();
         })
         .catch(function (error) {
@@ -126,540 +167,556 @@ function loadInitialData() {
         });
 }
 
+/* 資料載入後處理 */
 function afterDataLoaded() {
+    bindStaffOptions();
     restoreCurrentUser();
-    renderUserSelect();
-    renderNavbarUser();
-    renderRecords();
+    renderAttendanceTable();
     renderSummary();
 
-    if (!currentUser && staffList.length > 0) {
-        userModal.show();
-    }
-
-    if (staffList.length === 0) {
-        showAlert("warning", "目前沒有人員資料，請先確認 Google Sheet 的人員資料工作表。");
+    if (!currentUser) {
+        window.userModal.show();
     }
 }
 
-/* ==============================
-   API：GET
-   ============================== */
-function apiGet(action, params) {
-    const query = $.param(Object.assign({ action: action }, params || {}));
-    const url = appConfig.apiUrl + "?" + query;
-
-    console.log("送出 GET API：" + action);
-
-    return fetch(url)
-        .then(response => response.json())
-        .then(handleApiResponse);
-}
-
-/* ==============================
-   API：POST
-   ============================== */
-function apiPost(action, data) {
-    console.log("送出 POST API：" + action);
-
-    return fetch(appConfig.apiUrl, {
-        method: "POST",
-        body: JSON.stringify({
-            action: action,
-            data: data
-        })
-    })
-        .then(response => response.json())
-        .then(handleApiResponse);
-}
-
-function handleApiResponse(response) {
-    if (!response || response.success !== true) {
-        throw new Error(response && response.message ? response.message : "API 回傳失敗");
-    }
-
-    return response.data;
-}
-
-/* ==============================
-   使用者切換
-   ============================== */
-function renderUserSelect() {
-    const $select = $("#userSelect");
-    $select.empty();
-
-    staffList.forEach(function (staff) {
-        $select.append(`<option value="${staff.id}">${staff.name}</option>`);
+/* 綁定人員下拉 */
+function bindStaffOptions() {
+    const enabledStaff = staffList.filter(function (item) {
+        return item.enabled === true || item.enabled === "TRUE" || item.enabled === "是";
     });
 
-    renderUserPreview();
+    const options = enabledStaff.map(function (item) {
+        return `<option value="${item.id}">${item.name}</option>`;
+    });
+
+    $("#userSelect").html(options.join(""));
+    $("#checkInName").html(options.join(""));
+    $("#checkOutName").html(options.join(""));
+
+    if (enabledStaff.length > 0) {
+        $("#userSelect").trigger("change");
+    }
 }
 
-function renderUserPreview() {
-    const staff = getSelectedStaff();
-    $("#userUnit").val(staff ? staff.unit : "");
-    $("#userTitle").val(staff ? staff.title : "");
+/* 開啟使用者切換 */
+function openUserModal() {
+    window.userModal.show();
 }
 
-function getSelectedStaff() {
-    const staffId = $("#userSelect").val();
-    return staffList.find(x => x.id === staffId) || staffList[0] || null;
-}
-
+/* 儲存目前使用者 */
 function saveCurrentUser() {
-    const staff = getSelectedStaff();
+    const staff = findStaffById($("#userSelect").val());
 
     if (!staff) {
-        showAlert("warning", "沒有可切換的人員資料。");
+        showAlert("danger", "找不到人員資料，請確認人員資料是否正確");
         return;
     }
 
     currentUser = staff;
-    localStorage.setItem(appConfig.storageCurrentUserKey, JSON.stringify(currentUser));
+    localStorage.setItem(appConfig.storageKeyCurrentUser, JSON.stringify(currentUser));
+    updateUserUi();
+    window.userModal.hide();
 
-    renderNavbarUser();
-    renderSummary();
-    renderRecords();
-
-    userModal.hide();
-    showAlert("success", "使用者已切換為：" + currentUser.name);
+    showAlert("success", "已切換使用者：" + currentUser.name);
 }
 
+/* 還原使用者 */
 function restoreCurrentUser() {
-    const raw = localStorage.getItem(appConfig.storageCurrentUserKey);
+    const saved = localStorage.getItem(appConfig.storageKeyCurrentUser);
 
-    if (!raw) return;
-
-    try {
-        const savedUser = JSON.parse(raw);
-        currentUser = staffList.find(x => x.id === savedUser.id) || null;
-    } catch {
+    if (!saved) {
         currentUser = null;
+        updateUserUi();
+        return;
     }
+
+    currentUser = JSON.parse(saved);
+    updateUserUi();
 }
 
-function renderNavbarUser() {
+/* 更新 Navbar 使用者資訊 */
+function updateUserUi() {
     $("#navUnit").text(currentUser ? currentUser.unit : "-");
     $("#navTitle").text(currentUser ? currentUser.title : "-");
     $("#navName").text(currentUser ? currentUser.name : "-");
 }
 
-/* ==============================
-   定位顯示
-   ============================== */
-function locateAndRender() {
-    $("#locationStatus").text("定位中...");
+/* 開啟簽到 */
+function openCheckInModal() {
+    if (!ensureCurrentUser()) return;
 
-    locateCurrentPosition(
-        function (state) {
-            renderLocationState(state);
-        },
-        function (state) {
-            renderLocationState(state);
-        }
-    );
+    hideModalMessage("#checkInMessage");
+
+    $("#checkInTitle").val(currentUser.title);
+    $("#checkInName").val(currentUser.id);
+    $("#checkInDate").val(formatDate(new Date()));
+    $("#checkInTime").val(getNearestHalfHourTime());
+
+    updateCheckInFields();
+    window.checkInModal.show();
 }
 
-function renderLocationState(state) {
+/* 開啟簽退 */
+function openCheckOutModal() {
+    if (!ensureCurrentUser()) return;
+
+    hideModalMessage("#checkOutMessage");
+
+    $("#checkOutTitle").val(currentUser.title);
+    $("#checkOutName").val(currentUser.id);
+    $("#checkOutDate").val(formatDate(new Date()));
+    $("#checkOutTime").val(getNearestHalfHourTime());
+    $("#workContent").val("");
+
+    updateCheckOutFields();
+    window.checkOutModal.show();
+}
+
+/* 簽到欄位切換 */
+function updateCheckInFields() {
+    const dutyType = $("#checkInType").val();
+
+    if (dutyType === "常年訓練") {
+        $("#trainingActionArea").removeClass("d-none");
+    } else {
+        $("#trainingActionArea").addClass("d-none");
+    }
+}
+
+/* 簽退欄位切換 */
+function updateCheckOutFields() {
+    const dutyType = $("#checkOutType").val();
+    const serviceType = $("#serviceType").val();
+
+    if (dutyType === "協勤") {
+        $("#serviceTypeArea").removeClass("d-none");
+    } else {
+        $("#serviceTypeArea").addClass("d-none");
+    }
+
+    const shouldShowWorkContent =
+        dutyType === "公差勤務" ||
+        (dutyType === "協勤" && serviceType === "出勤");
+
+    $("#workContentArea").toggleClass("d-none", !shouldShowWorkContent);
+}
+
+/* 送出簽到 */
+function submitCheckIn() {
+    const staff = findStaffById($("#checkInName").val());
+    const dutyType = $("#checkInType").val();
+
+    if (!staff) {
+        showModalMessage("#checkInMessage", "找不到簽到人員資料");
+        return;
+    }
+
+    if (!canOperateByLocation(dutyType)) {
+        showModalMessage("#checkInMessage", "此協勤種類需要定位成功後才能簽到");
+        return;
+    }
+
+    if (dutyType === "常年訓練" && hasMonthlyTrainingRecord(staff.id, $("#checkInDate").val())) {
+        showModalMessage("#checkInMessage", "本月已有常年訓練簽到或請假紀錄，不能重複登記");
+        return;
+    }
+
+    const record = {
+        id: createGuid(),
+        createdAt: new Date().toISOString(),
+        unit: staff.unit,
+        title: staff.title,
+        name: staff.name,
+        staffId: staff.id,
+        dutyType: dutyType,
+        serviceType: dutyType === "常年訓練" ? $("#trainingAction").val() : "",
+        checkInDate: $("#checkInDate").val(),
+        checkInTime: $("#checkInTime").val(),
+        checkOutDate: "",
+        checkOutTime: "",
+        workContent: "",
+        signature: "",
+        hours: ""
+    };
+
+    if (appConfig.useMockData) {
+        attendanceList.push(record);
+        renderAttendanceTable();
+        renderSummary();
+        window.checkInModal.hide();
+        showAlert("success", "簽到成功");
+        return;
+    }
+
+    postJson("create", record)
+        .then(function () {
+            attendanceList.push(record);
+            renderAttendanceTable();
+            renderSummary();
+            window.checkInModal.hide();
+            showAlert("success", "簽到成功");
+        })
+        .catch(function (error) {
+            showModalMessage("#checkInMessage", "簽到失敗：" + error.message);
+        });
+}
+
+/* 送出簽退 */
+function submitCheckOut() {
+    const staff = findStaffById($("#checkOutName").val());
+    const dutyType = $("#checkOutType").val();
+    const serviceType = dutyType === "協勤" ? $("#serviceType").val() : "";
+
+    if (!staff) {
+        showModalMessage("#checkOutMessage", "找不到簽退人員資料");
+        return;
+    }
+
+    if (!canOperateByLocation(dutyType)) {
+        showModalMessage("#checkOutMessage", "此協勤種類需要定位成功後才能簽退");
+        return;
+    }
+
+    const openRecord = findLatestOpenRecord(staff.name, dutyType);
+
+    if (!openRecord) {
+        showModalMessage("#checkOutMessage", "找不到尚未簽退的紀錄");
+        return;
+    }
+
+    const shouldNeedWorkContent =
+        dutyType === "公差勤務" ||
+        (dutyType === "協勤" && serviceType === "出勤");
+
+    if (shouldNeedWorkContent && !$("#workContent").val().trim()) {
+        showModalMessage("#checkOutMessage", "請填寫工作內容");
+        return;
+    }
+
+    if (signaturePad.isEmpty()) {
+        showModalMessage("#checkOutMessage", "請完成簽名");
+        return;
+    }
+
+    openRecord.serviceType = serviceType;
+    openRecord.checkOutDate = $("#checkOutDate").val();
+    openRecord.checkOutTime = $("#checkOutTime").val();
+    openRecord.workContent = $("#workContent").val().trim();
+    openRecord.signature = signaturePad.toDataUrl();
+    openRecord.hours = calculateHours(
+        openRecord.checkInDate,
+        openRecord.checkInTime,
+        openRecord.checkOutDate,
+        openRecord.checkOutTime
+    );
+
+    if (appConfig.useMockData) {
+        renderAttendanceTable();
+        renderSummary();
+        window.checkOutModal.hide();
+        showAlert("success", "簽退成功");
+        return;
+    }
+
+    postJson("update", openRecord)
+        .then(function () {
+            renderAttendanceTable();
+            renderSummary();
+            window.checkOutModal.hide();
+            showAlert("success", "簽退成功");
+        })
+        .catch(function (error) {
+            showModalMessage("#checkOutMessage", "簽退失敗：" + error.message);
+        });
+}
+
+/* 判斷定位限制 */
+function canOperateByLocation(dutyType) {
+    if (dutyType === "公差勤務") {
+        return true;
+    }
+
+    const locationState = attendanceLocation.getCurrentState();
+    return locationState.isValid === true;
+}
+
+/* 更新定位畫面 */
+function updateLocationUi(state) {
     $("#locationStatus")
-        .removeClass("text-muted text-success text-danger")
-        .addClass(state.isValid ? "text-success" : "text-danger")
-        .text(state.message);
+        .text(state.message)
+        .toggleClass("text-success", state.isValid)
+        .toggleClass("text-danger", !state.isValid);
 
     showAlert(state.isValid ? "success" : "warning", state.message);
 }
 
-/* ==============================
-   簽到流程
-   ============================== */
-function openSignInModal() {
-    if (!validateCurrentUser()) return;
-
-    fillUserToSignForms();
-    setDefaultDateTime("#signInDate", "#signInTime");
-    renderSignInFields();
-
-    signInModal.show();
-}
-
-function renderSignInFields() {
-    const dutyType = $("#signInDutyType").val();
-    $("#trainingStatusBox").toggleClass("d-none", dutyType !== "常年訓練");
-}
-
-function submitSignIn(event) {
-    event.preventDefault();
-
-    const dutyType = $("#signInDutyType").val();
-
-    if (!validateCurrentUser()) return;
-    if (!validateLocationByDutyType(dutyType)) return;
-
-    const record = {
-        id: createClientId(),
-        createdAt: formatDateTime(new Date()),
-        unit: currentUser.unit,
-        title: currentUser.title,
-        name: currentUser.name,
-        dutyType: dutyType,
-        serviceType: dutyType === "常年訓練" ? $("#trainingStatus").val() : "",
-        signInDate: $("#signInDate").val(),
-        signInTime: $("#signInTime").val(),
-        signOutDate: "",
-        signOutTime: "",
-        workContent: "",
-        signature: ""
-    };
-
-    if (dutyType === "常年訓練" && hasMonthlyTrainingRecord(record.signInDate)) {
-        showAlert("warning", "本月已有常年訓練簽到或請假紀錄，不能重複建立。");
-        return;
-    }
-
-    if (appConfig.useSampleData) {
-        sampleRecordList.push(record);
-        recordList = sampleRecordList;
-        afterRecordChanged("簽到成功");
-        return;
-    }
-
-    apiPost("create", record)
-        .then(function () {
-            loadInitialData();
-            showAlert("success", "簽到成功");
-            signInModal.hide();
-        })
-        .catch(function (error) {
-            showAlert("danger", "簽到失敗：" + error.message);
-        });
-}
-
-/* ==============================
-   簽退流程
-   ============================== */
-function openSignOutModal() {
-    if (!validateCurrentUser()) return;
-
-    fillUserToSignForms();
-    setDefaultDateTime("#signOutDate", "#signOutTime");
-    renderSignOutFields();
-    clearSignature();
-
-    signOutModal.show();
-}
-
-function renderSignOutFields() {
-    const dutyType = $("#signOutDutyType").val();
-
-    $("#serviceTypeBox").toggleClass("d-none", dutyType !== "協勤");
-    $("#workContentBox").removeClass("d-none");
-}
-
-function submitSignOut(event) {
-    event.preventDefault();
-
-    const dutyType = $("#signOutDutyType").val();
-
-    if (!validateCurrentUser()) return;
-    if (!validateLocationByDutyType(dutyType)) return;
-
-    const openRecord = findOpenRecord(dutyType);
-
-    if (!openRecord) {
-        showAlert("warning", "找不到尚未簽退的紀錄。");
-        return;
-    }
-
-    const workContent = $("#workContent").val().trim();
-
-    if (!workContent) {
-        showAlert("warning", "請填寫工作內容。");
-        return;
-    }
-
-    const updateData = {
-        id: openRecord.id,
-        serviceType: dutyType === "協勤" ? $("#serviceType").val() : "公差勤務",
-        signOutDate: $("#signOutDate").val(),
-        signOutTime: $("#signOutTime").val(),
-        workContent: workContent,
-        signature: getSignatureBase64()
-    };
-
-    if (appConfig.useSampleData) {
-        Object.assign(openRecord, updateData);
-        afterRecordChanged("簽退成功");
-        return;
-    }
-
-    apiPost("update", updateData)
-        .then(function () {
-            loadInitialData();
-            showAlert("success", "簽退成功");
-            signOutModal.hide();
-        })
-        .catch(function (error) {
-            showAlert("danger", "簽退失敗：" + error.message);
-        });
-}
-
-function findOpenRecord(dutyType) {
-    return recordList
-        .filter(x =>
-            x.name === currentUser.name &&
-            x.dutyType === dutyType &&
-            !x.signOutDate &&
-            x.dutyType !== "常年訓練"
-        )
-        .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""))[0] || null;
-}
-
-/* ==============================
-   驗證
-   ============================== */
-function validateCurrentUser() {
-    if (!currentUser) {
-        showAlert("warning", "請先切換使用者。");
-        userModal.show();
-        return false;
-    }
-
-    return true;
-}
-
-function validateLocationByDutyType(dutyType) {
-    if (!locationConfig.enableLocationCheck) return true;
-
-    if (dutyType === "公差勤務") return true;
-
-    if (!locationState.isValid) {
-        showAlert("warning", "此協勤種類需要定位成功後才能操作。");
-        return false;
-    }
-
-    return true;
-}
-
-/* ==============================
-   DataTables
-   ============================== */
-function initDataTable() {
-    recordTable = $("#recordTable").DataTable({
-        responsive: true,
-        pageLength: 10,
-        order: [[2, "desc"]],
-        language: {
-            search: "搜尋：",
-            lengthMenu: "每頁 _MENU_ 筆",
-            info: "顯示第 _START_ 到 _END_ 筆，共 _TOTAL_ 筆",
-            paginate: {
-                previous: "上一頁",
-                next: "下一頁"
-            },
-            zeroRecords: "查無資料"
-        }
-    });
-}
-
-function renderRecords() {
-    if (!recordTable) return;
-
+/* 渲染表格 */
+function renderAttendanceTable() {
     const month = $("#monthFilter").val();
-    const rows = getCurrentUserRecords()
-        .filter(x => !month || (x.signInDate || "").startsWith(month))
-        .map(function (x) {
-            return [
-                x.dutyType || "",
-                x.serviceType || "",
-                x.signInDate || "",
-                x.signInTime || "",
-                x.signOutDate || "",
-                x.signOutTime || "",
-                calculateRecordHours(x)
-            ];
-        });
 
-    recordTable.clear();
-    recordTable.rows.add(rows);
-    recordTable.draw();
+    const filtered = attendanceList.filter(function (item) {
+        if (!month) return true;
+        return item.checkInDate && item.checkInDate.startsWith(month);
+    });
+
+    attendanceTable.clear();
+
+    filtered.forEach(function (item) {
+        attendanceTable.row.add([
+            item.dutyType || "",
+            item.serviceType || "",
+            item.checkInDate || "",
+            item.checkInTime || "",
+            item.checkOutDate || "",
+            item.checkOutTime || "",
+            item.hours || "-"
+        ]);
+    });
+
+    attendanceTable.draw();
 }
 
-/* ==============================
-   Summary
-   ============================== */
+/* 渲染 Summary */
 function renderSummary() {
-    const records = getCurrentUserRecords();
     const now = new Date();
-    const currentMonth = formatYearMonth(now);
-    const currentYear = now.getFullYear().toString();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const currentYear = String(now.getFullYear());
 
-    const monthlyHours = sumHours(records.filter(x =>
-        x.dutyType === "協勤" &&
-        (x.signInDate || "").startsWith(currentMonth)
-    ));
+    const dutyRecords = attendanceList.filter(function (item) {
+        return item.dutyType === "協勤" && item.hours;
+    });
 
-    const totalHours = sumHours(records.filter(x => x.dutyType === "協勤"));
+    const monthHours = sumHours(dutyRecords.filter(function (item) {
+        return item.checkInDate && item.checkInDate.startsWith(currentMonth);
+    }));
 
-    const trainingCount = records.filter(x =>
-        x.dutyType === "常年訓練" &&
-        (x.signInDate || "").startsWith(currentYear) &&
-        x.serviceType === "簽到"
-    ).length;
+    const totalHours = sumHours(dutyRecords);
 
-    $("#monthlyHours").text(monthlyHours.toFixed(1));
-    $("#totalHours").text(totalHours.toFixed(1));
-    $("#trainingYear").text(currentYear);
-    $("#trainingCount").text(trainingCount);
+    const trainingCount = attendanceList.filter(function (item) {
+        return item.dutyType === "常年訓練" &&
+            item.serviceType === "簽到" &&
+            item.checkInDate &&
+            item.checkInDate.startsWith(currentYear);
+    }).length;
 
-    setProgress("#monthlyProgress", monthlyHours, appConfig.monthlyTargetHours);
-    setProgress("#trainingProgress", trainingCount, appConfig.trainingYearlyTarget);
+    $("#summaryMonthHours").text(monthHours);
+    $("#summaryTotalHours").text(totalHours);
+    $("#summaryTrainingYear").text(currentYear + "年");
+    $("#summaryTrainingCount").text(trainingCount);
+
+    updateProgress("#monthProgress", monthHours, appConfig.rules.monthlyDutyTargetHours);
+    updateProgress("#totalProgress", totalHours, appConfig.rules.totalDutyTargetHours);
+    updateProgress("#trainingProgress", trainingCount, appConfig.rules.yearlyTrainingTargetCount);
 }
 
-function setProgress(selector, value, target) {
-    const percent = target <= 0 ? 0 : Math.min(100, Math.round(value / target * 100));
+/* 更新 Progress */
+function updateProgress(selector, value, target) {
+    const percent = target <= 0 ? 0 : Math.min(100, Math.round((value / target) * 100));
     $(selector).css("width", percent + "%").text(percent + "%");
 }
 
-function sumHours(records) {
-    return records.reduce((sum, item) => sum + Number(calculateRecordHours(item) || 0), 0);
-}
-
-function calculateRecordHours(record) {
-    if (!record.signInDate || !record.signInTime || !record.signOutDate || !record.signOutTime) {
-        return "";
-    }
-
-    const start = new Date(record.signInDate + "T" + record.signInTime + ":00");
-    const end = new Date(record.signOutDate + "T" + record.signOutTime + ":00");
-    const diff = (end - start) / 1000 / 60 / 60;
-
-    return diff > 0 ? diff.toFixed(1) : "";
-}
-
-function getCurrentUserRecords() {
-    if (!currentUser) return [];
-    return recordList.filter(x => x.name === currentUser.name && x.unit === currentUser.unit);
-}
-
-function hasMonthlyTrainingRecord(dateText) {
-    const month = (dateText || "").substring(0, 7);
-
-    return getCurrentUserRecords().some(x =>
-        x.dutyType === "常年訓練" &&
-        (x.signInDate || "").startsWith(month)
-    );
-}
-
-/* ==============================
-   簽名 Canvas
-   ============================== */
+/* 初始化簽名板 */
 function initSignatureCanvas() {
     const canvas = document.getElementById("signatureCanvas");
-    const ctx = canvas.getContext("2d");
+    const context = canvas.getContext("2d");
+    let isDrawing = false;
 
     function resizeCanvas() {
-        canvas.width = canvas.offsetWidth;
-        canvas.height = canvas.offsetHeight;
-        ctx.lineWidth = 2;
-        ctx.lineCap = "round";
+        const rect = canvas.getBoundingClientRect();
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+
+        canvas.width = rect.width;
+        canvas.height = 180;
+
+        context.putImageData(imageData, 0, 0);
+        context.lineWidth = 2;
+        context.lineCap = "round";
     }
 
-    resizeCanvas();
+    function getPoint(event) {
+        const rect = canvas.getBoundingClientRect();
+        const source = event.touches ? event.touches[0] : event;
+
+        return {
+            x: source.clientX - rect.left,
+            y: source.clientY - rect.top
+        };
+    }
+
+    function start(event) {
+        event.preventDefault();
+        isDrawing = true;
+
+        const point = getPoint(event);
+        context.beginPath();
+        context.moveTo(point.x, point.y);
+    }
+
+    function move(event) {
+        if (!isDrawing) return;
+
+        event.preventDefault();
+        const point = getPoint(event);
+        context.lineTo(point.x, point.y);
+        context.stroke();
+    }
+
+    function end(event) {
+        event.preventDefault();
+        isDrawing = false;
+    }
+
+    canvas.addEventListener("mousedown", start);
+    canvas.addEventListener("mousemove", move);
+    canvas.addEventListener("mouseup", end);
+    canvas.addEventListener("mouseleave", end);
+
+    canvas.addEventListener("touchstart", start);
+    canvas.addEventListener("touchmove", move);
+    canvas.addEventListener("touchend", end);
+
     window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
 
-    $(canvas).on("pointerdown", function (event) {
-        isSignatureDrawing = true;
-        ctx.beginPath();
-        ctx.moveTo(event.offsetX, event.offsetY);
-    });
+    signaturePad = {
+        clear: function () {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+        },
+        isEmpty: function () {
+            const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+            return !pixels.some(function (value) {
+                return value !== 0;
+            });
+        },
+        toDataUrl: function () {
+            return canvas.toDataURL("image/png");
+        }
+    };
+}
 
-    $(canvas).on("pointermove", function (event) {
-        if (!isSignatureDrawing) return;
-        ctx.lineTo(event.offsetX, event.offsetY);
-        ctx.stroke();
-    });
+/* API GET */
+function fetchJson(action, data) {
+    const params = new URLSearchParams(Object.assign({ action: action }, data));
+    return fetch(`${appConfig.googleScriptUrl}?${params.toString()}`)
+        .then(handleApiResponse);
+}
 
-    $(canvas).on("pointerup pointerleave", function () {
-        isSignatureDrawing = false;
+/* API POST */
+function postJson(action, data) {
+    return fetch(appConfig.googleScriptUrl, {
+        method: "POST",
+        body: JSON.stringify({
+            action: action,
+            data: data
+        })
+    }).then(handleApiResponse);
+}
+
+/* API 回應處理 */
+function handleApiResponse(response) {
+    return response.json().then(function (result) {
+        if (!result.success) {
+            throw new Error(result.message || "API 回傳失敗");
+        }
+
+        return result.data;
     });
 }
 
-function clearSignature() {
-    const canvas = document.getElementById("signatureCanvas");
-    const ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+/* 工具：確認使用者 */
+function ensureCurrentUser() {
+    if (!currentUser) {
+        showAlert("warning", "請先切換使用者");
+        window.userModal.show();
+        return false;
+    }
+
+    return true;
 }
 
-function getSignatureBase64() {
-    const canvas = document.getElementById("signatureCanvas");
-    return canvas.toDataURL("image/png");
+/* 工具：找人員 */
+function findStaffById(id) {
+    return staffList.find(function (item) {
+        return item.id === id;
+    });
 }
 
-/* ==============================
-   UI 輔助
-   ============================== */
+/* 工具：找最後一筆未簽退 */
+function findLatestOpenRecord(name, dutyType) {
+    const records = attendanceList.filter(function (item) {
+        return item.name === name &&
+            item.dutyType === dutyType &&
+            !item.checkOutDate &&
+            dutyType !== "常年訓練";
+    });
+
+    return records.length > 0 ? records[records.length - 1] : null;
+}
+
+/* 工具：判斷當月是否已有常訓 */
+function hasMonthlyTrainingRecord(staffId, dateText) {
+    const month = dateText.substring(0, 7);
+
+    return attendanceList.some(function (item) {
+        return item.staffId === staffId &&
+            item.dutyType === "常年訓練" &&
+            item.checkInDate &&
+            item.checkInDate.startsWith(month);
+    });
+}
+
+/* 工具：計算時數 */
+function calculateHours(startDate, startTime, endDate, endTime) {
+    const start = new Date(`${startDate}T${startTime}:00`);
+    const end = new Date(`${endDate}T${endTime}:00`);
+
+    const diff = (end - start) / 1000 / 60 / 60;
+    return diff > 0 ? Math.round(diff * 10) / 10 : 0;
+}
+
+/* 工具：加總時數 */
+function sumHours(records) {
+    return Math.round(records.reduce(function (sum, item) {
+        return sum + Number(item.hours || 0);
+    }, 0) * 10) / 10;
+}
+
+/* 工具：格式化日期 */
+function formatDate(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+/* 工具：格式化時間 */
+function formatTime(date) {
+    return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}:${String(date.getSeconds()).padStart(2, "0")}`;
+}
+
+/* 工具：取得最近半小時 */
+function getNearestHalfHourTime() {
+    const now = new Date();
+    const minute = now.getMinutes() < 30 ? "00" : "30";
+    return `${String(now.getHours()).padStart(2, "0")}:${minute}`;
+}
+
+/* 工具：產生 id */
+function createGuid() {
+    return "ID-" + Date.now() + "-" + Math.random().toString(36).substring(2, 8);
+}
+
+/* Alert */
 function showAlert(type, message) {
-    $("#systemAlert")
+    $("#alertArea")
         .removeClass("d-none alert-success alert-danger alert-warning alert-info")
         .addClass("alert-" + type)
         .text(message);
 }
 
-function afterRecordChanged(message) {
-    renderRecords();
-    renderSummary();
-    signInModal.hide();
-    signOutModal.hide();
-    showAlert("success", message);
+/* Modal 訊息 */
+function showModalMessage(selector, message) {
+    $(selector).removeClass("d-none").text(message);
 }
 
-function fillUserToSignForms() {
-    $("#signInTitle").val(currentUser.title);
-    $("#signInName").val(currentUser.name);
-    $("#signOutTitle").val(currentUser.title);
-    $("#signOutName").val(currentUser.name);
-}
-
-function initTimeOptions() {
-    const options = [];
-
-    for (let hour = 0; hour < 24; hour++) {
-        ["00", "30"].forEach(function (minute) {
-            options.push(`${String(hour).padStart(2, "0")}:${minute}`);
-        });
-    }
-
-    $("#signInTime, #signOutTime").html(options.map(x => `<option value="${x}">${x}</option>`).join(""));
-}
-
-function setDefaultDateTime(dateSelector, timeSelector) {
-    const now = new Date();
-    const minute = now.getMinutes() < 30 ? "00" : "30";
-    const time = `${String(now.getHours()).padStart(2, "0")}:${minute}`;
-
-    $(dateSelector).val(formatDate(now));
-    $(timeSelector).val(time);
-}
-
-/* ==============================
-   格式化
-   ============================== */
-function formatDate(date) {
-    return date.toISOString().substring(0, 10);
-}
-
-function formatTime(date) {
-    return date.toTimeString().substring(0, 8);
-}
-
-function formatDateTime(date) {
-    return formatDate(date) + " " + formatTime(date);
-}
-
-function formatYearMonth(date) {
-    return date.toISOString().substring(0, 7);
-}
-
-function createClientId() {
-    return "R" + Date.now();
+/* 隱藏 Modal 訊息 */
+function hideModalMessage(selector) {
+    $(selector).addClass("d-none").text("");
 }
