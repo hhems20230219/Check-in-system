@@ -1,7 +1,7 @@
 /* index.js：負責 UI、API、表單、DataTables、簽名、Summary */
 
 const appConfig = {
-    useMockData: false,
+    useMockData: true,
     mockDataUrl: "./mockData.json",
     googleScriptUrl: "請填入你的 Google Apps Script Web App URL",
     storageKeyCurrentUser: "xinxing_attendance_current_user",
