@@ -8,10 +8,10 @@ body {
     border: 1px solid #dee2e6;
 }
 
-/* readonly 灰色鎖定 */
-.readonly-lock,
-input[readonly] {
-    background-color: #e9ecef !important;
+/* readonly 鎖定欄位：保留 readonly，但視覺上灰色鎖定 */
+.locked-field,
+.form-control[readonly] {
+    background-color: #e9ecef;
     color: #6c757d;
     cursor: not-allowed;
 }
