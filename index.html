@@ -2,17 +2,24 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="utf-8">
-    <title>新興救護分隊出勤管理系統</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>新興救護分隊出勤管理系統</title>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.datatables.net/2.0.8/css/dataTables.bootstrap5.css" rel="stylesheet">
-    <link href="https://cdn.datatables.net/responsive/3.0.2/css/responsive.bootstrap5.css" rel="stylesheet">
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+
+    <!-- DataTables Bootstrap 5 Responsive -->
+    <link href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet">
+
     <link href="index.css" rel="stylesheet">
 </head>
-
 <body>
+
+<!-- Navbar 區 -->
 <nav class="navbar navbar-expand-lg bg-body-tertiary border-bottom">
     <div class="container-fluid">
         <span class="navbar-brand fw-bold">
@@ -23,62 +30,63 @@
             <span><i class="fa-solid fa-building me-1"></i><span id="navUnit">-</span></span>
             <span><i class="fa-solid fa-id-badge me-1"></i><span id="navTitle">-</span></span>
             <span><i class="fa-solid fa-user me-1"></i><span id="navName">-</span></span>
-            <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#userModal">
-                <i class="fa-solid fa-repeat me-1"></i>切換
+            <button class="btn btn-outline-primary btn-sm" id="btnOpenUserModal">
+                <i class="fa-solid fa-right-left me-1"></i>切換
             </button>
         </div>
     </div>
 </nav>
 
-<main class="container py-4">
+<main class="container my-4">
 
-    <section class="card rounded-4 mb-3">
-        <div class="card-body text-center bg-dark text-white rounded-4">
-            <div id="currentTime" class="display-5 fw-bold">00:00:00</div>
-            <div id="currentDate" class="small">0000-00-00</div>
+    <!-- 時間區 -->
+    <section class="card section-card mb-3">
+        <div class="card-body text-center bg-dark text-white rounded">
+            <div id="currentTime" class="time-text">00:00:00</div>
+            <div id="currentDate" class="date-text">0000-00-00</div>
         </div>
     </section>
 
-    <div id="systemAlert" class="alert d-none" role="alert"></div>
+    <!-- 系統狀態通知區 -->
+    <section id="alertArea" class="alert d-none" role="alert"></section>
 
-    <section class="card rounded-4 mb-3">
+    <!-- 定位區 -->
+    <section class="card section-card mb-3">
         <div class="card-body">
-            <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
                 <div>
-                    <h5 class="card-title mb-2">
+                    <h5 class="card-title mb-1">
                         <i class="fa-solid fa-location-dot me-2"></i>定位狀態
                     </h5>
-                    <div id="locationStatus">尚未定位</div>
-                    <div id="nearestLocation" class="text-muted small">最近位置：-</div>
-                    <div id="locationAllowed" class="small">允許簽到/簽退：-</div>
+                    <div id="locationStatus" class="text-muted">尚未定位</div>
                 </div>
-                <div class="align-self-md-center">
-                    <button id="btnRelocate" class="btn btn-outline-secondary">
-                        <i class="fa-solid fa-crosshairs me-1"></i>重新定位
-                    </button>
-                </div>
+                <button class="btn btn-outline-success" id="btnLocate">
+                    <i class="fa-solid fa-crosshairs me-1"></i>重新定位
+                </button>
             </div>
         </div>
     </section>
 
-    <section class="card rounded-4 mb-3">
+    <!-- 操作按鈕區 -->
+    <section class="card section-card mb-3">
         <div class="card-body d-grid gap-2">
-            <button id="btnOpenSignIn" class="btn btn-success btn-lg">
+            <button class="btn btn-primary btn-lg" id="btnOpenCheckInModal">
                 <i class="fa-solid fa-right-to-bracket me-2"></i>簽到
             </button>
-            <button id="btnOpenSignOut" class="btn btn-primary btn-lg">
+            <button class="btn btn-warning btn-lg" id="btnOpenCheckOutModal">
                 <i class="fa-solid fa-right-from-bracket me-2"></i>簽退
             </button>
         </div>
     </section>
 
+    <!-- Summary 區 -->
     <section class="row g-3 mb-3">
         <div class="col-md-4">
-            <div class="card rounded-4 h-100">
+            <div class="card section-card h-100">
                 <div class="card-body">
-                    <h6>本月協勤時數</h6>
+                    <h6 class="card-title">本月協勤時數</h6>
                     <div class="fs-4 fw-bold"><span id="monthlyHours">0</span> 小時</div>
-                    <div class="progress">
+                    <div class="progress mt-2">
                         <div id="monthlyProgress" class="progress-bar" style="width:0%">0%</div>
                     </div>
                 </div>
@@ -86,11 +94,11 @@
         </div>
 
         <div class="col-md-4">
-            <div class="card rounded-4 h-100">
+            <div class="card section-card h-100">
                 <div class="card-body">
-                    <h6>總協勤時數</h6>
+                    <h6 class="card-title">總協勤時數</h6>
                     <div class="fs-4 fw-bold"><span id="totalHours">0</span> 小時</div>
-                    <div class="progress">
+                    <div class="progress mt-2">
                         <div id="totalProgress" class="progress-bar" style="width:0%">0%</div>
                     </div>
                 </div>
@@ -98,11 +106,11 @@
         </div>
 
         <div class="col-md-4">
-            <div class="card rounded-4 h-100">
+            <div class="card section-card h-100">
                 <div class="card-body">
-                    <h6><span id="trainingYear">----</span> 年常年訓練次數</h6>
-                    <div class="fs-4 fw-bold"><span id="trainingCount">0</span> 次</div>
-                    <div class="progress">
+                    <h6 class="card-title"><span id="trainingYear">0000</span> 年常年訓練次數</h6>
+                    <div class="fs-4 fw-bold"><span id="trainingCount">0</span> / 12 次</div>
+                    <div class="progress mt-2">
                         <div id="trainingProgress" class="progress-bar" style="width:0%">0%</div>
                     </div>
                 </div>
@@ -110,151 +118,186 @@
         </div>
     </section>
 
-    <section class="card rounded-4">
+    <!-- 出勤紀錄區 -->
+    <section class="card section-card">
         <div class="card-body">
             <div class="d-flex flex-column flex-md-row justify-content-between gap-2 mb-3">
                 <h5 class="card-title mb-0">
                     <i class="fa-solid fa-table-list me-2"></i>出勤紀錄
                 </h5>
-                <input id="queryMonth" type="month" class="form-control w-auto">
+                <input type="month" id="queryMonth" class="form-control month-picker">
             </div>
 
-            <table id="recordTable" class="table table-striped table-bordered nowrap w-100">
-                <thead>
-                <tr>
-                    <th>協勤種類</th>
-                    <th>服勤類別</th>
-                    <th>簽到日期</th>
-                    <th>簽到時間</th>
-                    <th>簽退日期</th>
-                    <th>簽退時間</th>
-                    <th>時數</th>
-                </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
+            <div class="table-responsive">
+                <table id="recordTable" class="table table-striped table-bordered nowrap w-100">
+                    <thead>
+                    <tr>
+                        <th>協勤種類</th>
+                        <th>服勤類別</th>
+                        <th>簽到日期</th>
+                        <th>簽到時間</th>
+                        <th>簽退日期</th>
+                        <th>簽退時間</th>
+                        <th>時數</th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </div>
     </section>
 </main>
 
+<!-- 使用者切換 Modal -->
 <div class="modal fade" id="userModal" tabindex="-1">
     <div class="modal-dialog">
-        <div class="modal-content rounded-4">
+        <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">切換使用者</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
+
             <div class="modal-body">
-                <label class="form-label">人員</label>
-                <select id="staffSelect" class="form-select"></select>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label">單位</label>
+                        <input id="userUnit" class="form-control" readonly>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">職稱</label>
+                        <input id="userTitle" class="form-control" readonly>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="form-label">姓名</label>
+                    <select id="userSelect" class="form-select"></select>
+                </div>
             </div>
+
             <div class="modal-footer">
-                <button id="btnSaveUser" class="btn btn-primary">確定</button>
+                <button class="btn btn-primary" id="btnSaveUser">確認切換</button>
             </div>
         </div>
     </div>
 </div>
 
-<div class="modal fade" id="signInModal" tabindex="-1">
+<!-- 簽到 Modal -->
+<div class="modal fade" id="checkInModal" tabindex="-1">
     <div class="modal-dialog">
-        <form id="signInForm" class="modal-content rounded-4">
+        <form class="modal-content" id="checkInForm">
             <div class="modal-header">
                 <h5 class="modal-title">簽到</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
 
             <div class="modal-body">
-                <label class="form-label">協勤種類</label>
-                <select id="signInServiceType" class="form-select mb-3">
-                    <option value="協勤">協勤</option>
-                    <option value="常年訓練">常年訓練</option>
-                    <option value="公差勤務">公差勤務</option>
-                </select>
-
-                <div id="signInDutyTypeBlock">
-                    <label class="form-label">服勤類別</label>
-                    <select id="signInDutyType" class="form-select mb-3">
-                        <option value="待命協勤">待命協勤</option>
-                        <option value="出勤">出勤</option>
+                <div class="mb-3">
+                    <label class="form-label">協勤種類</label>
+                    <select id="checkInWorkType" class="form-select" required>
+                        <option value="協勤">協勤</option>
+                        <option value="常年訓練">常年訓練</option>
+                        <option value="公差勤務">公差勤務</option>
                     </select>
                 </div>
 
-                <div id="trainingStatusBlock" class="d-none">
+                <div class="mb-3" id="checkInDutyTypeGroup">
+                    <label class="form-label">服勤類別</label>
+                    <select id="checkInDutyType" class="form-select"></select>
+                </div>
+
+                <div class="mb-3 d-none" id="trainingActionGroup">
                     <label class="form-label">常年訓練狀態</label>
-                    <select id="trainingStatus" class="form-select mb-3">
+                    <select id="trainingAction" class="form-select">
                         <option value="簽到">簽到</option>
                         <option value="請假">請假</option>
                     </select>
                 </div>
 
-                <label class="form-label">簽到日期</label>
-                <input id="signInDate" type="date" class="form-control mb-3" required>
-
-                <label class="form-label">簽到時間</label>
-                <input id="signInTime" type="time" class="form-control" required>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <label class="form-label">簽到日期</label>
+                        <input type="date" id="checkInDate" class="form-control" required>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">簽到時間</label>
+                        <select id="checkInTime" class="form-select" required></select>
+                    </div>
+                </div>
             </div>
 
             <div class="modal-footer">
-                <button class="btn btn-success" type="submit">送出簽到</button>
+                <button class="btn btn-primary" type="submit">送出簽到</button>
             </div>
         </form>
     </div>
 </div>
 
-<div class="modal fade" id="signOutModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form id="signOutForm" class="modal-content rounded-4">
+<!-- 簽退 Modal -->
+<div class="modal fade" id="checkOutModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <form class="modal-content" id="checkOutForm">
             <div class="modal-header">
                 <h5 class="modal-title">簽退</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
 
             <div class="modal-body">
-                <label class="form-label">協勤種類</label>
-                <select id="signOutServiceType" class="form-select mb-3">
-                    <option value="協勤">協勤</option>
-                    <option value="常年訓練">常年訓練</option>
-                    <option value="公差勤務">公差勤務</option>
-                </select>
-
-                <div id="signOutDutyTypeBlock">
-                    <label class="form-label">服勤類別</label>
-                    <select id="signOutDutyType" class="form-select mb-3">
-                        <option value="待命協勤">待命協勤</option>
-                        <option value="出勤">出勤</option>
+                <div class="mb-3">
+                    <label class="form-label">協勤種類</label>
+                    <select id="checkOutWorkType" class="form-select" required>
+                        <option value="協勤">協勤</option>
+                        <option value="常年訓練">常年訓練</option>
+                        <option value="公差勤務">公差勤務</option>
                     </select>
                 </div>
 
-                <label class="form-label">簽退日期</label>
-                <input id="signOutDate" type="date" class="form-control mb-3" required>
-
-                <label class="form-label">簽退時間</label>
-                <input id="signOutTime" type="time" class="form-control mb-3" required>
-
-                <div id="workContentBlock">
-                    <label class="form-label">工作內容</label>
-                    <textarea id="workContent" class="form-control mb-3" rows="3"></textarea>
+                <div class="mb-3" id="checkOutDutyTypeGroup">
+                    <label class="form-label">服勤類別</label>
+                    <select id="checkOutDutyType" class="form-select"></select>
                 </div>
 
-                <label class="form-label">簽名</label>
-                <canvas id="signatureCanvas" class="border rounded-3 w-100" height="160"></canvas>
-                <button id="btnClearSignature" type="button" class="btn btn-outline-secondary btn-sm mt-2">
-                    清除簽名
-                </button>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label">簽退日期</label>
+                        <input type="date" id="checkOutDate" class="form-control" required>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">簽退時間</label>
+                        <select id="checkOutTime" class="form-select" required></select>
+                    </div>
+                </div>
+
+                <div class="mb-3" id="workContentGroup">
+                    <label class="form-label">工作內容</label>
+                    <textarea id="workContent" class="form-control" rows="3"></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">簽名</label>
+                    <canvas id="signatureCanvas" class="signature-canvas"></canvas>
+                    <button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="btnClearSignature">
+                        清除簽名
+                    </button>
+                </div>
             </div>
 
             <div class="modal-footer">
-                <button class="btn btn-primary" type="submit">送出簽退</button>
+                <button class="btn btn-warning" type="submit">送出簽退</button>
             </div>
         </form>
     </div>
 </div>
 
+<!-- JS -->
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.datatables.net/2.0.8/js/dataTables.js"></script>
-<script src="https://cdn.datatables.net/2.0.8/js/dataTables.bootstrap5.js"></script>
-<script src="https://cdn.datatables.net/responsive/3.0.2/js/dataTables.responsive.js"></script>
-<script src="https://cdn.datatables.net/responsive/3.0.2/js/responsive.bootstrap5.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+
 <script src="location.js"></script>
 <script src="index.js"></script>
 </body>
