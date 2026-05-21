@@ -1,51 +1,31 @@
-/* ==============================
-   全域基礎樣式
-   ============================== */
+/* 全站基礎樣式 */
 body {
     background-color: #f8f9fa;
 }
 
-/* ==============================
-   時間區樣式
-   ============================== */
-.clock-time {
-    font-size: 3rem;
-    font-weight: 700;
-    letter-spacing: 2px;
-}
-
-.clock-date {
-    font-size: 1rem;
-}
-
-/* ==============================
-   查詢欄位
-   ============================== */
-.month-filter {
-    max-width: 180px;
-}
-
-/* ==============================
-   簽名 Canvas
-   ============================== */
-.signature-canvas {
-    width: 100%;
-    height: 180px;
+/* Bootstrap 區塊間距微調 */
+.card {
     border: 1px solid #dee2e6;
-    border-radius: 0.75rem;
-    background-color: #fff;
+}
+
+/* 簽名 Canvas */
+#signatureCanvas {
+    background-color: #ffffff;
     touch-action: none;
 }
 
-/* ==============================
-   響應式微調
-   ============================== */
+/* DataTables 響應式 */
+table.dataTable.dtr-inline.collapsed > tbody > tr > td.dtr-control::before {
+    top: 50%;
+}
+
+/* 手機版間距 */
 @media (max-width: 576px) {
-    .clock-time {
-        font-size: 2.2rem;
+    .navbar .container {
+        align-items: flex-start;
     }
 
-    .navbar .gap-3 {
-        gap: 0.5rem !important;
+    .display-5 {
+        font-size: 2rem;
     }
 }
