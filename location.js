@@ -2,7 +2,7 @@
 
 const attendanceLocation = (function () {
     const config = {
-        enableLocationCheck: true,
+        enableLocationCheck: false,
         allowedRadiusMeters: 300,
         allowedLocations: [
             {
