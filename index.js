@@ -9,7 +9,7 @@ const appConfig = {
         threeMonthDutyTargetHours: 12,
         yearlyTrainingTargetCount: 12,
         progressWarningPercent: 50,
-        progressSuccessPercent: 100
+        progressSuccessPercent: 90
     }
 };
 
