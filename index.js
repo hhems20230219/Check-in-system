@@ -627,6 +627,8 @@ function renderSummary() {
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const currentYear = String(now.getFullYear());
 
+    const recentMonthRange = getRecentMonthRangeText(now, 3);
+
     const userRecords = attendanceList.filter(function (item) {
         return item.staffId === currentUser.id;
     });
@@ -646,8 +648,9 @@ function renderSummary() {
     const totalHours = sumHours(dutyRecords);
 
     const isMonthlyCompleted = monthHours >= appConfig.rules.monthlyDutyTargetHours;
-    const displayHours = isMonthlyCompleted ? monthHours : threeMonthHours;
-    const displayTarget = isMonthlyCompleted
+
+    const progressValue = isMonthlyCompleted ? monthHours : threeMonthHours;
+    const progressTarget = isMonthlyCompleted
         ? appConfig.rules.monthlyDutyTargetHours
         : appConfig.rules.threeMonthDutyTargetHours;
 
@@ -660,15 +663,22 @@ function renderSummary() {
 
     $("#summaryTotalHours").text(totalHours);
 
-    $("#summaryMonthTitle").text(isMonthlyCompleted ? "本月協勤時數" : "近三個月協勤時數");
-    $("#summaryMonthHours").text(displayHours);
-    $("#summaryMonthNote").text(isMonthlyCompleted ? "本月已達 4 小時目標" : "本月未滿 4 小時，改看近三個月 12 小時");
+    $("#summaryMonthTitle").text("本月協勤時數");
+    $("#summaryMonthHours").text(monthHours);
+
+    if (isMonthlyCompleted) {
+        $("#summaryMonthNote").text(`本月已達目標 ${appConfig.rules.monthlyDutyTargetHours} 小時`);
+    } else {
+        $("#summaryMonthNote").text(
+            `本月 ${monthHours} 小時；${recentMonthRange} ${threeMonthHours} / ${appConfig.rules.threeMonthDutyTargetHours} 小時`
+        );
+    }
 
     $("#summaryTrainingYear").text(currentYear + "年");
     $("#summaryTrainingCount").text(trainingCount);
     $("#summaryTrainingCountText").text(`${trainingCount}/${appConfig.rules.yearlyTrainingTargetCount}次`);
 
-    updateProgress("#monthProgress", displayHours, displayTarget);
+    updateProgress("#monthProgress", progressValue, progressTarget);
     updateProgress("#trainingProgress", trainingCount, appConfig.rules.yearlyTrainingTargetCount);
 }
 
@@ -875,6 +885,17 @@ function isWithinRecentMonths(dateText, baseDate, monthCount) {
     const endDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 1);
 
     return recordDate >= startDate && recordDate < endDate;
+}
+
+/* 工具：產生最近 N 個月顯示文字 */
+function getRecentMonthRangeText(baseDate, monthCount) {
+    const startDate = new Date(baseDate.getFullYear(), baseDate.getMonth() - monthCount + 1, 1);
+    const endDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+
+    const startMonth = String(startDate.getMonth() + 1).padStart(2, "0");
+    const endMonth = String(endDate.getMonth() + 1).padStart(2, "0");
+
+    return `${startMonth}月-${endMonth}月`;
 }
 
 /* 工具：計算時數 */
