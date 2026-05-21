@@ -857,14 +857,38 @@ function canOperateByLocation(dutyType) {
 
 /* 更新定位畫面 */
 function updateLocationUi(state) {
-    $("#locationStatus")
-        .text(state.message)
-        .toggleClass("text-success", state.isValid)
-        .toggleClass("text-danger", !state.isValid);
+    const badge = $("#locationStatusBadge");
 
-    showAlert(state.isValid ? "success" : "warning", state.message);
+    badge.removeClass(
+        "text-bg-secondary text-bg-success text-bg-danger text-bg-warning"
+    );
 
-    logInfo("定位狀態已更新", state);
+    if (!state.isLocated) {
+        if (state.message.includes("逾時")) {
+            badge
+                .addClass("text-bg-warning")
+                .text("定位逾時");
+        } else {
+            badge
+                .addClass("text-bg-danger")
+                .text("定位失敗");
+        }
+    } else if (state.isValid) {
+        badge
+            .addClass("text-bg-success")
+            .text("定位成功");
+    } else {
+        badge
+            .addClass("text-bg-danger")
+            .text("定位失敗");
+    }
+
+    showAlert(
+        state.isValid ? "success" : "warning",
+        state.message
+    );
+
+    logInfo("定位狀態更新", state);
 }
 
 /* 渲染出勤表格 */
