@@ -242,8 +242,7 @@ function bindStaffOptions() {
     $("#checkOutName").html(options);
 
     if (enabledStaff.length > 0) {
-        const firstEnabledStaffId = enabledStaff[0].id;
-        setModalStaffValue(firstEnabledStaffId);
+        setModalStaffValue(enabledStaff[0].id);
     } else {
         clearModalStaffFields();
     }
@@ -385,7 +384,7 @@ function saveCurrentUser() {
     showAlert("success", "已切換使用者：" + currentUser.name);
 }
 
-/* 還原使用者：若已停用，Navbar 必須回到 - */
+/* 還原使用者 */
 function restoreCurrentUser() {
     const saved = localStorage.getItem(appConfig.storageKeyCurrentUser);
 
@@ -515,6 +514,11 @@ function submitCheckIn() {
         hours: ""
     };
 
+    if (!confirmCheckIn(record)) {
+        console.log("使用者取消簽到送出");
+        return;
+    }
+
     if (appConfig.useMockData) {
         attendanceList.push(record);
 
@@ -582,17 +586,35 @@ function submitCheckOut() {
         return;
     }
 
-    openRecord.serviceType = serviceType;
-    openRecord.checkOutDate = $("#checkOutDate").val();
-    openRecord.checkOutTime = $("#checkOutTime").val();
-    openRecord.workContent = $("#workContent").val().trim();
-    openRecord.signature = signaturePad.toDataUrl();
-    openRecord.hours = calculateHours(
+    const checkOutDate = $("#checkOutDate").val();
+    const checkOutTime = $("#checkOutTime").val();
+    const workContent = $("#workContent").val().trim();
+    const calculatedHours = calculateHours(
         openRecord.checkInDate,
         openRecord.checkInTime,
-        openRecord.checkOutDate,
-        openRecord.checkOutTime
+        checkOutDate,
+        checkOutTime
     );
+
+    const previewRecord = Object.assign({}, openRecord, {
+        serviceType: serviceType,
+        checkOutDate: checkOutDate,
+        checkOutTime: checkOutTime,
+        workContent: workContent,
+        hours: calculatedHours
+    });
+
+    if (!confirmCheckOut(previewRecord)) {
+        console.log("使用者取消簽退送出");
+        return;
+    }
+
+    openRecord.serviceType = serviceType;
+    openRecord.checkOutDate = checkOutDate;
+    openRecord.checkOutTime = checkOutTime;
+    openRecord.workContent = workContent;
+    openRecord.signature = signaturePad.toDataUrl();
+    openRecord.hours = calculatedHours;
 
     if (appConfig.useMockData) {
         if (currentUser && currentUser.id === staff.id) {
@@ -618,6 +640,42 @@ function submitCheckOut() {
         .catch(function (error) {
             showModalMessage("#checkOutMessage", "簽退失敗：" + error.message);
         });
+}
+
+/* 簽到送出前確認 */
+function confirmCheckIn(record) {
+    const message =
+        "請確認簽到資料是否正確：\n\n" +
+        `單位：${record.unit}\n` +
+        `職稱：${record.title}\n` +
+        `姓名：${record.name}\n` +
+        `協勤種類：${record.dutyType}\n` +
+        `服勤類別：${record.serviceType || "-"}\n` +
+        `簽到日期：${record.checkInDate}\n` +
+        `簽到時間：${record.checkInTime}\n\n` +
+        "確定要送出嗎？";
+
+    return window.confirm(message);
+}
+
+/* 簽退送出前確認 */
+function confirmCheckOut(record) {
+    const message =
+        "請確認簽退資料是否正確：\n\n" +
+        `單位：${record.unit}\n` +
+        `職稱：${record.title}\n` +
+        `姓名：${record.name}\n` +
+        `協勤種類：${record.dutyType}\n` +
+        `服勤類別：${record.serviceType || "-"}\n` +
+        `簽到日期：${record.checkInDate}\n` +
+        `簽到時間：${record.checkInTime}\n` +
+        `簽退日期：${record.checkOutDate}\n` +
+        `簽退時間：${record.checkOutTime}\n` +
+        `時數：${record.hours} 小時\n` +
+        `工作內容：${record.workContent || "-"}\n\n` +
+        "確定要送出嗎？";
+
+    return window.confirm(message);
 }
 
 /* 判斷定位限制 */
