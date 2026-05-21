@@ -6,7 +6,7 @@ const appConfig = {
     storageKeyCurrentUser: "xinxing_attendance_current_user",
     rules: {
         monthlyDutyTargetHours: 4,
-        totalDutyTargetHours: 100,
+        threeMonthDutyTargetHours: 12,
         yearlyTrainingTargetCount: 12
     }
 };
@@ -20,9 +20,113 @@ let signaturePad = null;
 const mockData = {
     staff: [
         { id: "P001", unit: "新興分隊", title: "隊員", name: "王小明", personalId: "A123456789", enabled: true },
-        { id: "P002", unit: "新興分隊", title: "小隊長", name: "陳小華", personalId: "B123456789", enabled: true }
+        { id: "P002", unit: "新興分隊", title: "小隊長", name: "陳小華", personalId: "B123456789", enabled: true },
+        { id: "P003", unit: "新興分隊", title: "副小隊長", name: "林志強", personalId: "C123456789", enabled: true }
     ],
-    attendance: []
+    attendance: [
+        {
+            id: "A001",
+            createdAt: "2026-03-05T08:00:00",
+            unit: "新興分隊",
+            title: "隊員",
+            name: "王小明",
+            staffId: "P001",
+            dutyType: "協勤",
+            serviceType: "待命協勤",
+            checkInDate: "2026-03-05",
+            checkInTime: "08:00",
+            checkOutDate: "2026-03-05",
+            checkOutTime: "12:00",
+            workContent: "",
+            signature: "",
+            hours: 4
+        },
+        {
+            id: "A002",
+            createdAt: "2026-04-12T18:00:00",
+            unit: "新興分隊",
+            title: "隊員",
+            name: "王小明",
+            staffId: "P001",
+            dutyType: "協勤",
+            serviceType: "出勤",
+            checkInDate: "2026-04-12",
+            checkInTime: "18:00",
+            checkOutDate: "2026-04-12",
+            checkOutTime: "21:00",
+            workContent: "救護勤務支援",
+            signature: "",
+            hours: 3
+        },
+        {
+            id: "A003",
+            createdAt: "2026-05-02T09:00:00",
+            unit: "新興分隊",
+            title: "隊員",
+            name: "王小明",
+            staffId: "P001",
+            dutyType: "協勤",
+            serviceType: "待命協勤",
+            checkInDate: "2026-05-02",
+            checkInTime: "09:00",
+            checkOutDate: "2026-05-02",
+            checkOutTime: "11:00",
+            workContent: "",
+            signature: "",
+            hours: 2
+        },
+        {
+            id: "A004",
+            createdAt: "2026-05-08T19:00:00",
+            unit: "新興分隊",
+            title: "隊員",
+            name: "王小明",
+            staffId: "P001",
+            dutyType: "常年訓練",
+            serviceType: "簽到",
+            checkInDate: "2026-05-08",
+            checkInTime: "19:00",
+            checkOutDate: "",
+            checkOutTime: "",
+            workContent: "",
+            signature: "",
+            hours: ""
+        },
+        {
+            id: "A005",
+            createdAt: "2026-04-20T13:00:00",
+            unit: "新興分隊",
+            title: "隊員",
+            name: "王小明",
+            staffId: "P001",
+            dutyType: "公差勤務",
+            serviceType: "",
+            checkInDate: "2026-04-20",
+            checkInTime: "13:00",
+            checkOutDate: "2026-04-20",
+            checkOutTime: "16:00",
+            workContent: "協助活動場地整理",
+            signature: "",
+            hours: 3
+        },
+        {
+            id: "A006",
+            createdAt: "2026-05-10T19:00:00",
+            unit: "新興分隊",
+            title: "小隊長",
+            name: "陳小華",
+            staffId: "P002",
+            dutyType: "常年訓練",
+            serviceType: "請假",
+            checkInDate: "2026-05-10",
+            checkInTime: "19:00",
+            checkOutDate: "",
+            checkOutTime: "",
+            workContent: "",
+            signature: "",
+            hours: ""
+        }
+    ]
 };
 
 $(document).ready(function () {
@@ -105,13 +209,15 @@ function initEvents() {
 
     $("#userSelect").on("change", function () {
         const staff = findStaffById($(this).val());
-        if (!staff) return;
-
-        $("#userUnit").val(staff.unit);
-        $("#userTitle").val(staff.title);
+        updateUserModalFields(staff);
     });
 
     $("#btnClearSignature").on("click", function () {
+        signaturePad.clear();
+    });
+
+    $("#checkOutModal").on("shown.bs.modal", function () {
+        signaturePad.resize();
         signaturePad.clear();
     });
 }
@@ -190,17 +296,28 @@ function bindStaffOptions() {
     });
 
     $("#userSelect").html(options.join(""));
-    $("#checkInName").html(options.join(""));
-    $("#checkOutName").html(options.join(""));
 
     if (enabledStaff.length > 0) {
-        $("#userSelect").trigger("change");
+        $("#userSelect").val(enabledStaff[0].id);
+        updateUserModalFields(enabledStaff[0]);
     }
 }
 
 /* 開啟使用者切換 */
 function openUserModal() {
+    if (currentUser) {
+        $("#userSelect").val(currentUser.id);
+        updateUserModalFields(currentUser);
+    }
+
     window.userModal.show();
+}
+
+/* 更新切換使用者 Modal 欄位 */
+function updateUserModalFields(staff) {
+    $("#userUnit").val(staff ? staff.unit : "");
+    $("#userTitle").val(staff ? staff.title : "");
+    $("#userName").val(staff ? staff.name : "");
 }
 
 /* 儲存目前使用者 */
@@ -230,7 +347,8 @@ function restoreCurrentUser() {
         return;
     }
 
-    currentUser = JSON.parse(saved);
+    const savedUser = JSON.parse(saved);
+    currentUser = findStaffById(savedUser.id) || null;
     updateUserUi();
 }
 
@@ -248,7 +366,7 @@ function openCheckInModal() {
     hideModalMessage("#checkInMessage");
 
     $("#checkInTitle").val(currentUser.title);
-    $("#checkInName").val(currentUser.id);
+    $("#checkInName").val(currentUser.name);
     $("#checkInDate").val(formatDate(new Date()));
     $("#checkInTime").val(getNearestHalfHourTime());
 
@@ -263,7 +381,7 @@ function openCheckOutModal() {
     hideModalMessage("#checkOutMessage");
 
     $("#checkOutTitle").val(currentUser.title);
-    $("#checkOutName").val(currentUser.id);
+    $("#checkOutName").val(currentUser.name);
     $("#checkOutDate").val(formatDate(new Date()));
     $("#checkOutTime").val(getNearestHalfHourTime());
     $("#workContent").val("");
@@ -303,13 +421,10 @@ function updateCheckOutFields() {
 
 /* 送出簽到 */
 function submitCheckIn() {
-    const staff = findStaffById($("#checkInName").val());
-    const dutyType = $("#checkInType").val();
+    if (!ensureCurrentUser()) return;
 
-    if (!staff) {
-        showModalMessage("#checkInMessage", "找不到簽到人員資料");
-        return;
-    }
+    const staff = currentUser;
+    const dutyType = $("#checkInType").val();
 
     if (!canOperateByLocation(dutyType)) {
         showModalMessage("#checkInMessage", "此協勤種類需要定位成功後才能簽到");
@@ -363,21 +478,18 @@ function submitCheckIn() {
 
 /* 送出簽退 */
 function submitCheckOut() {
-    const staff = findStaffById($("#checkOutName").val());
+    if (!ensureCurrentUser()) return;
+
+    const staff = currentUser;
     const dutyType = $("#checkOutType").val();
     const serviceType = dutyType === "協勤" ? $("#serviceType").val() : "";
-
-    if (!staff) {
-        showModalMessage("#checkOutMessage", "找不到簽退人員資料");
-        return;
-    }
 
     if (!canOperateByLocation(dutyType)) {
         showModalMessage("#checkOutMessage", "此協勤種類需要定位成功後才能簽退");
         return;
     }
 
-    const openRecord = findLatestOpenRecord(staff.name, dutyType);
+    const openRecord = findLatestOpenRecord(staff.id, dutyType);
 
     if (!openRecord) {
         showModalMessage("#checkOutMessage", "找不到尚未簽退的紀錄");
@@ -486,11 +598,22 @@ function renderSummary() {
         return item.dutyType === "協勤" && item.hours;
     });
 
-    const monthHours = sumHours(dutyRecords.filter(function (item) {
+    const currentMonthHours = sumHours(dutyRecords.filter(function (item) {
         return item.checkInDate && item.checkInDate.startsWith(currentMonth);
     }));
 
+    const threeMonthHours = sumHours(getRecentThreeMonthDutyRecords(dutyRecords, now));
     const totalHours = sumHours(dutyRecords);
+
+    const useMonthlyRule = currentMonthHours >= appConfig.rules.monthlyDutyTargetHours;
+    const displayedDutyHours = useMonthlyRule ? currentMonthHours : threeMonthHours;
+    const dutyTargetHours = useMonthlyRule
+        ? appConfig.rules.monthlyDutyTargetHours
+        : appConfig.rules.threeMonthDutyTargetHours;
+
+    $("#summaryDutyTitle").text(useMonthlyRule ? "本月協勤時數" : "近三個月協勤時數");
+    $("#summaryDutyHours").text(displayedDutyHours);
+    $("#summaryDutyRuleText").text(useMonthlyRule ? "已達每月 4 小時" : "本月未達 4 小時，改看近三個月 12 小時");
 
     const trainingCount = attendanceList.filter(function (item) {
         return item.dutyType === "常年訓練" &&
@@ -499,14 +622,28 @@ function renderSummary() {
             item.checkInDate.startsWith(currentYear);
     }).length;
 
-    $("#summaryMonthHours").text(monthHours);
     $("#summaryTotalHours").text(totalHours);
     $("#summaryTrainingYear").text(currentYear + "年");
     $("#summaryTrainingCount").text(trainingCount);
 
-    updateProgress("#monthProgress", monthHours, appConfig.rules.monthlyDutyTargetHours);
-    updateProgress("#totalProgress", totalHours, appConfig.rules.totalDutyTargetHours);
+    updateProgress("#dutyProgress", displayedDutyHours, dutyTargetHours);
     updateProgress("#trainingProgress", trainingCount, appConfig.rules.yearlyTrainingTargetCount);
+}
+
+/* 取得近三個月協勤紀錄 */
+function getRecentThreeMonthDutyRecords(records, baseDate) {
+    const monthKeys = [];
+
+    for (let i = 0; i < 3; i++) {
+        const date = new Date(baseDate.getFullYear(), baseDate.getMonth() - i, 1);
+        monthKeys.push(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`);
+    }
+
+    return records.filter(function (item) {
+        return monthKeys.some(function (monthKey) {
+            return item.checkInDate && item.checkInDate.startsWith(monthKey);
+        });
+    });
 }
 
 /* 更新 Progress */
@@ -520,17 +657,22 @@ function initSignatureCanvas() {
     const canvas = document.getElementById("signatureCanvas");
     const context = canvas.getContext("2d");
     let isDrawing = false;
+    let hasDrawn = false;
 
     function resizeCanvas() {
         const rect = canvas.getBoundingClientRect();
-        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const width = Math.max(300, Math.floor(rect.width));
+        const height = 180;
 
-        canvas.width = rect.width;
-        canvas.height = 180;
+        canvas.width = width;
+        canvas.height = height;
 
-        context.putImageData(imageData, 0, 0);
         context.lineWidth = 2;
         context.lineCap = "round";
+        context.lineJoin = "round";
+        context.strokeStyle = "#000000";
+
+        hasDrawn = false;
     }
 
     function getPoint(event) {
@@ -545,9 +687,11 @@ function initSignatureCanvas() {
 
     function start(event) {
         event.preventDefault();
-        isDrawing = true;
 
         const point = getPoint(event);
+        isDrawing = true;
+        hasDrawn = true;
+
         context.beginPath();
         context.moveTo(point.x, point.y);
     }
@@ -556,13 +700,17 @@ function initSignatureCanvas() {
         if (!isDrawing) return;
 
         event.preventDefault();
+
         const point = getPoint(event);
         context.lineTo(point.x, point.y);
         context.stroke();
     }
 
     function end(event) {
-        event.preventDefault();
+        if (event) {
+            event.preventDefault();
+        }
+
         isDrawing = false;
     }
 
@@ -571,22 +719,20 @@ function initSignatureCanvas() {
     canvas.addEventListener("mouseup", end);
     canvas.addEventListener("mouseleave", end);
 
-    canvas.addEventListener("touchstart", start);
-    canvas.addEventListener("touchmove", move);
-    canvas.addEventListener("touchend", end);
+    canvas.addEventListener("touchstart", start, { passive: false });
+    canvas.addEventListener("touchmove", move, { passive: false });
+    canvas.addEventListener("touchend", end, { passive: false });
 
     window.addEventListener("resize", resizeCanvas);
-    resizeCanvas();
 
     signaturePad = {
+        resize: resizeCanvas,
         clear: function () {
             context.clearRect(0, 0, canvas.width, canvas.height);
+            hasDrawn = false;
         },
         isEmpty: function () {
-            const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-            return !pixels.some(function (value) {
-                return value !== 0;
-            });
+            return !hasDrawn;
         },
         toDataUrl: function () {
             return canvas.toDataURL("image/png");
@@ -642,9 +788,9 @@ function findStaffById(id) {
 }
 
 /* 工具：找最後一筆未簽退 */
-function findLatestOpenRecord(name, dutyType) {
+function findLatestOpenRecord(staffId, dutyType) {
     const records = attendanceList.filter(function (item) {
-        return item.name === name &&
+        return item.staffId === staffId &&
             item.dutyType === dutyType &&
             !item.checkOutDate &&
             dutyType !== "常年訓練";
