@@ -67,13 +67,14 @@
             </div>
         </section>
 
+        <!-- Summary：左總時數、中本月/近三月、右常年訓練 -->
         <section class="row g-3 mb-3">
             <div class="col-md-4">
                 <div class="card rounded-4 h-100">
                     <div class="card-body">
                         <h6 class="fw-bold">總協勤時數</h6>
                         <div class="summary-number"><span id="summaryTotalHours">0</span> 小時</div>
-                        <div class="text-muted small">累計已完成協勤時數</div>
+                        <div class="text-muted summary-note">累計已完成協勤時數</div>
                     </div>
                 </div>
             </div>
@@ -81,12 +82,12 @@
             <div class="col-md-4">
                 <div class="card rounded-4 h-100">
                     <div class="card-body">
-                        <h6 id="summaryDutyTitle" class="fw-bold">本月協勤時數</h6>
-                        <div class="summary-number"><span id="summaryDutyHours">0</span> 小時</div>
+                        <h6 class="fw-bold" id="summaryMonthTitle">本月協勤時數</h6>
+                        <div class="summary-number"><span id="summaryMonthHours">0</span> 小時</div>
                         <div class="progress mt-2">
-                            <div id="dutyProgress" class="progress-bar" style="width:0%">0%</div>
+                            <div id="monthProgress" class="progress-bar" style="width:0%">0%</div>
                         </div>
-                        <div id="summaryDutyRuleText" class="text-muted small mt-2">每月 4 小時</div>
+                        <div id="summaryMonthNote" class="text-muted summary-note mt-2">目標：每月 4 小時</div>
                     </div>
                 </div>
             </div>
@@ -95,11 +96,12 @@
                 <div class="card rounded-4 h-100">
                     <div class="card-body">
                         <h6 class="fw-bold"><span id="summaryTrainingYear"></span> 常年訓練次數</h6>
+                        <div class="summary-number"><span id="summaryTrainingCount">0</span> 次</div>
                         <div class="progress mt-2">
                             <div id="trainingProgress" class="progress-bar bg-info" style="width:0%">0%</div>
                         </div>
-                        <div class="summary-number mt-2">
-                            <span id="summaryTrainingCount">0</span>/12 次
+                        <div class="text-muted summary-note mt-2">
+                            <span id="summaryTrainingCountText">0/12次</span>
                         </div>
                     </div>
                 </div>
@@ -133,6 +135,7 @@
         </section>
     </main>
 
+    <!-- 切換使用者 Modal -->
     <div class="modal fade" id="userModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content rounded-4">
@@ -140,9 +143,6 @@
                     <h5 class="modal-title fw-bold">切換使用者</h5>
                 </div>
                 <div class="modal-body">
-                    <label class="form-label">選擇人員</label>
-                    <select id="userSelect" class="form-select mb-3"></select>
-
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label class="form-label">單位</label>
@@ -155,7 +155,7 @@
                     </div>
 
                     <label class="form-label">姓名</label>
-                    <input id="userName" class="form-control" readonly>
+                    <select id="userSelect" class="form-select"></select>
                 </div>
                 <div class="modal-footer">
                     <button id="btnSaveUser" class="btn btn-primary fw-bold">確定</button>
@@ -164,6 +164,7 @@
         </div>
     </div>
 
+    <!-- 簽到 Modal -->
     <div class="modal fade" id="checkInModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content rounded-4">
@@ -191,13 +192,17 @@
                     </div>
 
                     <div class="row g-2 mb-3">
-                        <div class="col-6">
+                        <div class="col-4">
+                            <label class="form-label">單位</label>
+                            <input id="checkInUnit" class="form-control" readonly>
+                        </div>
+                        <div class="col-4">
                             <label class="form-label">職稱</label>
                             <input id="checkInTitle" class="form-control" readonly>
                         </div>
-                        <div class="col-6">
+                        <div class="col-4">
                             <label class="form-label">姓名</label>
-                            <input id="checkInName" class="form-control" readonly>
+                            <select id="checkInName" class="form-select"></select>
                         </div>
                     </div>
 
@@ -220,6 +225,7 @@
         </div>
     </div>
 
+    <!-- 簽退 Modal -->
     <div class="modal fade" id="checkOutModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content rounded-4">
@@ -246,13 +252,17 @@
                     </div>
 
                     <div class="row g-2 mb-3">
-                        <div class="col-6">
+                        <div class="col-4">
+                            <label class="form-label">單位</label>
+                            <input id="checkOutUnit" class="form-control" readonly>
+                        </div>
+                        <div class="col-4">
                             <label class="form-label">職稱</label>
                             <input id="checkOutTitle" class="form-control" readonly>
                         </div>
-                        <div class="col-6">
+                        <div class="col-4">
                             <label class="form-label">姓名</label>
-                            <input id="checkOutName" class="form-control" readonly>
+                            <select id="checkOutName" class="form-select"></select>
                         </div>
                     </div>
 
