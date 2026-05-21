@@ -217,6 +217,8 @@ function afterDataLoaded() {
 
     if (currentUser) {
         setModalStaffValue(currentUser.id);
+    } else {
+        clearCurrentUserState();
     }
 
     renderAttendanceTable();
@@ -227,7 +229,7 @@ function afterDataLoaded() {
     }
 }
 
-/* 綁定人員下拉 */
+/* 綁定人員下拉，只顯示啟用人員 */
 function bindStaffOptions() {
     const enabledStaff = getEnabledStaffList();
 
@@ -240,34 +242,83 @@ function bindStaffOptions() {
     $("#checkOutName").html(options);
 
     if (enabledStaff.length > 0) {
-        setModalStaffValue(enabledStaff[0].id);
+        const firstEnabledStaffId = enabledStaff[0].id;
+        setModalStaffValue(firstEnabledStaffId);
+    } else {
+        clearModalStaffFields();
     }
 }
 
 /* 取得啟用人員 */
 function getEnabledStaffList() {
     return staffList.filter(function (item) {
-        return item.enabled === true || item.enabled === "TRUE" || item.enabled === "是";
+        return isStaffEnabled(item);
     });
+}
+
+/* 判斷人員是否啟用 */
+function isStaffEnabled(staff) {
+    if (!staff) return false;
+
+    return staff.enabled === true ||
+        staff.enabled === "TRUE" ||
+        staff.enabled === "true" ||
+        staff.enabled === "是" ||
+        staff.enabled === 1;
+}
+
+/* 依 id 找啟用人員 */
+function findEnabledStaffById(id) {
+    const staff = findStaffById(id);
+    return isStaffEnabled(staff) ? staff : null;
 }
 
 /* 同步三個 Modal 的人員選擇 */
 function setModalStaffValue(staffId) {
-    if (!staffId) return;
+    const staff = findEnabledStaffById(staffId);
+    if (!staff) {
+        clearModalStaffFields();
+        return;
+    }
 
-    $("#userSelect").val(staffId);
-    $("#checkInName").val(staffId);
-    $("#checkOutName").val(staffId);
+    $("#userSelect").val(staff.id);
+    $("#checkInName").val(staff.id);
+    $("#checkOutName").val(staff.id);
 
-    syncStaffToUserFields(staffId);
-    syncStaffToCheckInFields(staffId);
-    syncStaffToCheckOutFields(staffId);
+    syncStaffToUserFields(staff.id);
+    syncStaffToCheckInFields(staff.id);
+    syncStaffToCheckOutFields(staff.id);
+}
+
+/* 清空目前使用者狀態 */
+function clearCurrentUserState() {
+    currentUser = null;
+    localStorage.removeItem(appConfig.storageKeyCurrentUser);
+    updateUserUi();
+    clearModalStaffFields();
+}
+
+/* 清空 Modal 人員欄位 */
+function clearModalStaffFields() {
+    $("#userUnit").val("");
+    $("#userTitle").val("");
+    $("#checkInTitle").val("");
+    $("#checkOutTitle").val("");
+
+    $("#userSelect").val("");
+    $("#checkInName").val("");
+    $("#checkOutName").val("");
 }
 
 /* 切換使用者欄位同步 */
 function syncStaffToUserFields(staffId) {
-    const staff = findStaffById(staffId);
-    if (!staff) return;
+    const staff = findEnabledStaffById(staffId);
+
+    if (!staff) {
+        $("#userUnit").val("");
+        $("#userTitle").val("");
+        return;
+    }
 
     $("#userUnit").val(staff.unit);
     $("#userTitle").val(staff.title);
@@ -275,25 +326,35 @@ function syncStaffToUserFields(staffId) {
 
 /* 簽到欄位同步 */
 function syncStaffToCheckInFields(staffId) {
-    const staff = findStaffById(staffId);
-    if (!staff) return;
+    const staff = findEnabledStaffById(staffId);
+
+    if (!staff) {
+        $("#checkInTitle").val("");
+        return;
+    }
 
     $("#checkInTitle").val(staff.title);
 }
 
 /* 簽退欄位同步 */
 function syncStaffToCheckOutFields(staffId) {
-    const staff = findStaffById(staffId);
-    if (!staff) return;
+    const staff = findEnabledStaffById(staffId);
+
+    if (!staff) {
+        $("#checkOutTitle").val("");
+        return;
+    }
 
     $("#checkOutTitle").val(staff.title);
 }
 
 /* 開啟使用者切換 */
 function openUserModal() {
-    if (currentUser) {
+    if (currentUser && findEnabledStaffById(currentUser.id)) {
         $("#userSelect").val(currentUser.id);
         syncStaffToUserFields(currentUser.id);
+    } else {
+        clearCurrentUserState();
     }
 
     window.userModal.show();
@@ -301,10 +362,13 @@ function openUserModal() {
 
 /* 儲存目前使用者 */
 function saveCurrentUser() {
-    const staff = findStaffById($("#userSelect").val());
+    const staff = findEnabledStaffById($("#userSelect").val());
 
     if (!staff) {
-        showAlert("danger", "找不到人員資料，請確認人員資料是否正確");
+        clearCurrentUserState();
+        renderAttendanceTable();
+        renderSummary();
+        showAlert("danger", "此人員已停用，請重新選擇啟用中的人員");
         return;
     }
 
@@ -321,20 +385,34 @@ function saveCurrentUser() {
     showAlert("success", "已切換使用者：" + currentUser.name);
 }
 
-/* 還原使用者 */
+/* 還原使用者：若已停用，Navbar 必須回到 - */
 function restoreCurrentUser() {
     const saved = localStorage.getItem(appConfig.storageKeyCurrentUser);
 
     if (!saved) {
-        currentUser = null;
-        updateUserUi();
+        clearCurrentUserState();
         return;
     }
 
-    const savedUser = JSON.parse(saved);
-    const staff = findStaffById(savedUser.id);
+    let savedUser = null;
 
-    currentUser = staff || null;
+    try {
+        savedUser = JSON.parse(saved);
+    } catch (error) {
+        console.log("使用者暫存資料格式錯誤，已清除");
+        clearCurrentUserState();
+        return;
+    }
+
+    const staff = findEnabledStaffById(savedUser.id);
+
+    if (!staff) {
+        console.log("原本選擇的人員已停用，已清除目前使用者");
+        clearCurrentUserState();
+        return;
+    }
+
+    currentUser = staff;
     updateUserUi();
 }
 
@@ -401,11 +479,11 @@ function updateCheckOutFields() {
 
 /* 送出簽到 */
 function submitCheckIn() {
-    const staff = findStaffById($("#checkInName").val());
+    const staff = findEnabledStaffById($("#checkInName").val());
     const dutyType = $("#checkInType").val();
 
     if (!staff) {
-        showModalMessage("#checkInMessage", "找不到簽到人員資料");
+        showModalMessage("#checkInMessage", "此人員已停用，無法簽到");
         return;
     }
 
@@ -469,12 +547,12 @@ function submitCheckIn() {
 
 /* 送出簽退 */
 function submitCheckOut() {
-    const staff = findStaffById($("#checkOutName").val());
+    const staff = findEnabledStaffById($("#checkOutName").val());
     const dutyType = $("#checkOutType").val();
     const serviceType = dutyType === "協勤" ? $("#serviceType").val() : "";
 
     if (!staff) {
-        showModalMessage("#checkOutMessage", "找不到簽退人員資料");
+        showModalMessage("#checkOutMessage", "此人員已停用，無法簽退");
         return;
     }
 
@@ -626,7 +704,6 @@ function renderSummary() {
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const currentYear = String(now.getFullYear());
-
     const recentMonthRange = getRecentMonthRangeText(now, 3);
 
     const userRecords = attendanceList.filter(function (item) {
@@ -646,7 +723,6 @@ function renderSummary() {
     }));
 
     const totalHours = sumHours(dutyRecords);
-
     const isMonthlyCompleted = monthHours >= appConfig.rules.monthlyDutyTargetHours;
 
     const progressValue = isMonthlyCompleted ? monthHours : threeMonthHours;
@@ -662,7 +738,6 @@ function renderSummary() {
     }).length;
 
     $("#summaryTotalHours").text(totalHours);
-
     $("#summaryMonthTitle").text("本月協勤時數");
     $("#summaryMonthHours").text(monthHours);
 
@@ -836,8 +911,12 @@ function handleApiResponse(response) {
 
 /* 工具：確認使用者 */
 function ensureCurrentUser() {
-    if (!currentUser) {
-        showAlert("warning", "請先切換使用者");
+    if (!currentUser || !findEnabledStaffById(currentUser.id)) {
+        clearCurrentUserState();
+        renderAttendanceTable();
+        renderSummary();
+
+        showAlert("warning", "目前沒有啟用中的使用者，請先切換使用者");
         window.userModal.show();
         return false;
     }
