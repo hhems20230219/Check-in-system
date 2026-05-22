@@ -413,8 +413,7 @@ attendance-system/
 ├─ index.js
 ├─ location.js
 ├─ mockData.json
-├─ README.md
-└─ 系統說明.md
+└─ README.md
 
 Apps Script 檔案結構：
 ├─ code.gs
