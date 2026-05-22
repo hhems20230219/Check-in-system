@@ -131,43 +131,93 @@
         </section>
 
         <section class="row g-3 mb-3">
+        
+            <!-- 總協勤時數 -->
             <div class="col-md-4">
-                <div class="card rounded-4 h-100">
+                <div class="card rounded-4 h-100 shadow-sm">
                     <div class="card-body">
-                        <h6 class="fw-bold">總協勤時數</h6>
-                        <div class="summary-number"><span id="summaryTotalHours">0</span> 小時</div>
-                        <div class="text-muted summary-note">累計已完成協勤時數</div>
+        
+                        <h6 class="fw-bold d-flex align-items-center gap-2 mb-3">
+                            <i class="fa-solid fa-clock text-primary"></i>
+                            <span>總協勤時數</span>
+                        </h6>
+        
+                        <div class="summary-number">
+                            <span id="summaryTotalHours">0</span> 小時
+                        </div>
+        
+                        <div class="text-muted summary-note mt-2">
+                            累計已完成協勤時數
+                        </div>
+        
                     </div>
                 </div>
             </div>
-
+        
+            <!-- 本月協勤時數 -->
             <div class="col-md-4">
-                <div class="card rounded-4 h-100">
+                <div class="card rounded-4 h-100 shadow-sm">
                     <div class="card-body">
-                        <h6 class="fw-bold" id="summaryMonthTitle">本月協勤時數</h6>
-                        <div class="summary-number"><span id="summaryMonthHours">0</span> 小時</div>
-                        <div class="progress mt-2">
-                            <div id="monthProgress" class="progress-bar" style="width:0%">0%</div>
+        
+                        <h6 class="fw-bold d-flex align-items-center gap-2 mb-3">
+                            <i class="fa-solid fa-calendar-check text-success"></i>
+                            <span id="summaryMonthTitle">本月協勤時數</span>
+                        </h6>
+        
+                        <div class="summary-number">
+                            <span id="summaryMonthHours">0</span> 小時
                         </div>
-                        <div id="summaryMonthNote" class="text-muted summary-note mt-2">目標：每月 4 小時</div>
+        
+                        <div class="progress mt-3">
+                            <div id="monthProgress"
+                                 class="progress-bar"
+                                 style="width:0%">
+                                0%
+                            </div>
+                        </div>
+        
+                        <div id="summaryMonthNote"
+                             class="text-muted summary-note mt-2">
+                            目標：每月 4 小時
+                        </div>
+        
                     </div>
                 </div>
             </div>
-
+        
+            <!-- 常年訓練次數 -->
             <div class="col-md-4">
-                <div class="card rounded-4 h-100">
+                <div class="card rounded-4 h-100 shadow-sm">
                     <div class="card-body">
-                        <h6 class="fw-bold"><span id="summaryTrainingYear"></span> 常年訓練次數</h6>
-                        <div class="summary-number"><span id="summaryTrainingCount">0</span> 次</div>
-                        <div class="progress mt-2">
-                            <div id="trainingProgress" class="progress-bar" style="width:0%">0%</div>
+        
+                        <h6 class="fw-bold d-flex align-items-center gap-2 mb-3">
+                            <i class="fa-solid fa-graduation-cap text-warning"></i>
+                            <span>
+                                <span id="summaryTrainingYear"></span>
+                                常年訓練次數
+                            </span>
+                        </h6>
+        
+                        <div class="summary-number">
+                            <span id="summaryTrainingCount">0</span> 次
                         </div>
+        
+                        <div class="progress mt-3">
+                            <div id="trainingProgress"
+                                 class="progress-bar"
+                                 style="width:0%">
+                                0%
+                            </div>
+                        </div>
+        
                         <div class="text-muted summary-note mt-2">
                             <span id="summaryTrainingCountText">0/12次</span>
                         </div>
+        
                     </div>
                 </div>
             </div>
+        
         </section>
 
         <section class="card rounded-4">
