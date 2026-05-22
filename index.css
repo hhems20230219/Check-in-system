@@ -13,6 +13,30 @@ body {
     color: #dc3545;
 }
 
+/* Navbar 使用者資訊區 */
+.navbar-user-area {
+    font-size: 1rem;
+}
+
+/* Navbar 單位 / 職稱 / 姓名 */
+.navbar-user-item {
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+    color: #212529;
+    line-height: 1;
+}
+
+/* Navbar icon */
+.navbar-user-item i {
+    font-size: 1rem;
+}
+
+/* Navbar 導覽列 */
+.navbar-nav .nav-link {
+    font-weight: 500;
+}
+
 /* 必填星號 */
 .required-mark {
     color: #dc3545;
@@ -20,7 +44,7 @@ body {
     margin-left: 2px;
 }
 
-/* readonly 鎖定欄位：保留 readonly，但視覺上灰色鎖定 */
+/* readonly 鎖定欄位 */
 .locked-field,
 .form-control[readonly] {
     background-color: #e9ecef;
@@ -49,18 +73,58 @@ body {
     cursor: crosshair;
 }
 
+/* 定位狀態 Badge */
+#locationStatusBadge {
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
 /* DataTables 響應式 */
 table.dataTable.dtr-inline.collapsed > tbody > tr > td.dtr-control::before {
     top: 50%;
 }
 
-/* 手機版間距 */
+/* 手機版 */
 @media (max-width: 576px) {
+
+    /* Navbar */
     .navbar .container {
         align-items: flex-start;
     }
 
+    .navbar-brand {
+        font-size: 1rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .navbar-user-area {
+        gap: 0.5rem !important;
+        font-size: 0.9rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .navbar-user-item {
+        font-size: 0.9rem;
+    }
+
+    .navbar-user-item i {
+        font-size: 0.9rem;
+    }
+
+    /* 時鐘 */
     .display-5 {
         font-size: 2rem;
+    }
+
+    /* Summary */
+    .summary-number {
+        font-size: 1.5rem;
+    }
+
+    /* 定位 Badge */
+    #locationStatusBadge {
+        font-size: 0.8rem;
+        padding: 0.5rem 0.75rem;
     }
 }
