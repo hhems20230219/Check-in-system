@@ -737,7 +737,7 @@ code.gs：
 doGet、doPost、action routing。
 
 system-guide.html：
-需能在網頁中讀取並顯示「系統說明.md」。
+需能在網頁中讀取並顯示「README.md」。
 使用 marked.js 將 Markdown 轉成 HTML。
 系統說明連結不要 target="_blank"，不要另外開新頁籤。
 
