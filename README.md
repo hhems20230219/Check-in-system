@@ -57,8 +57,7 @@ attendance-system/
 ├─ index.js
 ├─ location.js
 ├─ mockData.json
-├─ README.md
-└─ 系統說明.md
+└─ README.md
 ```
 
 ---
