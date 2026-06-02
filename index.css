@@ -1,199 +1,24 @@
-/* =========================
-   全站基礎樣式
-========================= */
 body {
-    background-color: #f8f9fa;
+  background-color: #f8f9fa;
 }
 
-
-/* =========================
-   Bootstrap 卡片外框微調
-========================= */
 .card {
-    border: 1px solid #dee2e6;
+  border-radius: 0.75rem;
 }
 
-
-/* =========================
-   Navbar：救護車 Icon
-========================= */
-.brand-medical-icon {
-    color: #dc3545;
+.card-header {
+  font-weight: 700;
 }
 
-
-/* =========================
-   Navbar：使用者資訊區塊
-========================= */
-.navbar-user-area {
-    font-size: 1rem;
+.readonly-field {
+  background-color: #e9ecef;
+  cursor: not-allowed;
 }
 
-
-/* =========================
-   Navbar：單位 / 職稱 / 姓名
-========================= */
-.navbar-user-item {
-    display: flex;
-    align-items: center;
-    font-weight: 500;
-    color: #212529;
-    line-height: 1;
-    white-space: nowrap;
+.progress {
+  height: 1.25rem;
 }
 
-
-/* =========================
-   Navbar：Icon 大小
-========================= */
-.navbar-user-item i {
-    font-size: 1rem;
-}
-
-
-/* =========================
-   Navbar：功能選單
-========================= */
-.navbar-nav .nav-link {
-    font-weight: 500;
-}
-
-
-/* =========================
-   必填欄位紅色 *
-========================= */
-.required-mark {
-    color: #dc3545;
-    font-weight: 700;
-    margin-left: 2px;
-}
-
-
-/* =========================
-   readonly 欄位灰色鎖定效果
-========================= */
-.locked-field,
-.form-control[readonly] {
-    background-color: #e9ecef;
-    color: #6c757d;
-    cursor: not-allowed;
-}
-
-
-/* =========================
-   首頁時間區塊
-========================= */
-#currentTime {
-    font-size: 3rem;
-    font-weight: 700;
-    line-height: 1;
-}
-
-#currentDate {
-    font-size: 1rem;
-    margin-top: 0.5rem;
-}
-
-
-/* =========================
-   Summary：數字
-========================= */
-.summary-number {
-    font-size: 1.75rem;
-    font-weight: 700;
-}
-
-
-/* =========================
-   Summary：說明文字
-========================= */
-.summary-note {
-    font-size: 0.875rem;
-}
-
-
-/* =========================
-   定位狀態 Badge
-========================= */
-#locationStatusBadge {
-    font-size: 0.95rem;
-    font-weight: 700;
-}
-
-
-/* =========================
-   簽名 Canvas
-========================= */
-#signatureCanvas {
-    display: block;
-    width: 100%;
-    height: 180px;
-    background-color: #ffffff;
-    touch-action: none;
-    cursor: crosshair;
-}
-
-
-/* =========================
-   DataTables 響應式控制按鈕
-========================= */
-table.dataTable.dtr-inline.collapsed > tbody > tr > td.dtr-control::before {
-    top: 50%;
-}
-
-
-/* =========================
-   手機版樣式
-========================= */
-@media (max-width: 576px) {
-
-    /* Navbar 容器 */
-    .navbar .container {
-        align-items: flex-start;
-    }
-
-    /* Navbar Logo */
-    .navbar-brand {
-        font-size: 1rem;
-        margin-bottom: 0.25rem;
-    }
-
-    /* Navbar 使用者資訊 */
-    .navbar-user-area {
-        gap: 0.5rem !important;
-        font-size: 0.9rem;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-    }
-
-    /* Navbar 單位 / 職稱 / 姓名 */
-    .navbar-user-item {
-        font-size: 0.9rem;
-    }
-
-    /* Navbar Icon */
-    .navbar-user-item i {
-        font-size: 0.9rem;
-    }
-
-    /* 手機版時間 */
-    #currentTime {
-        font-size: 3.2rem;
-    }
-
-    /* 手機版日期 */
-    #currentDate {
-        font-size: 0.9rem;
-    }
-
-    /* 手機版 Summary 數字 */
-    .summary-number {
-        font-size: 1.5rem;
-    }
-
-    /* 手機版定位 Badge */
-    #locationStatusBadge {
-        font-size: 0.8rem;
-        padding: 0.5rem 0.75rem;
-    }
+.list-group-item small {
+  line-height: 1.5;
 }
