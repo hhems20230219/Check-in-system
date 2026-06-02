@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>出勤紀錄</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" rel="stylesheet">
+  <link href="https://cdn.datatables.net/2.1.8/css/dataTables.bootstrap5.css" rel="stylesheet">
+  <link href="https://cdn.datatables.net/responsive/3.0.3/css/responsive.bootstrap5.css" rel="stylesheet">
+  <link href="navbar.css" rel="stylesheet">
+  <link href="service.css" rel="stylesheet">
+</head>
+<body>
+  <div id="navbarContainer"></div>
+
+  <main class="container my-4">
+    <section class="time-panel rounded-3 text-center mb-3">
+      <div class="time-text" id="currentTimeText">--:--:--</div>
+      <div class="date-text" id="currentDateText">----/--/--</div>
+    </section>
+
+    <section class="card rounded-3 mb-3">
+      <div class="card-body d-flex flex-row justify-content-between align-items-center gap-2">
+        <div>
+          <strong><i class="fa-solid fa-location-dot me-1"></i>定位狀態：</strong>
+          <span class="badge text-bg-secondary" id="locationStatusBadge">尚未定位</span>
+        </div>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="refreshLocationButton">
+          <i class="fa-solid fa-location-crosshairs me-1"></i>重新定位
+        </button>
+      </div>
+    </section>
+
+    <section id="serviceAlertContainer" class="mb-3 d-none"></section>
+
+    <section class="card rounded-3 mb-3">
+      <div class="card-header">
+        <i class="fa-solid fa-pen-to-square me-1"></i>操作
+      </div>
+      <div class="card-body d-grid gap-2">
+        <button type="button" class="btn btn-success btn-lg operation-button" id="openCheckInButton">
+          <i class="fa-solid fa-right-to-bracket me-1"></i>簽到
+        </button>
+
+        <button type="button" class="btn btn-danger btn-lg operation-button" id="openCheckOutButton">
+          <i class="fa-solid fa-right-from-bracket me-1"></i>簽退
+        </button>
+      </div>
+    </section>
+
+    <section class="card rounded-3">
+      <div class="card-header">
+        <i class="fa-solid fa-table me-1"></i>出勤紀錄
+      </div>
+      <div class="card-body">
+        <div class="row g-2 mb-3">
+          <div class="col-md-3">
+            <label class="form-label">查詢月份</label>
+            <input type="month" class="form-control" id="filterMonthInput">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">開始日期</label>
+            <input type="date" class="form-control" id="filterStartDateInput">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">結束日期</label>
+            <input type="date" class="form-control" id="filterEndDateInput">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">協勤種類</label>
+            <select class="form-select" id="filterServiceTypeSelect">
+              <option value="">請選擇協勤種類</option>
+              <option value="備勤">備勤</option>
+              <option value="常年訓練">常年訓練</option>
+              <option value="公差勤務">公差勤務</option>
+            </select>
+          </div>
+          <div class="col-12 d-flex gap-2">
+            <button class="btn btn-primary" id="searchRecordButton">
+              <i class="fa-solid fa-magnifying-glass me-1"></i>查詢
+            </button>
+            <button class="btn btn-outline-secondary" id="clearFilterButton">
+              <i class="fa-solid fa-eraser me-1"></i>清除
+            </button>
+          </div>
+        </div>
+
+        <table id="serviceRecordTable" class="table table-striped table-bordered nowrap w-100">
+          <thead>
+            <tr>
+              <th>協勤種類</th>
+              <th>服勤類別</th>
+              <th>簽到日期</th>
+              <th>簽到時間</th>
+              <th>簽退日期</th>
+              <th>簽退時間</th>
+              <th>時數</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal fade" id="userModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content rounded-3">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fa-solid fa-user-gear me-1"></i>切換使用者</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label">單位</label>
+              <input type="text" class="form-control readonly-field" id="modalUnitInput" readonly value="-">
+            </div>
+            <div class="col-6">
+              <label class="form-label">職稱</label>
+              <input type="text" class="form-control readonly-field" id="modalTitleInput" readonly value="-">
+            </div>
+            <div class="col-12">
+              <label class="form-label">姓名</label>
+              <select class="form-select" id="modalNameSelect">
+                <option value="">請選擇人員</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button class="btn btn-primary" id="confirmUserButton">
+            <i class="fa-solid fa-user-check me-1"></i>確認
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="checkInModal" tabindex="-1">
+    <div class="modal-dialog">
+      <form class="modal-content rounded-3" id="checkInForm">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fa-solid fa-right-to-bracket me-1"></i>簽到</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <div id="checkInAlertContainer" class="mb-3 d-none"></div>
+
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">協勤種類</label>
+              <select class="form-select" id="checkInServiceType" required>
+                <option value="備勤">協勤</option>
+                <option value="常年訓練">常年訓練</option>
+                <option value="公差勤務">公差勤務</option>
+              </select>
+            </div>
+
+            <div class="col-12 d-none" id="checkInDutyTypeBlock">
+              <label class="form-label">服勤類別</label>
+              <select class="form-select" id="checkInDutyType"></select>
+            </div>
+
+            <div class="col-6">
+              <label class="form-label">職稱</label>
+              <input class="form-control readonly-field" id="checkInTitleInput" readonly value="-">
+            </div>
+
+            <div class="col-6">
+              <label class="form-label">姓名</label>
+              <select class="form-select" id="checkInNameSelect" required></select>
+            </div>
+
+            <div class="col-6">
+              <label class="form-label">簽到日期</label>
+              <input type="date" class="form-control" id="checkInDateInput" required>
+            </div>
+
+            <div class="col-6">
+              <label class="form-label">簽到時間</label>
+              <select class="form-select" id="checkInTimeSelect" required></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">取消</button>
+          <button class="btn btn-success" type="submit">
+            <i class="fa-solid fa-paper-plane me-1"></i>送出
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal fade" id="checkOutModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <form class="modal-content rounded-3" id="checkOutForm">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fa-solid fa-right-from-bracket me-1"></i>簽退</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <div id="checkOutAlertContainer" class="mb-3 d-none"></div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">協勤種類</label>
+              <input class="form-control readonly-field" id="checkOutServiceTypeInput" readonly value="-">
+            </div>
+
+            <div class="col-md-6" id="checkOutDutyTypeBlock">
+              <label class="form-label">服勤類別</label>
+              <input class="form-control readonly-field" id="checkOutDutyTypeInput" readonly value="-">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">職稱</label>
+              <input class="form-control readonly-field" id="checkOutTitleInput" readonly value="-">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">姓名</label>
+              <input class="form-control readonly-field" id="checkOutNameInput" readonly value="-">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">簽退日期</label>
+              <input type="date" class="form-control" id="checkOutDateInput" required>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">簽退時間</label>
+              <select class="form-select" id="checkOutTimeSelect" required></select>
+            </div>
+
+            <div class="col-12 d-none" id="serviceContentBlock">
+              <label class="form-label">工作內容</label>
+              <textarea class="form-control" id="serviceContentInput" rows="3"></textarea>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">簽名</label>
+              <canvas id="signatureCanvas" class="signature-canvas rounded-3"></canvas>
+              <button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="clearSignatureButton">
+                <i class="fa-solid fa-eraser me-1"></i>清除簽名
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">取消</button>
+          <button class="btn btn-danger" type="submit">
+            <i class="fa-solid fa-paper-plane me-1"></i>送出
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal fade" id="editRecordModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <form class="modal-content rounded-3" id="editRecordForm">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fa-solid fa-pen-to-square me-1"></i>修改出勤紀錄</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <div id="editRecordAlertContainer" class="mb-3 d-none"></div>
+
+          <input type="hidden" id="editRecordIdInput">
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">協勤種類</label>
+              <select class="form-select" id="editServiceTypeSelect" required>
+                <option value="備勤">備勤</option>
+                <option value="常年訓練">常年訓練</option>
+                <option value="公差勤務">公差勤務</option>
+              </select>
+            </div>
+
+            <div class="col-md-6" id="editDutyTypeBlock">
+              <label class="form-label">服勤類別</label>
+              <select class="form-select" id="editDutyTypeSelect"></select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">姓名</label>
+              <select class="form-select" id="editNameSelect" required></select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">事件日期</label>
+              <input type="date" class="form-control" id="editEventDateInput" required>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">簽到日期</label>
+              <input type="date" class="form-control" id="editCheckInDateInput" required>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">簽到時間</label>
+              <select class="form-select" id="editCheckInTimeSelect" required></select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">簽退日期</label>
+              <input type="date" class="form-control" id="editCheckOutDateInput">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">簽退時間</label>
+              <select class="form-select" id="editCheckOutTimeSelect"></select>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">協勤內容</label>
+              <textarea class="form-control" id="editServiceContentInput" rows="3"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">取消</button>
+          <button class="btn btn-primary" type="submit">
+            <i class="fa-solid fa-floppy-disk me-1"></i>儲存
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.datatables.net/2.1.8/js/dataTables.js"></script>
+  <script src="https://cdn.datatables.net/2.1.8/js/dataTables.bootstrap5.js"></script>
+  <script src="https://cdn.datatables.net/responsive/3.0.3/js/dataTables.responsive.js"></script>
+  <script src="https://cdn.datatables.net/responsive/3.0.3/js/responsive.bootstrap5.js"></script>
+  <script src="config.js"></script>
+  <script src="navbar.js"></script>
+  <script src="position.js"></script>
+  <script src="service.js"></script>
+</body>
+</html>
