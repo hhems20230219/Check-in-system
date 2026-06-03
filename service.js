@@ -51,21 +51,18 @@ function bindEvents() {
   $("#searchRecordButton").on("click", loadServiceRecords);
   $("#clearFilterButton").on("click", clearFilters);
   $("#clearSignatureButton").on("click", clearSignature);
+  $("#checkOutModal").on("hidden.bs.modal", function () {
+    hideModalAlert("#checkOutAlertContainer");
+    $("#checkOutServiceType").prop("disabled", false);
+    $("#checkOutNameSelect").prop("disabled", false);
+    editingRecordId = null;
+  });
   $("#checkInModal").on("hidden.bs.modal", function () {
     hideModalAlert("#checkInAlertContainer");
   });
-  $("#checkOutModal").on("hidden.bs.modal", function () {
-    hideModalAlert("#checkOutAlertContainer");
-  });
 }
-/* =======================================================
-   API
-======================================================= */
 function callApi(action, payload) {
-  appLog("INFO", "呼叫 API", {
-    action: action,
-    payload: payload
-  });
+  appLog("INFO", "呼叫 API", { action: action, payload: payload });
   if (appConfig.useSampleData) {
     return loadSampleData(action, payload || {});
   }
@@ -85,13 +82,10 @@ function loadSampleData(action, payload) {
     : $.getJSON("sampleData.json").then(function (data) {
         sampleDataCache = data;
         sampleDataCache.serviceRecords = (sampleDataCache.serviceRecords || []).map(function (record, index) {
-          return Object.assign(
-            { recordId: index + 2 },
-            normalizeServiceRecord(record)
-          );
+          return Object.assign({ recordId: index + 2 }, record);
         });
-        sampleRecordNextId = sampleDataCache.serviceRecords.reduce(function (maxValue, record) {
-          return Math.max(maxValue, Number(record.recordId || 0));
+        sampleRecordNextId = sampleDataCache.serviceRecords.reduce(function (maxId, record) {
+          return Math.max(maxId, Number(record.recordId || 0));
         }, 0) + 1;
         return sampleDataCache;
       });
@@ -111,21 +105,56 @@ function loadSampleData(action, payload) {
       };
     }
     if (action === "createServiceRecord") {
+      const openRecord = findOpenRecordFromList(sampleData.serviceRecords, payload.record.name);
+      if (openRecord && payload.record.serviceType !== appConfig.serviceTypes.annualTraining) {
+        return {
+          success: false,
+          message: "已有尚未簽退紀錄，請先完成簽退",
+          data: null
+        };
+      }
       const newRecord = Object.assign(
         { recordId: sampleRecordNextId++ },
-        normalizeServiceRecord(payload.record)
+        payload.record
       );
       sampleData.serviceRecords.push(newRecord);
       return {
         success: true,
-        message: "範例模式：簽到成功",
+        message: "範例模式：簽到成功，資料已暫存在前端記憶體",
         data: newRecord
       };
     }
-    if (action === "updateOpenRecord" || action === "editServiceRecord" || action === "updateServiceRecord") {
+    if (action === "updateOpenRecord") {
+      const openRecord = findOpenRecordFromList(sampleData.serviceRecords, payload.record.name);
+      if (!openRecord) {
+        return {
+          success: false,
+          message: "目前沒有尚未簽退的簽到紀錄，不能簽退",
+          data: null
+        };
+      }
+      const index = sampleData.serviceRecords.findIndex(function (record) {
+        return Number(record.recordId) === Number(openRecord.recordId);
+      });
+      sampleData.serviceRecords[index] = Object.assign(
+        {},
+        sampleData.serviceRecords[index],
+        {
+          checkOutDate: payload.record.checkOutDate,
+          checkOutTime: payload.record.checkOutTime,
+          serviceContent: payload.record.serviceContent
+        }
+      );
+      return {
+        success: true,
+        message: "範例模式：簽退成功",
+        data: sampleData.serviceRecords[index]
+      };
+    }
+    if (action === "editServiceRecord") {
       const recordId = Number(payload.record.recordId);
-      const index = sampleData.serviceRecords.findIndex(function (item) {
-        return Number(item.recordId) === recordId;
+      const index = sampleData.serviceRecords.findIndex(function (record) {
+        return Number(record.recordId) === recordId;
       });
       if (index < 0) {
         return {
@@ -137,18 +166,18 @@ function loadSampleData(action, payload) {
       sampleData.serviceRecords[index] = Object.assign(
         {},
         sampleData.serviceRecords[index],
-        normalizeServiceRecord(payload.record)
+        payload.record
       );
       return {
         success: true,
-        message: action === "updateOpenRecord" ? "範例模式：簽退成功" : "範例模式：修改成功",
+        message: "範例模式：修改成功",
         data: sampleData.serviceRecords[index]
       };
     }
     if (action === "deleteServiceRecord") {
       const recordId = Number(payload.recordId);
-      sampleData.serviceRecords = sampleData.serviceRecords.filter(function (item) {
-        return Number(item.recordId) !== recordId;
+      sampleData.serviceRecords = sampleData.serviceRecords.filter(function (record) {
+        return Number(record.recordId) !== recordId;
       });
       return {
         success: true,
@@ -163,71 +192,30 @@ function loadSampleData(action, payload) {
     };
   });
 }
-/* =======================================================
-   資料標準化
-======================================================= */
-function normalizeServiceRecord(record) {
-  const normalizedRecord = Object.assign({}, record);
-  normalizedRecord.serviceType = normalizeServiceType(normalizedRecord.serviceType);
-  return normalizedRecord;
-}
-function normalizeServiceType(serviceType) {
-  if (serviceType === "協勤") {
-    return appConfig.serviceTypes.standby;
-  }
-  if (serviceType === "備勤") {
-    return appConfig.serviceTypes.standby;
-  }
-  return serviceType || "";
-}
-function getServiceTypeDisplayName(serviceType) {
-  const normalizedType = normalizeServiceType(serviceType);
-  if (normalizedType === appConfig.serviceTypes.standby) {
-    return "協勤";
-  }
-  return normalizedType || "-";
-}
-function setServiceTypeSelectValue(selector, serviceType) {
-  const normalizedType = normalizeServiceType(serviceType);
-  const select = $(selector);
-  if (select.find(`option[value="${normalizedType}"]`).length > 0) {
-    select.val(normalizedType);
-    return;
-  }
-  if (normalizedType === appConfig.serviceTypes.standby && select.find('option[value="協勤"]').length > 0) {
-    select.val("協勤");
-    return;
-  }
-  select.append(`<option value="${escapeHtml(normalizedType)}">${escapeHtml(getServiceTypeDisplayName(normalizedType))}</option>`);
-  select.val(normalizedType);
-}
 function filterSampleServiceRecords(records, payload) {
   let filteredRecords = records.slice();
   if (payload.personName) {
-    filteredRecords = filteredRecords.filter(function (item) {
-      return item.name === payload.personName;
+    filteredRecords = filteredRecords.filter(function (record) {
+      return record.name === payload.personName;
     });
   }
   if (payload.serviceType) {
-    filteredRecords = filteredRecords.filter(function (item) {
-      return normalizeServiceType(item.serviceType) === normalizeServiceType(payload.serviceType);
+    filteredRecords = filteredRecords.filter(function (record) {
+      return normalizeServiceType(record.serviceType) === normalizeServiceType(payload.serviceType);
     });
   }
   if (payload.startDate) {
-    filteredRecords = filteredRecords.filter(function (item) {
-      return item.eventDate >= payload.startDate;
+    filteredRecords = filteredRecords.filter(function (record) {
+      return record.eventDate >= payload.startDate;
     });
   }
   if (payload.endDate) {
-    filteredRecords = filteredRecords.filter(function (item) {
-      return item.eventDate <= payload.endDate;
+    filteredRecords = filteredRecords.filter(function (record) {
+      return record.eventDate <= payload.endDate;
     });
   }
   return filteredRecords;
 }
-/* =======================================================
-   人員
-======================================================= */
 function loadPeople() {
   callApi("getPeople", {}).then(function (response) {
     if (!response.success) {
@@ -282,13 +270,10 @@ function setCurrentPerson(personName) {
   loadServiceRecords();
 }
 function findPerson(personName) {
-  return people.find(function (item) {
-    return item.name === personName;
+  return people.find(function (person) {
+    return person.name === personName;
   });
 }
-/* =======================================================
-   出勤紀錄
-======================================================= */
 function loadServiceRecords() {
   if (!currentPerson) {
     renderServiceRecordTable([]);
@@ -300,7 +285,7 @@ function loadServiceRecords() {
       showAlert(response.message, "danger");
       return;
     }
-    serviceRecords = (response.data || []).map(normalizeServiceRecord);
+    serviceRecords = response.data || [];
     renderServiceRecordTable(serviceRecords);
     hideAlert();
   });
@@ -317,12 +302,11 @@ function buildFilterPayload() {
     personName: currentPerson ? currentPerson.name : "",
     startDate: startDate,
     endDate: endDate,
-    serviceType: normalizeServiceType($("#filterServiceTypeSelect").val())
+    serviceType: $("#filterServiceTypeSelect").val()
   };
 }
 function renderServiceRecordTable(records) {
   const rows = records.map(function (record) {
-    const hours = calculateRecordHours(record);
     return [
       escapeHtml(getServiceTypeDisplayName(record.serviceType)),
       escapeHtml(record.dutyType || "-"),
@@ -330,7 +314,7 @@ function renderServiceRecordTable(records) {
       escapeHtml(record.checkInTime || "-"),
       escapeHtml(record.checkOutDate || "-"),
       escapeHtml(record.checkOutTime || "-"),
-      `${hours} 小時`,
+      `${calculateRecordHours(record)} 小時`,
       buildTableActionButtons(record)
     ];
   });
@@ -351,36 +335,14 @@ function buildTableActionButtons(record) {
     return "-";
   }
   return `
-    <button class="btn btn-sm btn-outline-primary me-1" onclick="editRecord(${record.recordId})">修改</button>
-    <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord(${record.recordId})">刪除</button>
+    <button class="btn btn-sm btn-outline-primary me-1" onclick="editRecord(${record.recordId})">
+      <i class="fa-solid fa-pen me-1"></i>修改
+    </button>
+    <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord(${record.recordId})">
+      <i class="fa-solid fa-trash me-1"></i>刪除
+    </button>
   `;
 }
-function findServiceRecordById(recordId) {
-  return serviceRecords.find(function (record) {
-    return Number(record.recordId) === Number(recordId);
-  });
-}
-function findOpenServiceRecord(personName) {
-  const records = serviceRecords
-    .map(normalizeServiceRecord)
-    .filter(function (record) {
-      return record.name === personName &&
-        record.checkInDate &&
-        record.checkInTime &&
-        !record.checkOutDate &&
-        !record.checkOutTime &&
-        record.serviceType !== appConfig.serviceTypes.annualTraining;
-    })
-    .sort(function (a, b) {
-      const aTime = `${a.checkInDate} ${a.checkInTime}`;
-      const bTime = `${b.checkInDate} ${b.checkInTime}`;
-      return bTime.localeCompare(aTime);
-    });
-  return records.length > 0 ? records[0] : null;
-}
-/* =======================================================
-   簽到
-======================================================= */
 function openCheckInModal() {
   if (!currentPerson) {
     showAlert("請先切換使用者", "warning");
@@ -388,13 +350,13 @@ function openCheckInModal() {
   }
   const openRecord = findOpenServiceRecord(currentPerson.name);
   if (openRecord) {
-    showAlert("已有尚未簽退的紀錄，請先完成簽退後再簽到", "warning");
+    showAlert("已有尚未簽退紀錄，請先完成簽退", "warning");
     return;
   }
   hideModalAlert("#checkInAlertContainer");
   ensureHalfHourOptions();
   const now = new Date();
-  setServiceTypeSelectValue("#checkInServiceType", appConfig.serviceTypes.standby);
+  $("#checkInServiceType").val(appConfig.serviceTypes.standby);
   $("#checkInNameSelect").val(currentPerson.name);
   $("#checkInDateInput").val(formatDate(now));
   $("#checkInTimeSelect").val(formatHalfHour(now));
@@ -402,45 +364,6 @@ function openCheckInModal() {
   updateCheckInDutyType();
   $("#checkInModal").modal("show");
 }
-function submitCheckIn(event) {
-  event.preventDefault();
-  hideModalAlert("#checkInAlertContainer");
-  const personName = $("#checkInNameSelect").val();
-  const openRecord = findOpenServiceRecord(personName);
-  if (openRecord) {
-    showModalAlert("#checkInAlertContainer", "已有尚未簽退紀錄，不能重複簽到", "danger");
-    return;
-  }
-  const serviceType = normalizeServiceType($("#checkInServiceType").val());
-  if ((serviceType === appConfig.serviceTypes.standby || serviceType === appConfig.serviceTypes.annualTraining) && !isLocationAllowed()) {
-    showModalAlert("#checkInAlertContainer", getCurrentLocationBlockMessage("無法簽到"), "danger");
-    return;
-  }
-  const checkInDate = $("#checkInDateInput").val();
-  const record = {
-    serviceType: serviceType,
-    dutyType: serviceType === appConfig.serviceTypes.annualTraining ? $("#checkInDutyType").val() : "",
-    eventDate: checkInDate,
-    checkInDate: checkInDate,
-    checkInTime: $("#checkInTimeSelect").val(),
-    checkOutDate: "",
-    checkOutTime: "",
-    name: personName,
-    serviceContent: ""
-  };
-  callApi("createServiceRecord", { record: record }).then(function (response) {
-    if (!response.success) {
-      showModalAlert("#checkInAlertContainer", response.message, "danger");
-      return;
-    }
-    showAlert(response.message, "success");
-    $("#checkInModal").modal("hide");
-    loadServiceRecords();
-  });
-}
-/* =======================================================
-   簽退
-======================================================= */
 function openCheckOutModal() {
   if (!currentPerson) {
     showAlert("請先切換使用者", "warning");
@@ -454,55 +377,85 @@ function openCheckOutModal() {
   hideModalAlert("#checkOutAlertContainer");
   ensureHalfHourOptions();
   const now = new Date();
-  const normalizedServiceType = normalizeServiceType(openRecord.serviceType);
+  const serviceType = normalizeServiceType(openRecord.serviceType);
   const person = findPerson(openRecord.name);
   editingRecordId = openRecord.recordId;
-  setServiceTypeSelectValue("#checkOutServiceType", normalizedServiceType);
+  $("#checkOutServiceType").html(`
+    <option value="${appConfig.serviceTypes.standby}">協勤</option>
+    <option value="${appConfig.serviceTypes.officialDuty}">公差勤務</option>
+  `);
+  $("#checkOutServiceType").val(serviceType);
+  $("#checkOutServiceType").prop("disabled", true);
   $("#checkOutNameSelect").val(openRecord.name);
+  $("#checkOutNameSelect").prop("disabled", true);
   $("#checkOutTitleInput").val(person ? person.title : "-");
   $("#checkOutDateInput").val(formatDate(now));
   $("#checkOutTimeSelect").val(formatHalfHour(now));
   $("#serviceContentInput").val(openRecord.serviceContent || "");
   updateCheckOutDutyType();
-  if (normalizedServiceType === appConfig.serviceTypes.standby) {
+  if (serviceType === appConfig.serviceTypes.standby) {
     $("#checkOutDutyType").val(openRecord.dutyType || appConfig.dutyTypes.dispatch);
   }
   updateCheckOutContentBlock();
   clearSignature();
   showModalAlert(
     "#checkOutAlertContainer",
-    `已帶入尚未簽退紀錄：${getServiceTypeDisplayName(openRecord.serviceType)}`,
+    `已帶入尚未簽退紀錄：${getServiceTypeDisplayName(serviceType)}`,
     "info"
   );
   $("#checkOutModal").modal("show");
+}
+function submitCheckIn(event) {
+  event.preventDefault();
+  hideModalAlert("#checkInAlertContainer");
+  const serviceType = normalizeServiceType($("#checkInServiceType").val());
+  if ((serviceType === appConfig.serviceTypes.standby || serviceType === appConfig.serviceTypes.annualTraining) && !isLocationAllowed()) {
+    showModalAlert("#checkInAlertContainer", getCurrentLocationBlockMessage("無法簽到"), "danger");
+    return;
+  }
+  const dutyType = serviceType === appConfig.serviceTypes.annualTraining ? $("#checkInDutyType").val() : "";
+  const checkInDate = $("#checkInDateInput").val();
+  const record = {
+    serviceType: serviceType,
+    dutyType: dutyType,
+    eventDate: checkInDate,
+    checkInDate: checkInDate,
+    checkInTime: $("#checkInTimeSelect").val(),
+    checkOutDate: "",
+    checkOutTime: "",
+    name: $("#checkInNameSelect").val(),
+    serviceContent: ""
+  };
+  callApi("createServiceRecord", { record: record }).then(function (response) {
+    if (!response.success) {
+      showModalAlert("#checkInAlertContainer", response.message, "danger");
+      return;
+    }
+    showAlert(response.message, "success");
+    $("#checkInModal").modal("hide");
+    loadServiceRecords();
+  });
 }
 function submitCheckOut(event) {
   event.preventDefault();
   hideModalAlert("#checkOutAlertContainer");
   if (!signaturePadState.hasSignature) {
-    showModalAlert("#checkOutAlertContainer", "請先完成簽名後再送出簽退", "danger");
+    showModalAlert("#checkOutAlertContainer", "請先完成簽名後再送出", "danger");
     return;
   }
-  const personName = $("#checkOutNameSelect").val();
-  const targetRecord = editingRecordId
-    ? findServiceRecordById(editingRecordId)
-    : findOpenServiceRecord(personName);
-  if (!targetRecord) {
-    showModalAlert("#checkOutAlertContainer", "找不到尚未簽退的紀錄，不能簽退", "danger");
+  const openRecord = findOpenServiceRecord(currentPerson.name);
+  if (!openRecord) {
+    showModalAlert("#checkOutAlertContainer", "目前沒有尚未簽退的簽到紀錄，不能簽退", "danger");
     return;
   }
-  const serviceType = normalizeServiceType($("#checkOutServiceType").val());
-  const updatedRecord = Object.assign({}, targetRecord, {
-    recordId: targetRecord.recordId,
-    serviceType: serviceType,
-    dutyType: serviceType === appConfig.serviceTypes.standby ? $("#checkOutDutyType").val() : "",
-    eventDate: targetRecord.eventDate || targetRecord.checkInDate,
+  const record = {
+    recordId: openRecord.recordId,
     checkOutDate: $("#checkOutDateInput").val(),
     checkOutTime: $("#checkOutTimeSelect").val(),
-    name: personName,
-    serviceContent: shouldShowCheckOutContent() ? $("#serviceContentInput").val() : targetRecord.serviceContent || ""
-  });
-  callApi("updateOpenRecord", { record: updatedRecord }).then(function (response) {
+    name: currentPerson.name,
+    serviceContent: shouldShowCheckOutContent() ? $("#serviceContentInput").val() : openRecord.serviceContent || ""
+  };
+  callApi("updateOpenRecord", { record: record }).then(function (response) {
     if (!response.success) {
       showModalAlert("#checkOutAlertContainer", response.message, "danger");
       return;
@@ -513,44 +466,28 @@ function submitCheckOut(event) {
     loadServiceRecords();
   });
 }
-/* =======================================================
-   修改 / 刪除
-======================================================= */
 function editRecord(recordId) {
-  if (!servicePageConfig.enableTableActions) {
-    showAlert("目前已關閉表格操作功能", "warning");
-    return;
-  }
   const record = findServiceRecordById(recordId);
   if (!record) {
     showAlert("找不到要修改的紀錄", "danger");
     return;
   }
-  hideModalAlert("#checkOutAlertContainer");
-  ensureHalfHourOptions();
-  const normalizedServiceType = normalizeServiceType(record.serviceType);
-  const person = findPerson(record.name);
   editingRecordId = recordId;
-  setServiceTypeSelectValue("#checkOutServiceType", normalizedServiceType);
-  $("#checkOutNameSelect").val(record.name);
-  $("#checkOutTitleInput").val(person ? person.title : "-");
-  $("#checkOutDateInput").val(record.checkOutDate || formatDate(new Date()));
-  $("#checkOutTimeSelect").val(record.checkOutTime || formatHalfHour(new Date()));
-  $("#serviceContentInput").val(record.serviceContent || "");
-  updateCheckOutDutyType();
-  if (normalizedServiceType === appConfig.serviceTypes.standby) {
-    $("#checkOutDutyType").val(record.dutyType || appConfig.dutyTypes.dispatch);
-  }
-  updateCheckOutContentBlock();
-  clearSignature();
-  showModalAlert("#checkOutAlertContainer", "目前為修改紀錄模式", "info");
-  $("#checkOutModal").modal("show");
-}
-function deleteRecord(recordId) {
-  if (!servicePageConfig.enableTableActions) {
-    showAlert("目前已關閉表格操作功能", "warning");
+  const updatedContent = prompt("請輸入修改後的協勤內容", record.serviceContent || "");
+  if (updatedContent === null) {
     return;
   }
+  const updatedRecord = Object.assign({}, record, {
+    serviceContent: updatedContent
+  });
+  callApi("editServiceRecord", { record: updatedRecord }).then(function (response) {
+    showAlert(response.message, response.success ? "success" : "danger");
+    if (response.success) {
+      loadServiceRecords();
+    }
+  });
+}
+function deleteRecord(recordId) {
   if (!confirm("確定要刪除這筆紀錄？")) {
     return;
   }
@@ -561,9 +498,29 @@ function deleteRecord(recordId) {
     }
   });
 }
-/* =======================================================
-   表單顯示控制
-======================================================= */
+function findServiceRecordById(recordId) {
+  return serviceRecords.find(function (record) {
+    return Number(record.recordId) === Number(recordId);
+  });
+}
+function findOpenServiceRecord(personName) {
+  return findOpenRecordFromList(serviceRecords, personName);
+}
+function findOpenRecordFromList(records, personName) {
+  const openRecords = (records || [])
+    .filter(function (record) {
+      return record.name === personName &&
+        record.checkInDate &&
+        record.checkInTime &&
+        !record.checkOutDate &&
+        !record.checkOutTime &&
+        normalizeServiceType(record.serviceType) !== appConfig.serviceTypes.annualTraining;
+    })
+    .sort(function (a, b) {
+      return `${b.checkInDate} ${b.checkInTime}`.localeCompare(`${a.checkInDate} ${a.checkInTime}`);
+    });
+  return openRecords.length > 0 ? openRecords[0] : null;
+}
 function updateCheckInDutyType() {
   const serviceType = normalizeServiceType($("#checkInServiceType").val());
   if (serviceType === appConfig.serviceTypes.annualTraining) {
@@ -598,10 +555,21 @@ function updateCheckOutContentBlock() {
 function shouldShowCheckOutContent() {
   const serviceType = normalizeServiceType($("#checkOutServiceType").val());
   const dutyType = $("#checkOutDutyType").val();
-  if (serviceType === appConfig.serviceTypes.officialDuty) {
-    return true;
+  return serviceType === appConfig.serviceTypes.officialDuty ||
+    (serviceType === appConfig.serviceTypes.standby && dutyType === appConfig.dutyTypes.dispatch);
+}
+function normalizeServiceType(serviceType) {
+  if (serviceType === "協勤") {
+    return appConfig.serviceTypes.standby;
   }
-  return serviceType === appConfig.serviceTypes.standby && dutyType === appConfig.dutyTypes.dispatch;
+  return serviceType || "";
+}
+function getServiceTypeDisplayName(serviceType) {
+  const normalizedType = normalizeServiceType(serviceType);
+  if (normalizedType === appConfig.serviceTypes.standby) {
+    return "協勤";
+  }
+  return normalizedType || "-";
 }
 function syncCheckInTitle() {
   const person = findPerson($("#checkInNameSelect").val());
@@ -611,9 +579,6 @@ function syncCheckOutTitle() {
   const person = findPerson($("#checkOutNameSelect").val());
   $("#checkOutTitleInput").val(person ? person.title : "-");
 }
-/* =======================================================
-   時間
-======================================================= */
 function ensureHalfHourOptions() {
   if ($("#checkInTimeSelect option").length === 0 || $("#checkOutTimeSelect option").length === 0) {
     fillHalfHourOptions();
@@ -635,31 +600,6 @@ function renderOptions(selector, values) {
   });
   $(selector).html(html.join(""));
 }
-function setDefaultFilterDates() {
-  const now = new Date();
-  const today = formatDate(now);
-  const currentMonth = today.slice(0, 7);
-  $("#filterMonthInput").val(currentMonth);
-  $("#filterStartDateInput").val("");
-  $("#filterEndDateInput").val("");
-}
-function clearFilters() {
-  setDefaultFilterDates();
-  $("#filterServiceTypeSelect").val("");
-  loadServiceRecords();
-}
-function startClock() {
-  function updateClock() {
-    const now = new Date();
-    $("#currentTimeText").text(now.toLocaleTimeString("zh-TW", { hour12: false }));
-    $("#currentDateText").text(now.toLocaleDateString("zh-TW"));
-  }
-  updateClock();
-  setInterval(updateClock, 1000);
-}
-/* =======================================================
-   定位
-======================================================= */
 function refreshLocation(shouldShowResultAlert) {
   setLocationBadge("notLocated");
   getCurrentLocationResult().then(function (result) {
@@ -715,9 +655,51 @@ function getCurrentLocationBlockMessage(actionText) {
   }
   return `${actionText}：${currentLocationResult.message || "定位未符合條件"}`;
 }
-/* =======================================================
-   簽名
-======================================================= */
+function showAlert(message, type) {
+  $("#serviceAlertContainer")
+    .removeClass("d-none")
+    .html(`
+      <div class="alert alert-${type} rounded-3 mb-0">
+        <i class="fa-solid fa-circle-info me-1"></i>${escapeHtml(message || "-")}
+      </div>
+    `);
+}
+function hideAlert() {
+  $("#serviceAlertContainer").addClass("d-none").empty();
+}
+function showModalAlert(selector, message, type) {
+  $(selector)
+    .removeClass("d-none")
+    .html(`
+      <div class="alert alert-${type} rounded-3 mb-0">
+        <i class="fa-solid fa-circle-info me-1"></i>${escapeHtml(message || "-")}
+      </div>
+    `);
+}
+function hideModalAlert(selector) {
+  $(selector).addClass("d-none").empty();
+}
+function clearFilters() {
+  setDefaultFilterDates();
+  $("#filterServiceTypeSelect").val("");
+  loadServiceRecords();
+}
+function setDefaultFilterDates() {
+  const now = new Date();
+  const currentMonth = formatDate(now).slice(0, 7);
+  $("#filterMonthInput").val(currentMonth);
+  $("#filterStartDateInput").val("");
+  $("#filterEndDateInput").val("");
+}
+function startClock() {
+  function updateClock() {
+    const now = new Date();
+    $("#currentTimeText").text(now.toLocaleTimeString("zh-TW", { hour12: false }));
+    $("#currentDateText").text(now.toLocaleDateString("zh-TW"));
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+}
 function initializeSignatureCanvas() {
   const canvas = document.getElementById("signatureCanvas");
   const context = canvas.getContext("2d");
@@ -758,40 +740,6 @@ function clearSignature() {
   const context = canvas.getContext("2d");
   context.clearRect(0, 0, canvas.width, canvas.height);
 }
-/* =======================================================
-   Alert
-======================================================= */
-function showAlert(message, type) {
-  $("#serviceAlertContainer")
-    .removeClass("d-none")
-    .html(`
-      <div class="alert alert-${type} rounded-3 mb-0">
-        <i class="fa-solid fa-circle-info me-1"></i>${escapeHtml(message || "-")}
-      </div>
-    `);
-}
-function hideAlert() {
-  $("#serviceAlertContainer")
-    .addClass("d-none")
-    .empty();
-}
-function showModalAlert(selector, message, type) {
-  $(selector)
-    .removeClass("d-none")
-    .html(`
-      <div class="alert alert-${type} rounded-3 mb-0">
-        <i class="fa-solid fa-circle-info me-1"></i>${escapeHtml(message || "-")}
-      </div>
-    `);
-}
-function hideModalAlert(selector) {
-  $(selector)
-    .addClass("d-none")
-    .empty();
-}
-/* =======================================================
-   共用工具
-======================================================= */
 function calculateRecordHours(record) {
   if (!record.checkInDate || !record.checkInTime || !record.checkOutDate || !record.checkOutTime) {
     return 0;
