@@ -1,6 +1,6 @@
 // 定位設定集中管理
 const positionConfig = {
-  enableLocation: false,
+  enableLocation: true,
   allowedDistanceMeters: 250,
   timeoutMilliseconds: 10000,
   maximumAgeMilliseconds: 0,
