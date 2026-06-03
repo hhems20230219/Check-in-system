@@ -22,7 +22,6 @@ $(document).ready(function () {
   initializeSignatureCanvas();
 });
 function initializePage() {
-  appLog("INFO", "初始化出勤紀錄頁");
   hideAlert();
   hideModalAlert("#checkInAlertContainer");
   hideModalAlert("#checkOutAlertContainer");
@@ -59,6 +58,9 @@ function bindEvents() {
     hideModalAlert("#checkOutAlertContainer");
   });
 }
+/* =======================================================
+   API
+======================================================= */
 function callApi(action, payload) {
   appLog("INFO", "呼叫 API", {
     action: action,
@@ -84,20 +86,13 @@ function loadSampleData(action, payload) {
         sampleDataCache = data;
         sampleDataCache.serviceRecords = (sampleDataCache.serviceRecords || []).map(function (record, index) {
           return Object.assign(
-            {
-              recordId: index + 2
-            },
+            { recordId: index + 2 },
             normalizeServiceRecord(record)
           );
         });
         sampleRecordNextId = sampleDataCache.serviceRecords.reduce(function (maxValue, record) {
           return Math.max(maxValue, Number(record.recordId || 0));
         }, 0) + 1;
-        appLog("INFO", "sampleData.json 載入完成", {
-          peopleCount: sampleDataCache.people.length,
-          serviceRecordCount: sampleDataCache.serviceRecords.length,
-          nextId: sampleRecordNextId
-        });
         return sampleDataCache;
       });
   return loadPromise.then(function (sampleData) {
@@ -117,16 +112,13 @@ function loadSampleData(action, payload) {
     }
     if (action === "createServiceRecord") {
       const newRecord = Object.assign(
-        {
-          recordId: sampleRecordNextId++
-        },
+        { recordId: sampleRecordNextId++ },
         normalizeServiceRecord(payload.record)
       );
       sampleData.serviceRecords.push(newRecord);
-      appLog("INFO", "範例模式新增出勤紀錄完成", newRecord);
       return {
         success: true,
-        message: "範例模式：簽到成功，資料已顯示於表格",
+        message: "範例模式：簽到成功",
         data: newRecord
       };
     }
@@ -136,7 +128,6 @@ function loadSampleData(action, payload) {
         return Number(item.recordId) === recordId;
       });
       if (index < 0) {
-        appLog("ERROR", "範例模式找不到要修改的紀錄", payload.record);
         return {
           success: false,
           message: "找不到要修改的紀錄",
@@ -172,6 +163,9 @@ function loadSampleData(action, payload) {
     };
   });
 }
+/* =======================================================
+   資料標準化
+======================================================= */
 function normalizeServiceRecord(record) {
   const normalizedRecord = Object.assign({}, record);
   normalizedRecord.serviceType = normalizeServiceType(normalizedRecord.serviceType);
@@ -179,6 +173,9 @@ function normalizeServiceRecord(record) {
 }
 function normalizeServiceType(serviceType) {
   if (serviceType === "協勤") {
+    return appConfig.serviceTypes.standby;
+  }
+  if (serviceType === "備勤") {
     return appConfig.serviceTypes.standby;
   }
   return serviceType || "";
@@ -189,6 +186,20 @@ function getServiceTypeDisplayName(serviceType) {
     return "協勤";
   }
   return normalizedType || "-";
+}
+function setServiceTypeSelectValue(selector, serviceType) {
+  const normalizedType = normalizeServiceType(serviceType);
+  const select = $(selector);
+  if (select.find(`option[value="${normalizedType}"]`).length > 0) {
+    select.val(normalizedType);
+    return;
+  }
+  if (normalizedType === appConfig.serviceTypes.standby && select.find('option[value="協勤"]').length > 0) {
+    select.val("協勤");
+    return;
+  }
+  select.append(`<option value="${escapeHtml(normalizedType)}">${escapeHtml(getServiceTypeDisplayName(normalizedType))}</option>`);
+  select.val(normalizedType);
 }
 function filterSampleServiceRecords(records, payload) {
   let filteredRecords = records.slice();
@@ -214,6 +225,9 @@ function filterSampleServiceRecords(records, payload) {
   }
   return filteredRecords;
 }
+/* =======================================================
+   人員
+======================================================= */
 function loadPeople() {
   callApi("getPeople", {}).then(function (response) {
     if (!response.success) {
@@ -272,6 +286,9 @@ function findPerson(personName) {
     return item.name === personName;
   });
 }
+/* =======================================================
+   出勤紀錄
+======================================================= */
 function loadServiceRecords() {
   if (!currentPerson) {
     renderServiceRecordTable([]);
@@ -334,192 +351,9 @@ function buildTableActionButtons(record) {
     return "-";
   }
   return `
-    <button class="btn btn-sm btn-outline-primary me-1" onclick="editRecord(${record.recordId})">
-      修改
-    </button>
-    <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord(${record.recordId})">
-      刪除
-    </button>
+    <button class="btn btn-sm btn-outline-primary me-1" onclick="editRecord(${record.recordId})">修改</button>
+    <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord(${record.recordId})">刪除</button>
   `;
-}
-function openCheckInModal() {
-  if (!currentPerson) {
-    showAlert("請先切換使用者", "warning");
-    return;
-  }
-  const openRecord = findOpenServiceRecord(currentPerson.name);
-  if (openRecord) {
-    showAlert("已有尚未簽退的紀錄，請先完成簽退後再簽到", "warning");
-    return;
-  }
-  hideModalAlert("#checkInAlertContainer");
-  ensureHalfHourOptions();
-  const now = new Date();
-  $("#checkInServiceType").prop("disabled", false);
-  $("#checkInServiceType").val(appConfig.serviceTypes.standby);
-  $("#checkInNameSelect").val(currentPerson.name);
-  $("#checkInDateInput").val(formatDate(now));
-  $("#checkInTimeSelect").val(formatHalfHour(now));
-  syncCheckInTitle();
-  updateCheckInDutyType();
-  $("#checkInModal").modal("show");
-}
-function openCheckOutModal() {
-  if (!currentPerson) {
-    showAlert("請先切換使用者", "warning");
-    return;
-  }
-  const openRecord = findOpenServiceRecord(currentPerson.name);
-  if (!openRecord) {
-    showAlert("目前沒有尚未簽退的簽到紀錄，不能簽退", "warning");
-    return;
-  }
-  hideModalAlert("#checkOutAlertContainer");
-  ensureHalfHourOptions();
-  const now = new Date();
-  const normalizedServiceType = normalizeServiceType(openRecord.serviceType);
-  editingRecordId = openRecord.recordId;
-  $("#checkOutServiceType").prop("disabled", false);
-  $("#checkOutServiceType").val(normalizedServiceType);
-  $("#checkOutNameSelect").val(currentPerson.name);
-  $("#checkOutDateInput").val(formatDate(now));
-  $("#checkOutTimeSelect").val(formatHalfHour(now));
-  $("#serviceContentInput").val(openRecord.serviceContent || "");
-  updateCheckOutDutyType();
-  if (normalizedServiceType === appConfig.serviceTypes.standby) {
-    $("#checkOutDutyType").val(openRecord.dutyType || appConfig.dutyTypes.dispatch);
-  }
-  syncCheckOutTitle();
-  updateCheckOutContentBlock();
-  clearSignature();
-  showModalAlert(
-    "#checkOutAlertContainer",
-    `已帶入尚未簽退紀錄：${getServiceTypeDisplayName(openRecord.serviceType)}`,
-    "info"
-  );
-  $("#checkOutModal").modal("show");
-}
-function submitCheckIn(event) {
-  event.preventDefault();
-  hideModalAlert("#checkInAlertContainer");
-  const personName = $("#checkInNameSelect").val();
-  const openRecord = findOpenServiceRecord(personName);
-  if (openRecord) {
-    showModalAlert("#checkInAlertContainer", "已有尚未簽退紀錄，不能重複簽到", "danger");
-    return;
-  }
-  const serviceType = normalizeServiceType($("#checkInServiceType").val());
-  if ((serviceType === appConfig.serviceTypes.standby || serviceType === appConfig.serviceTypes.annualTraining) && !isLocationAllowed()) {
-    showModalAlert("#checkInAlertContainer", getCurrentLocationBlockMessage("無法簽到"), "danger");
-    return;
-  }
-  const dutyType = serviceType === appConfig.serviceTypes.annualTraining ? $("#checkInDutyType").val() : "";
-  const checkInDate = $("#checkInDateInput").val();
-  const record = {
-    serviceType: serviceType,
-    dutyType: dutyType,
-    eventDate: checkInDate,
-    checkInDate: checkInDate,
-    checkInTime: $("#checkInTimeSelect").val(),
-    checkOutDate: "",
-    checkOutTime: "",
-    name: personName,
-    serviceContent: ""
-  };
-  callApi("createServiceRecord", { record: record }).then(function (response) {
-    if (!response.success) {
-      showModalAlert("#checkInAlertContainer", response.message, "danger");
-      return;
-    }
-    showAlert(response.message, "success");
-    $("#checkInModal").modal("hide");
-    loadServiceRecords();
-  });
-}
-function submitCheckOut(event) {
-  event.preventDefault();
-  hideModalAlert("#checkOutAlertContainer");
-  if (!signaturePadState.hasSignature) {
-    showModalAlert("#checkOutAlertContainer", "請先完成簽名後再送出簽退", "danger");
-    return;
-  }
-  const personName = $("#checkOutNameSelect").val();
-  const targetRecord = editingRecordId
-    ? findServiceRecordById(editingRecordId)
-    : findOpenServiceRecord(personName);
-  if (!targetRecord) {
-    showModalAlert("#checkOutAlertContainer", "找不到尚未簽退的紀錄，不能簽退", "danger");
-    return;
-  }
-  const serviceType = normalizeServiceType($("#checkOutServiceType").val());
-  const dutyType = serviceType === appConfig.serviceTypes.standby ? $("#checkOutDutyType").val() : "";
-  const checkOutDate = $("#checkOutDateInput").val();
-  const checkOutTime = $("#checkOutTimeSelect").val();
-  const updatedRecord = Object.assign({}, targetRecord, {
-    recordId: targetRecord.recordId,
-    serviceType: serviceType,
-    dutyType: dutyType,
-    eventDate: targetRecord.eventDate || targetRecord.checkInDate,
-    checkOutDate: checkOutDate,
-    checkOutTime: checkOutTime,
-    name: personName,
-    serviceContent: shouldShowCheckOutContent() ? $("#serviceContentInput").val() : targetRecord.serviceContent || ""
-  });
-  callApi("updateOpenRecord", { record: updatedRecord }).then(function (response) {
-    if (!response.success) {
-      showModalAlert("#checkOutAlertContainer", response.message, "danger");
-      return;
-    }
-    showAlert(response.message, "success");
-    $("#checkOutModal").modal("hide");
-    editingRecordId = null;
-    loadServiceRecords();
-  });
-}
-function editRecord(recordId) {
-  if (!servicePageConfig.enableTableActions) {
-    showAlert("目前已關閉表格操作功能", "warning");
-    return;
-  }
-  const record = findServiceRecordById(recordId);
-  if (!record) {
-    showAlert("找不到要修改的紀錄", "danger");
-    return;
-  }
-  hideModalAlert("#checkOutAlertContainer");
-  ensureHalfHourOptions();
-  const normalizedServiceType = normalizeServiceType(record.serviceType);
-  editingRecordId = recordId;
-  $("#checkOutServiceType").prop("disabled", false);
-  $("#checkOutServiceType").val(normalizedServiceType);
-  $("#checkOutNameSelect").val(record.name);
-  $("#checkOutDateInput").val(record.checkOutDate || formatDate(new Date()));
-  $("#checkOutTimeSelect").val(record.checkOutTime || formatHalfHour(new Date()));
-  $("#serviceContentInput").val(record.serviceContent || "");
-  updateCheckOutDutyType();
-  if (normalizedServiceType === appConfig.serviceTypes.standby) {
-    $("#checkOutDutyType").val(record.dutyType || appConfig.dutyTypes.dispatch);
-  }
-  syncCheckOutTitle();
-  updateCheckOutContentBlock();
-  clearSignature();
-  showModalAlert("#checkOutAlertContainer", "目前為修改紀錄模式", "info");
-  $("#checkOutModal").modal("show");
-}
-function deleteRecord(recordId) {
-  if (!servicePageConfig.enableTableActions) {
-    showAlert("目前已關閉表格操作功能", "warning");
-    return;
-  }
-  if (!confirm("確定要刪除這筆紀錄？")) {
-    return;
-  }
-  callApi("deleteServiceRecord", { recordId: recordId }).then(function (response) {
-    showAlert(response.message, response.success ? "success" : "danger");
-    if (response.success) {
-      loadServiceRecords();
-    }
-  });
 }
 function findServiceRecordById(recordId) {
   return serviceRecords.find(function (record) {
@@ -544,6 +378,192 @@ function findOpenServiceRecord(personName) {
     });
   return records.length > 0 ? records[0] : null;
 }
+/* =======================================================
+   簽到
+======================================================= */
+function openCheckInModal() {
+  if (!currentPerson) {
+    showAlert("請先切換使用者", "warning");
+    return;
+  }
+  const openRecord = findOpenServiceRecord(currentPerson.name);
+  if (openRecord) {
+    showAlert("已有尚未簽退的紀錄，請先完成簽退後再簽到", "warning");
+    return;
+  }
+  hideModalAlert("#checkInAlertContainer");
+  ensureHalfHourOptions();
+  const now = new Date();
+  setServiceTypeSelectValue("#checkInServiceType", appConfig.serviceTypes.standby);
+  $("#checkInNameSelect").val(currentPerson.name);
+  $("#checkInDateInput").val(formatDate(now));
+  $("#checkInTimeSelect").val(formatHalfHour(now));
+  syncCheckInTitle();
+  updateCheckInDutyType();
+  $("#checkInModal").modal("show");
+}
+function submitCheckIn(event) {
+  event.preventDefault();
+  hideModalAlert("#checkInAlertContainer");
+  const personName = $("#checkInNameSelect").val();
+  const openRecord = findOpenServiceRecord(personName);
+  if (openRecord) {
+    showModalAlert("#checkInAlertContainer", "已有尚未簽退紀錄，不能重複簽到", "danger");
+    return;
+  }
+  const serviceType = normalizeServiceType($("#checkInServiceType").val());
+  if ((serviceType === appConfig.serviceTypes.standby || serviceType === appConfig.serviceTypes.annualTraining) && !isLocationAllowed()) {
+    showModalAlert("#checkInAlertContainer", getCurrentLocationBlockMessage("無法簽到"), "danger");
+    return;
+  }
+  const checkInDate = $("#checkInDateInput").val();
+  const record = {
+    serviceType: serviceType,
+    dutyType: serviceType === appConfig.serviceTypes.annualTraining ? $("#checkInDutyType").val() : "",
+    eventDate: checkInDate,
+    checkInDate: checkInDate,
+    checkInTime: $("#checkInTimeSelect").val(),
+    checkOutDate: "",
+    checkOutTime: "",
+    name: personName,
+    serviceContent: ""
+  };
+  callApi("createServiceRecord", { record: record }).then(function (response) {
+    if (!response.success) {
+      showModalAlert("#checkInAlertContainer", response.message, "danger");
+      return;
+    }
+    showAlert(response.message, "success");
+    $("#checkInModal").modal("hide");
+    loadServiceRecords();
+  });
+}
+/* =======================================================
+   簽退
+======================================================= */
+function openCheckOutModal() {
+  if (!currentPerson) {
+    showAlert("請先切換使用者", "warning");
+    return;
+  }
+  const openRecord = findOpenServiceRecord(currentPerson.name);
+  if (!openRecord) {
+    showAlert("目前沒有尚未簽退的簽到紀錄，不能簽退", "warning");
+    return;
+  }
+  hideModalAlert("#checkOutAlertContainer");
+  ensureHalfHourOptions();
+  const now = new Date();
+  const normalizedServiceType = normalizeServiceType(openRecord.serviceType);
+  const person = findPerson(openRecord.name);
+  editingRecordId = openRecord.recordId;
+  setServiceTypeSelectValue("#checkOutServiceType", normalizedServiceType);
+  $("#checkOutNameSelect").val(openRecord.name);
+  $("#checkOutTitleInput").val(person ? person.title : "-");
+  $("#checkOutDateInput").val(formatDate(now));
+  $("#checkOutTimeSelect").val(formatHalfHour(now));
+  $("#serviceContentInput").val(openRecord.serviceContent || "");
+  updateCheckOutDutyType();
+  if (normalizedServiceType === appConfig.serviceTypes.standby) {
+    $("#checkOutDutyType").val(openRecord.dutyType || appConfig.dutyTypes.dispatch);
+  }
+  updateCheckOutContentBlock();
+  clearSignature();
+  showModalAlert(
+    "#checkOutAlertContainer",
+    `已帶入尚未簽退紀錄：${getServiceTypeDisplayName(openRecord.serviceType)}`,
+    "info"
+  );
+  $("#checkOutModal").modal("show");
+}
+function submitCheckOut(event) {
+  event.preventDefault();
+  hideModalAlert("#checkOutAlertContainer");
+  if (!signaturePadState.hasSignature) {
+    showModalAlert("#checkOutAlertContainer", "請先完成簽名後再送出簽退", "danger");
+    return;
+  }
+  const personName = $("#checkOutNameSelect").val();
+  const targetRecord = editingRecordId
+    ? findServiceRecordById(editingRecordId)
+    : findOpenServiceRecord(personName);
+  if (!targetRecord) {
+    showModalAlert("#checkOutAlertContainer", "找不到尚未簽退的紀錄，不能簽退", "danger");
+    return;
+  }
+  const serviceType = normalizeServiceType($("#checkOutServiceType").val());
+  const updatedRecord = Object.assign({}, targetRecord, {
+    recordId: targetRecord.recordId,
+    serviceType: serviceType,
+    dutyType: serviceType === appConfig.serviceTypes.standby ? $("#checkOutDutyType").val() : "",
+    eventDate: targetRecord.eventDate || targetRecord.checkInDate,
+    checkOutDate: $("#checkOutDateInput").val(),
+    checkOutTime: $("#checkOutTimeSelect").val(),
+    name: personName,
+    serviceContent: shouldShowCheckOutContent() ? $("#serviceContentInput").val() : targetRecord.serviceContent || ""
+  });
+  callApi("updateOpenRecord", { record: updatedRecord }).then(function (response) {
+    if (!response.success) {
+      showModalAlert("#checkOutAlertContainer", response.message, "danger");
+      return;
+    }
+    showAlert(response.message, "success");
+    $("#checkOutModal").modal("hide");
+    editingRecordId = null;
+    loadServiceRecords();
+  });
+}
+/* =======================================================
+   修改 / 刪除
+======================================================= */
+function editRecord(recordId) {
+  if (!servicePageConfig.enableTableActions) {
+    showAlert("目前已關閉表格操作功能", "warning");
+    return;
+  }
+  const record = findServiceRecordById(recordId);
+  if (!record) {
+    showAlert("找不到要修改的紀錄", "danger");
+    return;
+  }
+  hideModalAlert("#checkOutAlertContainer");
+  ensureHalfHourOptions();
+  const normalizedServiceType = normalizeServiceType(record.serviceType);
+  const person = findPerson(record.name);
+  editingRecordId = recordId;
+  setServiceTypeSelectValue("#checkOutServiceType", normalizedServiceType);
+  $("#checkOutNameSelect").val(record.name);
+  $("#checkOutTitleInput").val(person ? person.title : "-");
+  $("#checkOutDateInput").val(record.checkOutDate || formatDate(new Date()));
+  $("#checkOutTimeSelect").val(record.checkOutTime || formatHalfHour(new Date()));
+  $("#serviceContentInput").val(record.serviceContent || "");
+  updateCheckOutDutyType();
+  if (normalizedServiceType === appConfig.serviceTypes.standby) {
+    $("#checkOutDutyType").val(record.dutyType || appConfig.dutyTypes.dispatch);
+  }
+  updateCheckOutContentBlock();
+  clearSignature();
+  showModalAlert("#checkOutAlertContainer", "目前為修改紀錄模式", "info");
+  $("#checkOutModal").modal("show");
+}
+function deleteRecord(recordId) {
+  if (!servicePageConfig.enableTableActions) {
+    showAlert("目前已關閉表格操作功能", "warning");
+    return;
+  }
+  if (!confirm("確定要刪除這筆紀錄？")) {
+    return;
+  }
+  callApi("deleteServiceRecord", { recordId: recordId }).then(function (response) {
+    showAlert(response.message, response.success ? "success" : "danger");
+    if (response.success) {
+      loadServiceRecords();
+    }
+  });
+}
+/* =======================================================
+   表單顯示控制
+======================================================= */
 function updateCheckInDutyType() {
   const serviceType = normalizeServiceType($("#checkInServiceType").val());
   if (serviceType === appConfig.serviceTypes.annualTraining) {
@@ -591,6 +611,9 @@ function syncCheckOutTitle() {
   const person = findPerson($("#checkOutNameSelect").val());
   $("#checkOutTitleInput").val(person ? person.title : "-");
 }
+/* =======================================================
+   時間
+======================================================= */
 function ensureHalfHourOptions() {
   if ($("#checkInTimeSelect option").length === 0 || $("#checkOutTimeSelect option").length === 0) {
     fillHalfHourOptions();
@@ -612,6 +635,31 @@ function renderOptions(selector, values) {
   });
   $(selector).html(html.join(""));
 }
+function setDefaultFilterDates() {
+  const now = new Date();
+  const today = formatDate(now);
+  const currentMonth = today.slice(0, 7);
+  $("#filterMonthInput").val(currentMonth);
+  $("#filterStartDateInput").val("");
+  $("#filterEndDateInput").val("");
+}
+function clearFilters() {
+  setDefaultFilterDates();
+  $("#filterServiceTypeSelect").val("");
+  loadServiceRecords();
+}
+function startClock() {
+  function updateClock() {
+    const now = new Date();
+    $("#currentTimeText").text(now.toLocaleTimeString("zh-TW", { hour12: false }));
+    $("#currentDateText").text(now.toLocaleDateString("zh-TW"));
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+}
+/* =======================================================
+   定位
+======================================================= */
 function refreshLocation(shouldShowResultAlert) {
   setLocationBadge("notLocated");
   getCurrentLocationResult().then(function (result) {
@@ -667,56 +715,9 @@ function getCurrentLocationBlockMessage(actionText) {
   }
   return `${actionText}：${currentLocationResult.message || "定位未符合條件"}`;
 }
-function showAlert(message, type) {
-  $("#serviceAlertContainer")
-    .removeClass("d-none")
-    .html(`
-      <div class="alert alert-${type} rounded-3 mb-0">
-        <i class="fa-solid fa-circle-info me-1"></i>${escapeHtml(message || "-")}
-      </div>
-    `);
-}
-function hideAlert() {
-  $("#serviceAlertContainer")
-    .addClass("d-none")
-    .empty();
-}
-function showModalAlert(selector, message, type) {
-  $(selector)
-    .removeClass("d-none")
-    .html(`
-      <div class="alert alert-${type} rounded-3 mb-0">
-        <i class="fa-solid fa-circle-info me-1"></i>${escapeHtml(message || "-")}
-      </div>
-    `);
-}
-function hideModalAlert(selector) {
-  $(selector)
-    .addClass("d-none")
-    .empty();
-}
-function clearFilters() {
-  setDefaultFilterDates();
-  $("#filterServiceTypeSelect").val("");
-  loadServiceRecords();
-}
-function setDefaultFilterDates() {
-  const now = new Date();
-  const today = formatDate(now);
-  const currentMonth = today.slice(0, 7);
-  $("#filterMonthInput").val(currentMonth);
-  $("#filterStartDateInput").val("");
-  $("#filterEndDateInput").val("");
-}
-function startClock() {
-  function updateClock() {
-    const now = new Date();
-    $("#currentTimeText").text(now.toLocaleTimeString("zh-TW", { hour12: false }));
-    $("#currentDateText").text(now.toLocaleDateString("zh-TW"));
-  }
-  updateClock();
-  setInterval(updateClock, 1000);
-}
+/* =======================================================
+   簽名
+======================================================= */
 function initializeSignatureCanvas() {
   const canvas = document.getElementById("signatureCanvas");
   const context = canvas.getContext("2d");
@@ -757,6 +758,40 @@ function clearSignature() {
   const context = canvas.getContext("2d");
   context.clearRect(0, 0, canvas.width, canvas.height);
 }
+/* =======================================================
+   Alert
+======================================================= */
+function showAlert(message, type) {
+  $("#serviceAlertContainer")
+    .removeClass("d-none")
+    .html(`
+      <div class="alert alert-${type} rounded-3 mb-0">
+        <i class="fa-solid fa-circle-info me-1"></i>${escapeHtml(message || "-")}
+      </div>
+    `);
+}
+function hideAlert() {
+  $("#serviceAlertContainer")
+    .addClass("d-none")
+    .empty();
+}
+function showModalAlert(selector, message, type) {
+  $(selector)
+    .removeClass("d-none")
+    .html(`
+      <div class="alert alert-${type} rounded-3 mb-0">
+        <i class="fa-solid fa-circle-info me-1"></i>${escapeHtml(message || "-")}
+      </div>
+    `);
+}
+function hideModalAlert(selector) {
+  $(selector)
+    .addClass("d-none")
+    .empty();
+}
+/* =======================================================
+   共用工具
+======================================================= */
 function calculateRecordHours(record) {
   if (!record.checkInDate || !record.checkInTime || !record.checkOutDate || !record.checkOutTime) {
     return 0;
