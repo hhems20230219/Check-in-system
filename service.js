@@ -1,3 +1,5 @@
+以下是完整修正後 service.js。
+
 let people = [];
 let currentPerson = null;
 let serviceRecords = [];
