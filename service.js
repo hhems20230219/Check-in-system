@@ -1,7 +1,3 @@
-修正重點：資料值仍用 備勤，畫面顯示改成 協勤，簽退會依尚未簽退紀錄帶入，沒有尚未簽退紀錄就不能簽退。
-
-service.js
-
 let people = [];
 let currentPerson = null;
 let serviceRecords = [];
